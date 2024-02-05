@@ -31,6 +31,8 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "DigestAuthentication.hh"
 #endif
 
+#define RTSPCLIENT_SYNCHRONOUS_INTERFACE 1 // For now, continue to support the old synchronous interface as well
+
 class RTSPClient: public Medium {
 public:
   static RTSPClient* createNew(UsageEnvironment& env, char const* rtspURL,
@@ -203,7 +205,6 @@ private:
   class RequestQueue {
   public:
     RequestQueue();
-    RequestQueue(RequestQueue& origQueue); // moves the queue contents to the new queue
     virtual ~RequestQueue();
 
     void enqueue(RequestRecord* request); // "request" must not be NULL
@@ -264,10 +265,8 @@ private:
   void incomingDataHandler1();
   void handleResponseBytes(int newBytesRead);
 
-protected:
-  int fVerbosityLevel;
-
 private:
+  int fVerbosityLevel;
   portNumBits fTunnelOverHTTPPortNum;
   char* fUserAgentHeaderStr;
   unsigned fUserAgentHeaderStrLen;

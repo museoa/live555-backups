@@ -49,9 +49,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #ifndef _RTCP_HH
 #include "RTCP.hh"
 #endif
-#ifndef _FRAMED_FILTER_HH
-#include "FramedFilter.hh"
-#endif
 
 class MediaSubsession; // forward
 
@@ -168,8 +165,6 @@ public:
   FramedSource* readSource() { return fReadSource; }
     // This is the source that client sinks read from.  It is usually
     // (but not necessarily) the same as "rtpSource()"
-  void addFilter(FramedFilter* filter);
-    // Changes "readSource()" to "filter" (which must have just been created with "readSource()" as its input)
 
   double playStartTime() const;
   double playEndTime() const;
@@ -186,16 +181,12 @@ public:
       // this subsession would use.  (By default, the client port number
       // is gotten from the original SDP description, or - if the SDP
       // description does not specfy a client port number - an ephemeral
-      // (even) port number is chosen.)  This routine must *not* be
+      // (even) port number is chosen.)  This routine should *not* be
       // called after initiate().
-  void receiveRawMP3ADUs() { fReceiveRawMP3ADUs = True; } // optional hack for audio/MPA-ROBUST; must not be called after Initiate()
   char*& connectionEndpointName() { return fConnectionEndpointName; }
   char const* connectionEndpointName() const {
     return fConnectionEndpointName;
   }
-
-  // 'Bandwidth' parameter, set in the "b=" SDP line:
-  unsigned bandwidth() const { return fBandwidth; }
 
   // Various parameters set in "a=fmtp:" SDP lines:
   unsigned fmtp_auxiliarydatasizelength() const { return fAuxiliarydatasizelength; }
@@ -232,11 +223,9 @@ public:
       // the destination address and port of the RTP and RTCP objects.
       // This is typically called by RTSP clients after doing "SETUP".
 
-  char const* sessionId() const { return fSessionId; }
-  void setSessionId(char const* sessionId);
-
   // Public fields that external callers can use to keep state.
   // (They are responsible for all storage management on these fields)
+  char const* sessionId; // used by RTSP
   unsigned short serverPortNum; // in host byte order (used by RTSP)
   unsigned char rtpChannelId, rtcpChannelId; // used by RTSP (for RTP/TCP)
   MediaSink* sink; // callers can use this to keep track of who's playing us
@@ -320,14 +309,10 @@ protected:
   float fScale; // set from a RTSP "Scale:" header
   double fNPT_PTS_Offset; // set by "getNormalPlayTime()"; add this to a PTS to get NPT
 
-  // Fields set or used by initiate():
+  // Fields set by initiate():
   Groupsock* fRTPSocket; Groupsock* fRTCPSocket; // works even for unicast
   RTPSource* fRTPSource; RTCPInstance* fRTCPInstance;
   FramedSource* fReadSource;
-  Boolean fReceiveRawMP3ADUs;
-
-  // Other fields:
-  char* fSessionId; // used by RTSP
 };
 
 #endif

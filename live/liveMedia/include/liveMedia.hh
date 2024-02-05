@@ -67,7 +67,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "H261VideoRTPSource.hh"
 #include "H263plusVideoRTPSource.hh"
 #include "H264VideoRTPSource.hh"
-#include "MP3FileSource.hh"
+#include "MP3HTTPSource.hh"
 #include "MP3ADU.hh"
 #include "MP3ADUinterleaving.hh"
 #include "MP3Transcoder.hh"
@@ -85,7 +85,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "DeviceSource.hh"
 #include "AudioInputDevice.hh"
 #include "WAVAudioFileSource.hh"
-#include "StreamReplicator.hh"
 #include "RTSPServerSupportingHTTPStreaming.hh"
 #include "RTSPClient.hh"
 #include "SIPClient.hh"
@@ -109,9 +108,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "ADTSAudioFileServerMediaSubsession.hh"
 #include "DVVideoFileServerMediaSubsession.hh"
 #include "AC3AudioFileServerMediaSubsession.hh"
-#include "MPEG2TransportUDPServerMediaSubsession.hh"
 #include "MatroskaFileServerDemux.hh"
-#include "ProxyServerMediaSession.hh"
 #include "DarwinInjector.hh"
 
 #endif

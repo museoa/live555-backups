@@ -20,33 +20,25 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 #include "MPEG4ESVideoRTPSink.hh"
 #include "MPEG4VideoStreamFramer.hh"
-#include "MPEG4LATMAudioRTPSource.hh" // for "parseGeneralConfigStr()"
 
 MPEG4ESVideoRTPSink
-::MPEG4ESVideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat, u_int32_t rtpTimestampFrequency,
-		      u_int8_t profileAndLevelIndication, char const* configStr)
+::MPEG4ESVideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
+		      unsigned char rtpPayloadFormat,
+		      u_int32_t rtpTimestampFrequency)
   : VideoRTPSink(env, RTPgs, rtpPayloadFormat, rtpTimestampFrequency, "MP4V-ES"),
-    fVOPIsPresent(False), fProfileAndLevelIndication(profileAndLevelIndication), fFmtpSDPLine(NULL) {
-  fConfigBytes = parseGeneralConfigStr(configStr, fNumConfigBytes);
+    fVOPIsPresent(False), fFmtpSDPLine(NULL) {
 }
 
 MPEG4ESVideoRTPSink::~MPEG4ESVideoRTPSink() {
   delete[] fFmtpSDPLine;
-  delete[] fConfigBytes;
 }
 
 MPEG4ESVideoRTPSink*
-MPEG4ESVideoRTPSink::createNew(UsageEnvironment& env,
-			       Groupsock* RTPgs, unsigned char rtpPayloadFormat,
+MPEG4ESVideoRTPSink::createNew(UsageEnvironment& env, Groupsock* RTPgs,
+			       unsigned char rtpPayloadFormat,
 			       u_int32_t rtpTimestampFrequency) {
-  return new MPEG4ESVideoRTPSink(env, RTPgs, rtpPayloadFormat, rtpTimestampFrequency);
-}
-
-MPEG4ESVideoRTPSink*
-MPEG4ESVideoRTPSink::createNew(UsageEnvironment& env,
-			       Groupsock* RTPgs, unsigned char rtpPayloadFormat, u_int32_t rtpTimestampFrequency,
-			       u_int8_t profileAndLevelIndication, char const* configStr) {
-  return new MPEG4ESVideoRTPSink(env, RTPgs, rtpPayloadFormat, rtpTimestampFrequency, profileAndLevelIndication, configStr);
+  return new MPEG4ESVideoRTPSink(env, RTPgs, rtpPayloadFormat,
+				 rtpTimestampFrequency);
 }
 
 Boolean MPEG4ESVideoRTPSink::sourceIsCompatibleWithUs(MediaSource& source) {
@@ -100,22 +92,18 @@ Boolean MPEG4ESVideoRTPSink
 }
 
 char const* MPEG4ESVideoRTPSink::auxSDPLine() {
-  // Generate a new "a=fmtp:" line each time, using our own 'configuration' information (if we have it),
-  // otherwise parameters from our framer source (in case they've changed since the last time that
+  // Generate a new "a=fmtp:" line each time, using parameters from
+  // our framer source (in case they've changed since the last time that
   // we were called):
-  unsigned configLength = fNumConfigBytes;
-  unsigned char* config = fConfigBytes;
-  if (fProfileAndLevelIndication == 0 || config == NULL) {
-    // We need to get this information from our framer source:
-    MPEG4VideoStreamFramer* framerSource = (MPEG4VideoStreamFramer*)fSource;
-    if (framerSource == NULL) return NULL; // we don't yet have a source
+  MPEG4VideoStreamFramer* framerSource = (MPEG4VideoStreamFramer*)fSource;
+  if (framerSource == NULL) return NULL; // we don't yet have a source
 
-    fProfileAndLevelIndication = framerSource->profile_and_level_indication();
-    if (fProfileAndLevelIndication == 0) return NULL; // our source isn't ready
+  u_int8_t profile_level_id = framerSource->profile_and_level_indication();
+  if (profile_level_id == 0) return NULL; // our source isn't ready
 
-    config = framerSource->getConfigBytes(configLength);
-    if (config == NULL) return NULL; // our source isn't ready
-  }
+  unsigned configLength;
+  unsigned char* config = framerSource->getConfigBytes(configLength);
+  if (config == NULL) return NULL; // our source isn't ready
 
   char const* fmtpFmt =
     "a=fmtp:%d "
@@ -127,7 +115,7 @@ char const* MPEG4ESVideoRTPSink::auxSDPLine() {
     + 2*configLength /* 2*, because each byte prints as 2 chars */
     + 2 /* trailing \r\n */;
   char* fmtp = new char[fmtpFmtSize];
-  sprintf(fmtp, fmtpFmt, rtpPayloadType(), fProfileAndLevelIndication);
+  sprintf(fmtp, fmtpFmt, rtpPayloadType(), profile_level_id);
   char* endPtr = &fmtp[strlen(fmtp)];
   for (unsigned i = 0; i < configLength; ++i) {
     sprintf(endPtr, "%02X", config[i]);

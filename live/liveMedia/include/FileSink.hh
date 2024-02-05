@@ -52,9 +52,8 @@ protected:
 				unsigned numTruncatedBytes,
 				struct timeval presentationTime,
 				unsigned durationInMicroseconds);
-  virtual void afterGettingFrame(unsigned frameSize,
-				 unsigned numTruncatedBytes,
-				 struct timeval presentationTime);
+  virtual void afterGettingFrame1(unsigned frameSize,
+				  struct timeval presentationTime);
 
   FILE* fOutFid;
   unsigned char* fBuffer;

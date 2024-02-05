@@ -28,17 +28,14 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 class MPEG4ESVideoRTPSink: public VideoRTPSink {
 public:
   static MPEG4ESVideoRTPSink* createNew(UsageEnvironment& env,
-					Groupsock* RTPgs, unsigned char rtpPayloadFormat,
+					Groupsock* RTPgs,
+					unsigned char rtpPayloadFormat,
 					u_int32_t rtpTimestampFrequency = 90000);
-  static MPEG4ESVideoRTPSink* createNew(UsageEnvironment& env,
-					Groupsock* RTPgs, unsigned char rtpPayloadFormat, u_int32_t rtpTimestampFrequency,
-					u_int8_t profileAndLevelIndication, char const* configStr);
-    // an optional variant of "createNew()", useful if we know, in advance, the stream's 'configuration' info.
-
 
 protected:
-  MPEG4ESVideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat, u_int32_t rtpTimestampFrequency,
-		      u_int8_t profileAndLevelIndication = 0, char const* configStr = NULL);
+  MPEG4ESVideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
+		      unsigned char rtpPayloadFormat,
+		      u_int32_t rtpTimestampFrequency);
 	// called only by createNew()
 
   virtual ~MPEG4ESVideoRTPSink();
@@ -62,10 +59,6 @@ protected:
   Boolean fVOPIsPresent;
 
 private:
-  u_int8_t fProfileAndLevelIndication;
-  unsigned char* fConfigBytes;
-  unsigned fNumConfigBytes;
-
   char* fFmtpSDPLine;
 };
 

@@ -145,10 +145,6 @@ void RTPInterface::addStreamSocket(int sockNum,
   }
 
   fTCPStreams = new tcpStreamRecord(sockNum, streamChannelId, fTCPStreams);
-
-  // Also, make sure this new socket is set up for receiving RTP/RTCP-over-TCP:
-  SocketDescriptor* socketDescriptor = lookupSocketDescriptor(envir(), sockNum);
-  socketDescriptor->registerRTPInterface(streamChannelId, this);
 }
 
 static void deregisterSocket(UsageEnvironment& env, int sockNum, unsigned char streamChannelId) {
@@ -244,7 +240,7 @@ Boolean RTPInterface::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
       curBytesToRead -= curBytesRead;
     }
     fNextTCPReadSize -= bytesRead;
-    if (fNextTCPReadSize > 0) {
+    if (curBytesRead == 0 && curBytesToRead > 0) {
       packetReadWasIncomplete = True;
       return True;
     } else if (curBytesRead < 0) {

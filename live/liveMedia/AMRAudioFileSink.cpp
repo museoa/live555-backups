@@ -62,9 +62,8 @@ Boolean AMRAudioFileSink::sourceIsCompatibleWithUs(MediaSource& source) {
   return source.isAMRAudioSource();
 }
 
-void AMRAudioFileSink::afterGettingFrame(unsigned frameSize,
-					 unsigned numTruncatedBytes,
-					 struct timeval presentationTime) {
+void AMRAudioFileSink::afterGettingFrame1(unsigned frameSize,
+					  struct timeval presentationTime) {
   AMRAudioSource* source = (AMRAudioSource*)fSource;
   if (source == NULL) return; // sanity check
 
@@ -97,5 +96,5 @@ void AMRAudioFileSink::afterGettingFrame(unsigned frameSize,
   }
 
   // Call the parent class to complete the normal file write with the input data:
-  FileSink::afterGettingFrame(frameSize, numTruncatedBytes, presentationTime);
+  FileSink::afterGettingFrame1(frameSize, presentationTime);
 }

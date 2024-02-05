@@ -41,6 +41,7 @@ protected:
   virtual ~T140TextRTPSink();
 
 protected: // redefined virtual functions:
+  virtual void stopPlaying();
   virtual Boolean continuePlaying();
   virtual void doSpecialFrameHandling(unsigned fragmentationOffset,
                                       unsigned char* frameStart,
@@ -85,11 +86,8 @@ private:
   static void handleIdleTimeout(void* clientData);
   void handleIdleTimeout();
 
-  void deliverFromBuffer();
+  Boolean deliverFromBuffer();
   void deliverEmptyFrame();
-
-  static void onSourceClosure(void* clientData);
-  void onSourceClosure();
 
 private:
   TaskToken fIdleTimerTask;

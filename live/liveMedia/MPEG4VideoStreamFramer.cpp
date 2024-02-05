@@ -25,7 +25,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 #include "MPEG4VideoStreamFramer.hh"
 #include "MPEGVideoStreamParser.hh"
-#include "MPEG4LATMAudioRTPSource.hh" // for "parseGeneralConfigStr()"
 #include <string.h>
 
 ////////// MPEG4VideoStreamParser definition //////////
@@ -98,14 +97,6 @@ unsigned char* MPEG4VideoStreamFramer
 ::getConfigBytes(unsigned& numBytes) const {
   numBytes = fNumConfigBytes;
   return fConfigBytes;
-}
-
-void MPEG4VideoStreamFramer
-::setConfigInfo(u_int8_t profileAndLevelIndication, char const* configStr) {
-  fProfileAndLevelIndication = profileAndLevelIndication;
-
-  delete[] fConfigBytes;
-  fConfigBytes = parseGeneralConfigStr(configStr, fNumConfigBytes);
 }
 
 MPEG4VideoStreamFramer::MPEG4VideoStreamFramer(UsageEnvironment& env,

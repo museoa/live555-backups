@@ -15,36 +15,34 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 **********/
 // "liveMedia"
 // Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
-// AMR Audio File Sinks
+// MP3 HTTP Sources
 // C++ header
 
-#ifndef _AMR_AUDIO_FILE_SINK_HH
-#define _AMR_AUDIO_FILE_SINK_HH
+#ifndef _MP3_HTTP_SOURCE_HH
+#define _MP3_HTTP_SOURCE_HH
 
-#ifndef _FILE_SINK_HH
-#include "FileSink.hh"
+#ifndef _MP3_FILE_SOURCE_HH
+#include "MP3FileSource.hh"
+#endif
+#ifndef _NET_ADDRESS_HH
+#include "NetAddress.hh"
 #endif
 
-class AMRAudioFileSink: public FileSink {
+class MP3HTTPSource: public MP3FileSource {
 public:
-  static AMRAudioFileSink* createNew(UsageEnvironment& env, char const* fileName,
-				     unsigned bufferSize = 10000,
-				     Boolean oneFilePerFrame = False);
-  // (See "FileSink.hh" for a description of these parameters.)
+  static MP3HTTPSource* createNew(UsageEnvironment& env,
+				  NetAddress const& address, Port port,
+				  char const* remoteHostName,
+				  char const* fileName);
 
-protected:
-  AMRAudioFileSink(UsageEnvironment& env, FILE* fid, unsigned bufferSize,
-		   char const* perFrameFileNamePrefix);
+  virtual ~MP3HTTPSource();
+
+private:
+  MP3HTTPSource(UsageEnvironment& env, FILE* fid);
       // called only by createNew()
-  virtual ~AMRAudioFileSink();
 
-protected: // redefined virtual functions:
-  virtual Boolean sourceIsCompatibleWithUs(MediaSource& source);
-  virtual void afterGettingFrame1(unsigned frameSize,
-				  struct timeval presentationTime);
-
-protected:
-  Boolean fHaveWrittenHeader;
+  void writeGetCmd(char const* hostName, unsigned portNum,
+		   char const* fileName);
 };
 
 #endif

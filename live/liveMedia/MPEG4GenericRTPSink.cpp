@@ -19,8 +19,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 // Implementation
 
 #include "MPEG4GenericRTPSink.hh"
-#include "Locale.hh"
-#include <ctype.h> // needed on some systems to define "tolower()"
 
 MPEG4GenericRTPSink
 ::MPEG4GenericRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
@@ -36,18 +34,9 @@ MPEG4GenericRTPSink
   // Check whether "mpeg4Mode" is one that we handle:
   if (mpeg4Mode == NULL) {
     env << "MPEG4GenericRTPSink error: NULL \"mpeg4Mode\" parameter\n";
-  } else {
-    // To ease comparison, convert "mpeg4Mode" to lower case:
-    size_t const len = strlen(mpeg4Mode) + 1;
-    char* m = new char[len];
-
-    Locale l("POSIX");
-    for (size_t i = 0; i < len; ++i) m[i] = tolower(mpeg4Mode[i]); 
-
-    if (strcmp(m, "aac-hbr") != 0) {
-      env << "MPEG4GenericRTPSink error: Unknown \"mpeg4Mode\" parameter: \"" << mpeg4Mode << "\"\n";
-    }
-    delete[] m;
+  } else if (strcmp(mpeg4Mode, "AAC-hbr") != 0) {
+    env << "MPEG4GenericRTPSink error: Unknown \"mpeg4Mode\" parameter: \""
+	<< mpeg4Mode << "\"\n";
   }
 
   // Set up the "a=fmtp:" SDP line for this stream:

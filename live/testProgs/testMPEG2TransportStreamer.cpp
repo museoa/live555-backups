@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
 #ifdef USE_SSM
     = "232.255.42.42";
 #else
-  = "239.255.42.42";
+    = "239.255.42.42";
   // Note: This is a multicast address.  If you wish to stream using
   // unicast instead, then replace this string with the unicast address
   // of the (single) destination.  (You may also need to make a similar
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 
   // Create an appropriate 'RTP sink' from the RTP 'groupsock':
   videoSink =
-    SimpleRTPSink::createNew(*env, &rtpGroupsock, 33, 90000, "video", "MP2T",
+    SimpleRTPSink::createNew(*env, &rtpGroupsock, 33, 90000, "video", "mp2t",
 			     1, True, False /*no 'M' bit*/);
 
   // Create (and start) a 'RTCP instance' for this RTP sink:

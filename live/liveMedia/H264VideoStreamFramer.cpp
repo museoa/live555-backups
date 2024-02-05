@@ -21,7 +21,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "H264VideoStreamFramer.hh"
 #include "MPEGVideoStreamParser.hh"
 #include "BitVector.hh"
-#include "H264VideoRTPSource.hh" // for "parseSPropParameterSets()"
 
 ////////// H264VideoStreamParser definition //////////
 
@@ -86,21 +85,6 @@ H264VideoStreamFramer
 H264VideoStreamFramer::~H264VideoStreamFramer() {
   delete[] fLastSeenSPS;
   delete[] fLastSeenPPS;
-}
-
-void H264VideoStreamFramer::setSPSandPPS(char const* sPropParameterSetsStr) {
-  unsigned numSPropRecords;
-  SPropRecord* sPropRecords = parseSPropParameterSets(sPropParameterSetsStr, numSPropRecords);
-  for (unsigned i = 0; i < numSPropRecords; ++i) {
-    if (sPropRecords[i].sPropLength == 0) continue; // bad data
-    u_int8_t nal_unit_type = (sPropRecords[i].sPropBytes[0])&0x1F;
-    if (nal_unit_type == 7/*SPS*/) {
-      saveCopyOfSPS(sPropRecords[i].sPropBytes, sPropRecords[i].sPropLength);
-    } else if (nal_unit_type == 8/*PPS*/) {
-      saveCopyOfPPS(sPropRecords[i].sPropBytes, sPropRecords[i].sPropLength);
-    }
-  }
-  delete[] sPropRecords;
 }
 
 void H264VideoStreamFramer::saveCopyOfSPS(u_int8_t* from, unsigned size) {
@@ -701,7 +685,7 @@ unsigned H264VideoStreamParser::parse() {
 #endif
 	  thisNALUnitEndsAccessUnit = True;
 	} else {
-	  // The next NAL unit is also a VCL.  We need to examine it a little to figure out if it's a different 'access unit'.
+	  // The next NAL unit is also a VLC.  We need to examine it a little to figure out if it's a different 'access unit'.
 	  // (We use many of the criteria described in section 7.4.1.2.4 of the H.264 specification.)
 	  Boolean IdrPicFlag = nal_unit_type == 5;
 	  Boolean next_IdrPicFlag = next_nal_unit_type == 5;

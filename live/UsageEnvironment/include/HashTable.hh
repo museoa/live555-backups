@@ -45,7 +45,7 @@ class HashTable {
 	    public:
 		// The following must be implemented by a particular
 		// implementation (subclass):
-		static Iterator* create(HashTable const& hashTable);
+		static Iterator* create(HashTable& hashTable);
 
 		virtual ~Iterator();
 

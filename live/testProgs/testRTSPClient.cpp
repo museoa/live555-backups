@@ -60,8 +60,6 @@ void usage(UsageEnvironment& env, char const* progName) {
   env << "\t(where each <rtsp-url-i> is a \"rtsp://\" URL)\n";
 }
 
-char eventLoopWatchVariable = 0;
-
 int main(int argc, char** argv) {
   // Begin by setting up our usage environment:
   TaskScheduler* scheduler = BasicTaskScheduler::createNew();
@@ -79,18 +77,9 @@ int main(int argc, char** argv) {
   }
 
   // All subsequent activity takes place within the event loop:
-  env->taskScheduler().doEventLoop(&eventLoopWatchVariable);
-    // This function call does not return, unless, at some point in time, "eventLoopWatchVariable" gets set to something non-zero.
+  env->taskScheduler().doEventLoop(); // does not return
 
-  return 0;
-
-  // If you choose to continue the application past this point (i.e., if you comment out the "return 0;" statement above),
-  // and if you don't intend to do anything more with the "TaskScheduler" and "UsageEnvironment" objects,
-  // then you can also reclaim the (small) memory used by these objects by uncommenting the following code:
-  /*
-    env->reclaim(); env = NULL;
-    delete scheduler; scheduler = NULL;
-  */
+  return 0; // We never actually get to this line; this is only to prevent a possible compiler warning
 }
 
 // Define a class to hold per-stream state that we maintain throughout each stream's lifetime:
@@ -111,7 +100,7 @@ public:
 // If you're streaming just a single stream (i.e., just from a single URL, once), then you can define and use just a single
 // "StreamClientState" structure, as a global variable in your application.  However, because - in this demo application - we're
 // showing how to play multiple streams, concurrently, we can't do that.  Instead, we have to have a separate "StreamClientState"
-// structure for each "RTSPClient".  To do this, we subclass "RTSPClient", and add a "StreamClientState" field to the subclass:
+// struture for each "RTSPClient".  To do this, we subclass "RTSPClient", and add a "StreamClientState" field to the subclass:
 
 class ourRTSPClient: public RTSPClient {
 public:
@@ -197,7 +186,7 @@ void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultS
       break;
     }
 
-    char* const sdpDescription = resultString;
+    char* sdpDescription = resultString;
     env << *rtspClient << "Got a SDP description:\n" << sdpDescription << "\n";
 
     // Create a media session object from this SDP description:
@@ -377,11 +366,6 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
       if (subsession->sink != NULL) {
 	Medium::close(subsession->sink);
 	subsession->sink = NULL;
-
-	if (subsession->rtcpInstance() != NULL) {
-	  subsession->rtcpInstance()->setByeHandler(NULL, NULL); // in case the server sends a RTCP "BYE" while handling "TEARDOWN"
-	}
-
 	someSubsessionsWereActive = True;
       }
     }
@@ -399,8 +383,7 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 
   if (--rtspClientCount == 0) {
     // The final stream has ended, so exit the application now.
-    // (Of course, if you're embedding this code into your own application, you might want to comment this out,
-    // and replace it with "eventLoopWatchVariable = 1;", so that we leave the LIVE555 event loop, and continue running "main()".)
+    // (Of course, if you're embedding this code into your own application, you might want to comment this out.)
     exit(exitCode);
   }
 }

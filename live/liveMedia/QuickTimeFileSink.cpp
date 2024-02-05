@@ -403,7 +403,7 @@ Boolean QuickTimeFileSink::continuePlaying() {
 
 void QuickTimeFileSink
 ::afterGettingFrame(void* clientData, unsigned packetDataSize,
-		    unsigned numTruncatedBytes,
+		    unsigned /*numTruncatedBytes*/,
 		    struct timeval presentationTime,
 		    unsigned /*durationInMicroseconds*/) {
   SubsessionIOState* ioState = (SubsessionIOState*)clientData;
@@ -411,11 +411,6 @@ void QuickTimeFileSink
     // Ignore this data:
     ioState->fOurSink.continuePlaying();
     return;
-  }
-  if (numTruncatedBytes > 0) {
-    ioState->envir() << "QuickTimeFileSink::afterGettingFrame(): The input frame data was too large for our buffer.  "
-                     << numTruncatedBytes
-                     << " bytes of trailing data was dropped!  Correct this by increasing the \"bufferSize\" parameter in the \"createNew()\" call.\n";
   }
   ioState->afterGettingFrame(packetDataSize, presentationTime);
 }
@@ -1875,8 +1870,8 @@ addAtom(avcC);
 
   size_t comma_pos = strcspn(psets, ",");
   psets[comma_pos] = '\0';
-  char const* sps_b64 = psets;
-  char const* pps_b64 = &psets[comma_pos+1];
+  char* sps_b64 = psets;
+  char* pps_b64 = &psets[comma_pos+1];
   unsigned sps_count;
   unsigned char* sps_data = base64Decode(sps_b64, sps_count, false);
   unsigned pps_count;

@@ -81,11 +81,11 @@ Boolean FileSink::continuePlaying() {
 }
 
 void FileSink::afterGettingFrame(void* clientData, unsigned frameSize,
-				 unsigned numTruncatedBytes,
+				 unsigned /*numTruncatedBytes*/,
 				 struct timeval presentationTime,
 				 unsigned /*durationInMicroseconds*/) {
   FileSink* sink = (FileSink*)clientData;
-  sink->afterGettingFrame(frameSize, numTruncatedBytes, presentationTime);
+  sink->afterGettingFrame1(frameSize, presentationTime);
 }
 
 void FileSink::addData(unsigned char const* data, unsigned dataSize,
@@ -113,15 +113,8 @@ void FileSink::addData(unsigned char const* data, unsigned dataSize,
   }
 }
 
-void FileSink::afterGettingFrame(unsigned frameSize,
-				 unsigned numTruncatedBytes,
-				 struct timeval presentationTime) {
-  if (numTruncatedBytes > 0) {
-    envir() << "FileSink::afterGettingFrame(): The input frame data was too large for our buffer size ("
-	    << fBufferSize << ").  "
-            << numTruncatedBytes << " bytes of trailing data was dropped!  Correct this by increasing the \"bufferSize\" parameter in the \"createNew()\" call to at least "
-            << fBufferSize + numTruncatedBytes << "\n";
-  }
+void FileSink::afterGettingFrame1(unsigned frameSize,
+				  struct timeval presentationTime) {
   addData(fBuffer, frameSize, presentationTime);
 
   if (fOutFid == NULL || fflush(fOutFid) == EOF) {
