@@ -1568,19 +1568,24 @@ void RTSPClient::responseHandlerForHTTP_GET1(int responseCode, char* responseStr
     fHTTPTunnelingConnectionIsPending = True;
     int connectResult = connectToServer(fOutputSocketNum, fTunnelOverHTTPPortNum);
     if (connectResult < 0) break; // an error occurred
-    else if (connectResult == 0) {
+    else if (connectResult > 0) {
+      if (fOutputTLS->isNeeded) {
+	// We need to complete an additional TLS connection:
+	connectResult = fOutputTLS->connect(fOutputSocketNum);
+	if (connectResult < 0) break;
+	if (connectResult > 0 && fVerbosityLevel >= 1) envir() << "...TLS connection completed\n";
+      }
+
+      if (connectResult > 0 && fVerbosityLevel >= 1) envir() << "...local connection opened\n";
+    }
+
+    if (connectResult == 0) {
       // A connection is pending.  Continue setting up RTSP-over-HTTP when the connection completes.
       // First, move the pending requests to the 'awaiting connection' queue:
       while ((request = fRequestsAwaitingHTTPTunneling.dequeue()) != NULL) {
 	fRequestsAwaitingConnection.enqueue(request);
       }
       return;
-    } else { // connectResult > 0
-      if (fOutputTLS->isNeeded) {
-	// We need to complete an additional TLS connection:
-	connectResult = fOutputTLS->connect(fOutputSocketNum);
-	if (connectResult < 0) break;
-      }
     }
 
     // The connection succeeded.  Continue setting up RTSP-over-HTTP:
