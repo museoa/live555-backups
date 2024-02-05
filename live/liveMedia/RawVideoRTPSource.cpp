@@ -176,7 +176,7 @@ void RawVideoBufferedPacket::getNextEnclosedFrameParameters(unsigned char*& /*fr
   // This line ('subframe') completes a frame if it's the last line in the packet,
   // and the packet's 'M' bit was set:
   fOurSource->fCurrentPacketCompletesFrame
-    = fOurSource->fCurPacketMarkerBit && fOurSource->fNextLine == fOurSource->fNumLines;
+    = fOurSource->fCurPacketMarkerBit && fOurSource->fNextLine == fOurSource->fNumLines-1;
 
   frameSize = fOurSource->fLineHeaders[fOurSource->fNextLine++].length;
 }
