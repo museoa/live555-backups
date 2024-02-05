@@ -37,18 +37,15 @@ RawVideoRTPSink
                   unsigned height, unsigned width, unsigned depth,
                   char const* sampling, char const* colorimetry)
   : VideoRTPSink(env, RTPgs, rtpPayloadFormat, 90000, "RAW"),
-    fWidth(width), fHeight(height), fDepth(depth), fLineIndex(0) {
+    fLineIndex(0), fP(height, width, depth, sampling)  {
     
-  // Then use this 'config' string to construct our "a=fmtp:" SDP line:
+  // Construct our "a=fmtp:" SDP line:
   // ASSERT: sampling != NULL && colorimetry != NULL
   unsigned const fmtpSDPLineMaxSize
     = 200 + strlen(sampling) + strlen(colorimetry); // more than enough space
   fFmtpSDPLine = new char[fmtpSDPLineMaxSize];
   sprintf(fFmtpSDPLine, "a=fmtp:%d sampling=%s;width=%u;height=%u;depth=%u;colorimetry=%s\r\n",
 	  rtpPayloadType(), sampling, width, height, depth, colorimetry);
-
-  // Set parameters:
-  setFrameParameters(sampling);
 }
 
 RawVideoRTPSink::~RawVideoRTPSink() {
@@ -78,7 +75,7 @@ void RawVideoRTPSink
   for (unsigned i = 0; i < numLines; ++i) {
     // Increment line number if necessary:
     if ((offsets[i] == 0) && fragmentationOffset != 0) {
-      fLineIndex += fFrameParameters.scanLineIterationStep;
+      fLineIndex += fP.scanLineIterationStep;
     }
 
     // Set length:
@@ -139,7 +136,7 @@ unsigned RawVideoRTPSink
   unsigned numLines = 0;
   unsigned remainingSizeInPacket;
 
-  if (fragOffset >= fFrameParameters.frameSize) {
+  if (fragOffset >= fP.frameSize) {
     envir() << "RawVideoRTPSink::getNumLinesInPacket(): bad fragOffset " << fragOffset << "\n";
     return 0;
   }
@@ -148,8 +145,8 @@ unsigned RawVideoRTPSink
   u_int16_t lengthArray[MAX_LINES_IN_PACKET] = {0};
   u_int16_t offsetArray[MAX_LINES_IN_PACKET] = {0};
   unsigned curDataTotalLength = 0;
-  unsigned offsetWithinLine = fragOffset % fFrameParameters.scanLineSize;
-  unsigned remainingLineSize = fFrameParameters.scanLineSize - offsetWithinLine;
+  unsigned offsetWithinLine = fragOffset % fP.scanLineSize;
+  unsigned remainingLineSize = fP.scanLineSize - offsetWithinLine;
 
   while (1) {
     if (packetMaxSize - specialHeaderSize - rtpHeaderSize - 6 <= curDataTotalLength) {
@@ -161,10 +158,10 @@ unsigned RawVideoRTPSink
     specialHeaderSize += 6;
 
     remainingSizeInPacket = packetMaxSize - specialHeaderSize - rtpHeaderSize - curDataTotalLength;
-    remainingSizeInPacket -= remainingSizeInPacket % fFrameParameters.pgroupSize; // use only multiple of pgroup
+    remainingSizeInPacket -= remainingSizeInPacket % fP.pgroupSize; // use only multiple of pgroup
     lengthArray[numLines-1] = remainingLineSize < remainingSizeInPacket ? remainingLineSize : remainingSizeInPacket;
-    offsetArray[numLines-1] = (offsetWithinLine * fFrameParameters.numPixelsInPgroup) / fFrameParameters.pgroupSize;
-        // note that the offsets are in specified to be in pixels (not octets, nor pgroups)
+    offsetArray[numLines-1] = (offsetWithinLine * fP.numPixelsInPgroup) / fP.pgroupSize;
+        // Note that the offsets are in specified to be in pixels (not octets, nor pgroups)
     if (remainingLineSize >= remainingSizeInPacket) {
       break; // packet is full
     }
@@ -172,9 +169,9 @@ unsigned RawVideoRTPSink
     // All subsequent lines in the packet will have offset 0
     curDataTotalLength += lengthArray[numLines-1];
     offsetWithinLine = 0;
-    remainingLineSize = fFrameParameters.scanLineSize;
+    remainingLineSize = fP.scanLineSize;
 
-    if (fragOffset + curDataTotalLength >= fFrameParameters.frameSize) {
+    if (fragOffset + curDataTotalLength >= fP.frameSize) {
       break; // end of the frame.
     }
   }
@@ -194,117 +191,129 @@ unsigned RawVideoRTPSink::computeOverflowForNewFrame(unsigned newFrameSize) cons
 
   // Adjust (increase) this overflow to be a multiple of the pgroup value:
   unsigned numFrameBytesUsed = newFrameSize - initialOverflow;
-  initialOverflow += numFrameBytesUsed % fFrameParameters.pgroupSize;
+  initialOverflow += numFrameBytesUsed % fP.pgroupSize;
 
   return initialOverflow;
 }
 
-void RawVideoRTPSink::setFrameParameters(char const* sampling) {
-  fFrameParameters.scanLineIterationStep = 1; // by default; different for YCbCr-4:2:0
-  fFrameParameters.numPixelsInPgroup = 1; // by default
-  fFrameParameters.pgroupSize = 2; // use this for unknown (sampling, fDepth)s 
+
+///////// RawVideoFrameParameters implementation /////////
+
+RawVideoFrameParameters
+::RawVideoFrameParameters(unsigned height, unsigned width, unsigned depth, char const* sampling) {
+  scanLineIterationStep = 1; // by default; different for YCbCr-4:2:0
+  numPixelsInPgroup = 1; // by default
+  pgroupSize = 2; // use this for unknown (sampling, depth)s 
 
   if (strcmp(sampling, "RGB") == 0 || strcmp(sampling, "BGR") == 0) {
-    switch (fDepth) {
+    switch (depth) {
       case 8:
-        fFrameParameters.pgroupSize = 3;
+        pgroupSize = 3;
         break;
       case 10:
-        fFrameParameters.pgroupSize = 15;
-        fFrameParameters.numPixelsInPgroup = 4;
+        pgroupSize = 15;
+        numPixelsInPgroup = 4;
         break;
       case 12:
-        fFrameParameters.pgroupSize = 9;
-        fFrameParameters.numPixelsInPgroup = 2;
+        pgroupSize = 9;
+        numPixelsInPgroup = 2;
         break;
       case 16:
-        fFrameParameters.pgroupSize = 6;
+        pgroupSize = 6;
         break;
     }
   } else if (strcmp(sampling, "RGBA") == 0 || strcmp(sampling, "BGRA") == 0) {
-    switch (fDepth) {
+    switch (depth) {
       case 8:
-        fFrameParameters.pgroupSize = 4;
+        pgroupSize = 4;
         break;
       case 10:
-        fFrameParameters.pgroupSize = 5;
+        pgroupSize = 5;
         break;
       case 12:
-        fFrameParameters.pgroupSize = 6;
+        pgroupSize = 6;
         break;
       case 16:
-        fFrameParameters.pgroupSize = 8;
+        pgroupSize = 8;
         break;
     }
   } else if (strcmp(sampling, "YCbCr-4:4:4") == 0) {
-    switch (fDepth) {
+    switch (depth) {
       case 8:
-        fFrameParameters.pgroupSize = 3;
+        pgroupSize = 3;
         break;
       case 10:
-        fFrameParameters.pgroupSize = 15;
-        fFrameParameters.numPixelsInPgroup = 4;
+        pgroupSize = 15;
+        numPixelsInPgroup = 4;
         break;
       case 12:
-        fFrameParameters.pgroupSize = 9;
-        fFrameParameters.numPixelsInPgroup = 2;
+        pgroupSize = 9;
+        numPixelsInPgroup = 2;
         break;
       case 16:
-        fFrameParameters.pgroupSize = 6;
+        pgroupSize = 6;
         break;
     }
   } else if (strcmp(sampling, "YCbCr-4:2:2") == 0) {
-    switch (fDepth) {
+    switch (depth) {
       case 8:
-        fFrameParameters.pgroupSize = 4;
+        pgroupSize = 4;
         break;
       case 10:
-        fFrameParameters.pgroupSize = 5;
+        pgroupSize = 5;
         break;
       case 12:
-        fFrameParameters.pgroupSize = 6;
+        pgroupSize = 6;
         break;
       case 16:
-        fFrameParameters.pgroupSize = 8;
+        pgroupSize = 8;
         break;
     }
-    fFrameParameters.numPixelsInPgroup = 2;
+    numPixelsInPgroup = 2;
   } else if (strcmp(sampling, "YCbCr-4:1:1") == 0) {
-    switch (fDepth) {
+    switch (depth) {
       case 8:
-        fFrameParameters.pgroupSize = 6;
+        pgroupSize = 6;
         break;
       case 10:
-        fFrameParameters.pgroupSize = 15;
+        pgroupSize = 15;
         break;
       case 12:
-        fFrameParameters.pgroupSize = 9;
+        pgroupSize = 9;
         break;
       case 16:
-        fFrameParameters.pgroupSize = 12;
+        pgroupSize = 12;
         break;
     }
-    fFrameParameters.numPixelsInPgroup = 4;
+    numPixelsInPgroup = 4;
   } else if (strcmp(sampling, "YCbCr-4:2:0") == 0) {
-    switch (fDepth) {
+    switch (depth) {
       case 8:
-        fFrameParameters.pgroupSize = 6;
+        pgroupSize = 6;
         break;
       case 10:
-        fFrameParameters.pgroupSize = 15;
+        pgroupSize = 15;
         break;
       case 12:
-        fFrameParameters.pgroupSize = 9;
+        pgroupSize = 9;
         break;
       case 16:
-        fFrameParameters.pgroupSize = 12;
+        pgroupSize = 12;
         break;
     }
-    fFrameParameters.numPixelsInPgroup = 4;
-    fFrameParameters.scanLineIterationStep = 2;
+    numPixelsInPgroup = 4;
+    scanLineIterationStep = 2;
   }
 
-  fFrameParameters.scanLineSize
-    = (fWidth * fFrameParameters.pgroupSize * fFrameParameters.scanLineIterationStep) / fFrameParameters.numPixelsInPgroup;
-  fFrameParameters.frameSize = fHeight * fFrameParameters.scanLineSize;
+  unsigned const numPgroupsPerScanLine
+    = (width*scanLineIterationStep + (numPixelsInPgroup-1))/numPixelsInPgroup;
+      // Note: This rounds up to the next 'pgroup'; see RFC 4175, section 4.3, paragraph 2
+
+  scanLineSize = numPgroupsPerScanLine*pgroupSize;
+      // Note: This is actually the size of 'scanLineIterationStep' scan lines
+
+  frameSize = (height*scanLineSize)/scanLineIterationStep;
+}
+
+RawVideoFrameParameters::~RawVideoFrameParameters() {
 }

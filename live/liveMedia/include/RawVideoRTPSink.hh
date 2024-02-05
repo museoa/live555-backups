@@ -25,16 +25,9 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "VideoRTPSink.hh"
 #endif
 
-////////// FrameParameters //////////
-
-struct FrameParameters {
-  u_int16_t pgroupSize; // in octets
-  u_int16_t numPixelsInPgroup;
-  u_int32_t scanLineSize; // in octets
-  u_int32_t frameSize; // in octets
-  u_int16_t scanLineIterationStep;
-};
-
+#ifndef _RAW_VIDEO_FRAME_PARAMETERS_HH
+#include "RawVideoFrameParameters.hh"
+#endif
 
 class RawVideoRTPSink: public VideoRTPSink {
 public:
@@ -67,16 +60,12 @@ private: // redefined virtual functions:
   
 private:
   char* fFmtpSDPLine;
-  unsigned fWidth;
-  unsigned fHeight;
-  unsigned fDepth;
   unsigned fLineIndex;
-  FrameParameters fFrameParameters;
+  RawVideoFrameParameters fP;
 
   unsigned getNumLinesInPacket(unsigned fragOffset, u_int16_t*& lengths, u_int16_t*& offsets) const;
   //  return the number of lines, their lengths and offsets from the fragmentation offset of the whole frame.
   // call delete[] on lengths and offsets after use of the function
-  void setFrameParameters(char const* sampling);
 };
 
 #endif
