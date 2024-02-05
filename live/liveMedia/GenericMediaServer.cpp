@@ -324,7 +324,7 @@ GenericMediaServer::ClientSession* GenericMediaServer::createNewClientSessionWit
   } while (sessionId == 0 || lookupClientSession(sessionIdStr) != NULL);
 
   ClientSession* clientSession = createNewClientSession(sessionId);
-  fClientSessions->Add(sessionIdStr, clientSession);
+  if (clientSession != NULL) fClientSessions->Add(sessionIdStr, clientSession);
 
   return clientSession;
 }
