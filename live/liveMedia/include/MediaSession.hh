@@ -54,6 +54,9 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #ifndef _FRAMED_FILTER_HH
 #include "FramedFilter.hh"
 #endif
+#ifndef _SRTP_CRYPTOGRAPHIC_CONTEXT_HH
+#include "SRTPCryptographicContext.hh"
+#endif
 
 class MediaSubsession; // forward
 
@@ -77,9 +80,6 @@ public:
   char* sessionDescription() const { return fSessionDescription; }
   char const* controlPath() const { return fControlPath; }
 
-  char const* keyMgmtPrtclId() const { return fKeyMgmtPrtclId; }
-  char const* keyMgmtData() const { return fKeyMgmtData; }
-  
   double& playStartTime() { return fMaxPlayStartTime; }
   double& playEndTime() { return fMaxPlayEndTime; }
   char* absStartTime() const;
@@ -93,6 +93,9 @@ public:
 			      int useSpecialRTPoffset = -1);
       // Initiates the first subsession with the specified MIME type
       // Returns the resulting subsession, or 'multi source' (not both)
+
+  MIKEYState* getMIKEYState() const { return fMIKEYState; }
+  SRTPCryptographicContext* getCrypto() const { return fCrypto; }
 
 protected: // redefined virtual functions
   virtual Boolean isMediaSession() const;
@@ -142,8 +145,10 @@ protected:
   char* fSessionName; // holds s=<session name> value
   char* fSessionDescription; // holds i=<session description> value
   char* fControlPath; // holds optional a=control: string
-  char* fKeyMgmtPrtclId;
-  char* fKeyMgmtData;
+
+  // Optional key management and crypto state:
+  MIKEYState* fMIKEYState;
+  SRTPCryptographicContext* fCrypto;
 };
 
 
@@ -174,9 +179,6 @@ public:
   char const* protocolName() const { return fProtocolName; }
   char const* controlPath() const { return fControlPath; }
 
-  char const* keyMgmtPrtclId() const { return fKeyMgmtPrtclId; }
-  char const* keyMgmtData() const { return fKeyMgmtData; }
-  
   Boolean isSSM() const { return fSourceFilterAddr.s_addr != 0; }
 
   unsigned short videoWidth() const { return fVideoWidth; }
@@ -278,6 +280,9 @@ public:
   // synchronized via RTCP.
   // (Note: If this function returns a negative number, then the result should be ignored by the caller.)
 
+  MIKEYState* getMIKEYState() const { return fMIKEYState != NULL ? fMIKEYState : fParent.getMIKEYState(); }
+  SRTPCryptographicContext* getCrypto() const { return fCrypto != NULL ? fCrypto : fParent.getCrypto(); }
+
 protected:
   friend class MediaSession;
   friend class MediaSubsessionIterator;
@@ -321,8 +326,11 @@ protected:
   unsigned fRTPTimestampFrequency;
   Boolean fMultiplexRTCPWithRTP;
   char* fControlPath; // holds optional a=control: string
-  char* fKeyMgmtPrtclId;
-  char* fKeyMgmtData;
+
+  // Optional key management and crypto state:
+  MIKEYState* fMIKEYState;
+  SRTPCryptographicContext* fCrypto;
+
   struct in_addr fSourceFilterAddr; // used for SSM
   unsigned fBandwidth; // in kilobits-per-second, from b= line
 
