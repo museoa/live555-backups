@@ -265,28 +265,30 @@ Boolean RTSPClient::parseRTSPURL(UsageEnvironment& env, char const* url,
     // We do this by checking whether '@' appears before the end of the URL, or before the first '/'.
     username = password = NULL; // default return values
     char const* colonPasswordStart = NULL;
-    char const* p;
-    for (p = from; *p != '\0' && *p != '/'; ++p) {
+    char const* lastAtPtr = NULL;
+    for (char const* p = from; *p != '\0' && *p != '/'; ++p) {
       if (*p == ':' && colonPasswordStart == NULL) {
 	colonPasswordStart = p;
       } else if (*p == '@') {
-	// We found <username> (and perhaps <password>).  Copy them into newly-allocated result strings:
-	if (colonPasswordStart == NULL) colonPasswordStart = p;
-
-	char const* usernameStart = from;
-	unsigned usernameLen = colonPasswordStart - usernameStart;
-	username = new char[usernameLen + 1] ; // allow for the trailing '\0'
-	copyUsernameOrPasswordStringFromURL(username, usernameStart, usernameLen);
-
-	char const* passwordStart = colonPasswordStart;
-	if (passwordStart < p) ++passwordStart; // skip over the ':'
-	unsigned passwordLen = p - passwordStart;
-	password = new char[passwordLen + 1]; // allow for the trailing '\0'
-	copyUsernameOrPasswordStringFromURL(password, passwordStart, passwordLen);
-
-	from = p + 1; // skip over the '@'
-	break;
+	lastAtPtr = p;
       }
+    }
+    if (lastAtPtr != NULL) {      
+      // We found <username> (and perhaps <password>).  Copy them into newly-allocated result strings:
+      if (colonPasswordStart == NULL) colonPasswordStart = lastAtPtr;
+
+      char const* usernameStart = from;
+      unsigned usernameLen = colonPasswordStart - usernameStart;
+      username = new char[usernameLen + 1] ; // allow for the trailing '\0'
+      copyUsernameOrPasswordStringFromURL(username, usernameStart, usernameLen);
+
+      char const* passwordStart = colonPasswordStart;
+      if (passwordStart < lastAtPtr) ++passwordStart; // skip over the ':'
+      unsigned passwordLen = lastAtPtr - passwordStart;
+      password = new char[passwordLen + 1]; // allow for the trailing '\0'
+      copyUsernameOrPasswordStringFromURL(password, passwordStart, passwordLen);
+
+      from = lastAtPtr + 1; // skip over the '@'
     }
 
     // Next, parse <server-address-or-name>

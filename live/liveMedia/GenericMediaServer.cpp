@@ -389,7 +389,8 @@ UserAuthenticationDatabase::~UserAuthenticationDatabase() {
 
 void UserAuthenticationDatabase::addUserRecord(char const* username,
 					       char const* password) {
-  fTable->Add(username, (void*)(strDup(password)));
+  char* oldPassword = (char*)fTable->Add(username, (void*)(strDup(password)));
+  delete[] oldPassword; // if any
 }
 
 void UserAuthenticationDatabase::removeUserRecord(char const* username) {
