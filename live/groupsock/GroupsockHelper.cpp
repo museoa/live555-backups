@@ -229,10 +229,12 @@ Boolean setSocketKeepAlive(int sock) {
     return False;
   }
 
+#ifdef TCP_KEEPIDLE
   int const keepalive_time = 180;
   if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*)&keepalive_time, sizeof keepalive_time) < 0) {
     return False;
   }
+#endif
 
   int const keepalive_count = 5;
   if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void*)&keepalive_count, sizeof keepalive_count) < 0) {
