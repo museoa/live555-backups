@@ -639,7 +639,7 @@ FramedSource* ProxyServerMediaSubsession::createNewStreamSource(unsigned clientS
   return fClientMediaSubsession.readSource();
 }
 
-void ProxyServerMediaSubsession::closeStreamSource(FramedSource* inputSource) {
+void ProxyServerMediaSubsession::closeStreamSource(FramedSource* /*inputSource*/) {
   if (verbosityLevel() > 0) {
     envir() << *this << "::closeStreamSource()\n";
   }
