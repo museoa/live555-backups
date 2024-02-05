@@ -68,7 +68,7 @@ Boolean PassiveServerMediaSubsession::rtcpIsMuxed() {
 }
 
 char const*
-PassiveServerMediaSubsession::sdpLines() {
+PassiveServerMediaSubsession::sdpLines(int /*addressFamily*/) {
   if (fSDPLines == NULL ) {
     // Construct a set of SDP lines that describe this subsession:
     // Use the components from "rtpSink":

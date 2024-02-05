@@ -56,7 +56,7 @@ OnDemandServerMediaSubsession::~OnDemandServerMediaSubsession() {
 }
 
 char const*
-OnDemandServerMediaSubsession::sdpLines() {
+OnDemandServerMediaSubsession::sdpLines(int addressFamily) {
   if (fSDPLines == NULL) {
     // We need to construct a set of SDP lines that describe this
     // subsession (as a unicast stream).  To do so, we first create
@@ -66,7 +66,7 @@ OnDemandServerMediaSubsession::sdpLines() {
     FramedSource* inputSource = createNewStreamSource(0, estBitrate);
     if (inputSource == NULL) return NULL; // file not found
 
-    Groupsock* dummyGroupsock = createGroupsock(nullAddress(), 0);
+    Groupsock* dummyGroupsock = createGroupsock(nullAddress(addressFamily), 0);
     unsigned char rtpPayloadType = 96 + trackNumber()-1; // if dynamic
     RTPSink* dummyRTPSink = createNewRTPSink(dummyGroupsock, rtpPayloadType, inputSource);
     if (dummyRTPSink != NULL && dummyRTPSink->estimatedBitrate() > 0) estBitrate = dummyRTPSink->estimatedBitrate();

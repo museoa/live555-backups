@@ -167,7 +167,7 @@ void GenericMediaServer::cleanup() {
 
 #define LISTEN_BACKLOG_SIZE 20
 
-int GenericMediaServer::setUpOurSocket(UsageEnvironment& env, Port& ourPort) {
+int GenericMediaServer::setUpOurSocket(UsageEnvironment& env, Port& ourPort, int domain) {
   int ourSocket = -1;
   
   do {
@@ -178,7 +178,7 @@ int GenericMediaServer::setUpOurSocket(UsageEnvironment& env, Port& ourPort) {
     NoReuse dummy(env); // Don't use this socket if there's already a local server using it
 #endif
     
-    ourSocket = setupStreamSocket(env, ourPort, AF_INET, True, True);
+    ourSocket = setupStreamSocket(env, ourPort, domain, True, True);
         // later fix to support IPv6
     if (ourSocket < 0) break;
     

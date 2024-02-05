@@ -30,7 +30,7 @@ RTSPServer*
 RTSPServer::createNew(UsageEnvironment& env, Port ourPort,
 		      UserAuthenticationDatabase* authDatabase,
 		      unsigned reclamationSeconds) {
-  int ourSocket = setUpOurSocket(env, ourPort);
+  int ourSocket = setUpOurSocket(env, ourPort, AF_INET); // later, update to support IPv6
   if (ourSocket == -1) return NULL;
   
   return new RTSPServer(env, ourSocket, ourPort, authDatabase, reclamationSeconds);
@@ -104,7 +104,7 @@ UserAuthenticationDatabase* RTSPServer::setAuthenticationDatabase(UserAuthentica
 }
 
 Boolean RTSPServer::setUpTunnelingOverHTTP(Port httpPort) {
-  fHTTPServerSocket = setUpOurSocket(envir(), httpPort);
+  fHTTPServerSocket = setUpOurSocket(envir(), httpPort, AF_INET); // later, update to support IPv6
   if (fHTTPServerSocket >= 0) {
     fHTTPServerPort = httpPort;
     envir().taskScheduler().turnOnBackgroundReadHandling(fHTTPServerSocket,

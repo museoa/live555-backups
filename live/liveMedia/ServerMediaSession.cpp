@@ -240,7 +240,7 @@ char* ServerMediaSession::generateSDPDescription(int addressFamily) {
     ServerMediaSubsession* subsession;
     for (subsession = fSubsessionsHead; subsession != NULL;
 	 subsession = subsession->fNext) {
-      char const* sdpLines = subsession->sdpLines();
+      char const* sdpLines = subsession->sdpLines(addressFamily);
       if (sdpLines == NULL) continue; // the media's not available
       sdpLength += strlen(sdpLines);
     }
@@ -310,7 +310,7 @@ char* ServerMediaSession::generateSDPDescription(int addressFamily) {
       sdpLength -= mediaSDPLength;
       if (sdpLength <= 1) break; // the SDP has somehow become too long
 
-      char const* sdpLines = subsession->sdpLines();
+      char const* sdpLines = subsession->sdpLines(addressFamily);
       if (sdpLines != NULL) snprintf(mediaSDP, sdpLength, "%s", sdpLines);
     }
   } while (0);

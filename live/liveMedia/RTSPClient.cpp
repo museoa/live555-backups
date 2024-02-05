@@ -2090,7 +2090,7 @@ void RTSPClient::RequestQueue::reset() {
 HandlerServerForREGISTERCommand* HandlerServerForREGISTERCommand
 ::createNew(UsageEnvironment& env, onRTSPClientCreationFunc* creationFunc, Port ourPort,
 	    UserAuthenticationDatabase* authDatabase, int verbosityLevel, char const* applicationName) {
-  int ourSocket = setUpOurSocket(env, ourPort);
+  int ourSocket = setUpOurSocket(env, ourPort, AF_INET); // later, also support IPv6 
   if (ourSocket == -1) return NULL;
 
   return new HandlerServerForREGISTERCommand(env, creationFunc, ourSocket, ourPort, authDatabase, verbosityLevel, applicationName);

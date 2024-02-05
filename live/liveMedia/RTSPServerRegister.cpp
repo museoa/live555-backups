@@ -326,7 +326,7 @@ RTSPServerWithREGISTERProxying* RTSPServerWithREGISTERProxying
 	    unsigned reclamationSeconds,
 	    Boolean streamRTPOverTCP, int verbosityLevelForProxying,
 	    char const* backEndUsername, char const* backEndPassword) {
-  int ourSocket = setUpOurSocket(env, ourPort);
+  int ourSocket = setUpOurSocket(env, ourPort, AF_INET); // later, also support IPv6
   if (ourSocket == -1) return NULL;
   
   return new RTSPServerWithREGISTERProxying(env, ourSocket, ourPort,

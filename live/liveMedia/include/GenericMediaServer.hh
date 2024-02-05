@@ -88,7 +88,7 @@ protected:
   virtual ~GenericMediaServer();
   void cleanup(); // MUST be called in the destructor of any subclass of us
 
-  static int setUpOurSocket(UsageEnvironment& env, Port& ourPort);
+  static int setUpOurSocket(UsageEnvironment& env, Port& ourPort, int domain);
 
   static void incomingConnectionHandler(void*, int /*mask*/);
   void incomingConnectionHandler();

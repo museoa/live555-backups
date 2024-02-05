@@ -121,7 +121,7 @@ class ServerMediaSubsession: public Medium {
 public:
   unsigned trackNumber() const { return fTrackNumber; }
   char const* trackId();
-  virtual char const* sdpLines() = 0;
+  virtual char const* sdpLines(int addressFamily) = 0;
   virtual void getStreamParameters(unsigned clientSessionId, // in
 				   struct sockaddr_storage const& clientAddress, // in
 				   Port const& clientRTPPort, // in
