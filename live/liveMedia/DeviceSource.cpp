@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A template for a MediaSource encapsulating an audio/video input device
 //
 // NOTE: Sections of this code labeled "%%% TO BE WRITTEN %%%" are incomplete, and need to be written by the programmer
@@ -53,7 +53,7 @@ DeviceSource::DeviceSource(UsageEnvironment& env,
   //     envir().taskScheduler().turnOnBackgroundReadHandling( ... )
   // (See examples of this call in the "liveMedia" directory.)
   //
-  // If, however, the device *cannot* be accessed as a readable socket, then instead we can implement is using 'event triggers':
+  // If, however, the device *cannot* be accessed as a readable socket, then instead we can implement it using 'event triggers':
   // Create an 'event trigger' for this device (if it hasn't already been done):
   if (eventTriggerId == 0) {
     eventTriggerId = envir().taskScheduler().createEventTrigger(deliverFrame0);

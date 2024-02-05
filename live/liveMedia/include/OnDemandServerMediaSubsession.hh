@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A 'ServerMediaSubsession' object that creates new, unicast, "RTPSink"s
 // on demand.
 // C++ header
@@ -27,6 +27,12 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #endif
 #ifndef _RTP_SINK_HH
 #include "RTPSink.hh"
+#endif
+#ifndef _BASIC_UDP_SINK_HH
+#include "BasicUDPSink.hh"
+#endif
+#ifndef _RTCP_HH
+#include "RTCP.hh"
 #endif
 
 class OnDemandServerMediaSubsession: public ServerMediaSubsession {
@@ -58,16 +64,18 @@ protected: // redefined virtual functions
 			   ServerRequestAlternativeByteHandler* serverRequestAlternativeByteHandler,
                            void* serverRequestAlternativeByteHandlerClientData);
   virtual void pauseStream(unsigned clientSessionId, void* streamToken);
-  virtual void seekStream(unsigned clientSessionId, void* streamToken, double seekNPT);
+  virtual void seekStream(unsigned clientSessionId, void* streamToken, double& seekNPT, double streamDuration, u_int64_t& numBytes);
   virtual void setStreamScale(unsigned clientSessionId, void* streamToken, float scale);
+  virtual FramedSource* getStreamSource(void* streamToken);
   virtual void deleteStream(unsigned clientSessionId, void*& streamToken);
 
 protected: // new virtual functions, possibly redefined by subclasses
   virtual char const* getAuxSDPLine(RTPSink* rtpSink,
 				    FramedSource* inputSource);
-  virtual void seekStreamSource(FramedSource* inputSource, double seekNPT);
+  virtual void seekStreamSource(FramedSource* inputSource, double& seekNPT, double streamDuration, u_int64_t& numBytes);
+    // "streamDuration", if >0.0, specifies how much data to stream, past "seekNPT".  (If <=0.0, all remaining data is streamed.)
   virtual void setStreamSourceScale(FramedSource* inputSource, float scale);
-  virtual void closeStreamSource(FramedSource *inputSource);
+  virtual void closeStreamSource(FramedSource* inputSource);
 
 protected: // new virtual functions, defined by all subclasses
   virtual FramedSource* createNewStreamSource(unsigned clientSessionId,
@@ -92,6 +100,79 @@ private:
   void* fLastStreamToken;
   char fCNAME[100]; // for RTCP
   friend class StreamState;
+};
+
+
+// A class that represents the state of an ongoing stream.  This is used only internally, in the implementation of
+// "OnDemandServerMediaSubsession", but we expose the definition here, in case subclasses of "OnDemandServerMediaSubsession"
+// want to access it.
+class Destinations {
+public:
+  Destinations(struct in_addr const& destAddr,
+               Port const& rtpDestPort,
+               Port const& rtcpDestPort)
+    : isTCP(False), addr(destAddr), rtpPort(rtpDestPort), rtcpPort(rtcpDestPort) {
+  }
+  Destinations(int tcpSockNum, unsigned char rtpChanId, unsigned char rtcpChanId)
+    : isTCP(True), rtpPort(0) /*dummy*/, rtcpPort(0) /*dummy*/,
+      tcpSocketNum(tcpSockNum), rtpChannelId(rtpChanId), rtcpChannelId(rtcpChanId) {
+  }
+
+public:
+  Boolean isTCP;
+  struct in_addr addr;
+  Port rtpPort;
+  Port rtcpPort;
+  int tcpSocketNum;
+  unsigned char rtpChannelId, rtcpChannelId;
+};
+
+class StreamState {
+public:
+  StreamState(OnDemandServerMediaSubsession& master,
+              Port const& serverRTPPort, Port const& serverRTCPPort,
+	      RTPSink* rtpSink, BasicUDPSink* udpSink,
+	      unsigned totalBW, FramedSource* mediaSource,
+	      Groupsock* rtpGS, Groupsock* rtcpGS);
+  virtual ~StreamState();
+
+  void startPlaying(Destinations* destinations,
+		    TaskFunc* rtcpRRHandler, void* rtcpRRHandlerClientData,
+		    ServerRequestAlternativeByteHandler* serverRequestAlternativeByteHandler,
+                    void* serverRequestAlternativeByteHandlerClientData);
+  void pause();
+  void endPlaying(Destinations* destinations);
+  void reclaim();
+
+  unsigned& referenceCount() { return fReferenceCount; }
+
+  Port const& serverRTPPort() const { return fServerRTPPort; }
+  Port const& serverRTCPPort() const { return fServerRTCPPort; }
+
+  RTPSink* rtpSink() const { return fRTPSink; }
+
+  float streamDuration() const { return fStreamDuration; }
+
+  FramedSource* mediaSource() const { return fMediaSource; }
+
+private:
+  OnDemandServerMediaSubsession& fMaster;
+  Boolean fAreCurrentlyPlaying;
+  unsigned fReferenceCount;
+
+  Port fServerRTPPort, fServerRTCPPort;
+
+  RTPSink* fRTPSink;
+  BasicUDPSink* fUDPSink;
+
+  float fStreamDuration;
+  unsigned fTotalBW;
+  RTCPInstance* fRTCPInstance;
+
+  FramedSource* fMediaSource;
+
+  Groupsock* fRTPgs;
+  Groupsock* fRTCPgs;
 };
 
 #endif

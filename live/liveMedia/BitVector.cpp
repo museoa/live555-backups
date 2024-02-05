@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // Bit Vector data structure
 // Implementation
 
@@ -131,7 +131,7 @@ unsigned BitVector::get_expGolomb() {
   unsigned numLeadingZeroBits = 0;
   unsigned codeStart = 1;
 
-  while (get1Bit() == 0) {
+  while (get1Bit() == 0 && fCurBitIndex < fTotNumBits) {
     ++numLeadingZeroBits;
     codeStart *= 2;
   }

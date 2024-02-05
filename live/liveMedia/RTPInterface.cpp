@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // An abstraction of a network interface used for RTP (or RTCP).
 // (This allows the RTP-over-TCP hack (RFC 2326, section 10.12) to
 // be implemented transparently.)
@@ -29,8 +29,8 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 // Helper routines and data structures, used to implement
 // sending/receiving RTP/RTCP over a TCP socket:
 
-static void sendRTPOverTCP(unsigned char* packet, unsigned packetSize,
-			   int socketNum, unsigned char streamChannelId);
+static Boolean sendRTPOverTCP(unsigned char* packet, unsigned packetSize,
+			      int socketNum, unsigned char streamChannelId);
 
 // Reading RTP-over-TCP is implemented using two levels of hash tables.
 // The top-level hash table maps TCP socket numbers to a
@@ -145,6 +145,10 @@ void RTPInterface::addStreamSocket(int sockNum,
   }
 
   fTCPStreams = new tcpStreamRecord(sockNum, streamChannelId, fTCPStreams);
+
+  // Also, make sure this new socket is set up for receiving RTP/RTCP-over-TCP:
+  SocketDescriptor* socketDescriptor = lookupSocketDescriptor(envir(), sockNum);
+  socketDescriptor->registerRTPInterface(streamChannelId, this);
 }
 
 static void deregisterSocket(UsageEnvironment& env, int sockNum, unsigned char streamChannelId) {
@@ -182,16 +186,22 @@ void RTPInterface
 }
 
 
-void RTPInterface::sendPacket(unsigned char* packet, unsigned packetSize) {
+Boolean RTPInterface::sendPacket(unsigned char* packet, unsigned packetSize) {
+  Boolean success = True; // we'll return False instead if any of the sends fail
+
   // Normal case: Send as a UDP packet:
-  fGS->output(envir(), fGS->ttl(), packet, packetSize);
+  if (!fGS->output(envir(), fGS->ttl(), packet, packetSize)) success = False;
 
   // Also, send over each of our TCP sockets:
   for (tcpStreamRecord* streams = fTCPStreams; streams != NULL;
        streams = streams->fNext) {
-    sendRTPOverTCP(packet, packetSize,
-		   streams->fStreamSocketNum, streams->fStreamChannelId);
+    if (!sendRTPOverTCP(packet, packetSize,
+			streams->fStreamSocketNum, streams->fStreamChannelId)) {
+      success = False;
+    }
   }
+
+  return success;
 }
 
 void RTPInterface
@@ -234,7 +244,7 @@ Boolean RTPInterface::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
       curBytesToRead -= curBytesRead;
     }
     fNextTCPReadSize -= bytesRead;
-    if (curBytesRead == 0 && curBytesToRead > 0) {
+    if (fNextTCPReadSize > 0) {
       packetReadWasIncomplete = True;
       return True;
     } else if (curBytesRead < 0) {
@@ -267,7 +277,7 @@ void RTPInterface::stopNetworkReading() {
 
 ////////// Helper Functions - Implementation /////////
 
-void sendRTPOverTCP(unsigned char* packet, unsigned packetSize,
+Boolean sendRTPOverTCP(unsigned char* packet, unsigned packetSize,
                     int socketNum, unsigned char streamChannelId) {
 #ifdef DEBUG
   fprintf(stderr, "sendRTPOverTCP: %d bytes over channel %d (socket %d)\n",
@@ -291,12 +301,13 @@ void sendRTPOverTCP(unsigned char* packet, unsigned packetSize,
     fprintf(stderr, "sendRTPOverTCP: completed\n"); fflush(stderr);
 #endif
 
-    return;
+    return True;
   } while (0);
 
 #ifdef DEBUG
   fprintf(stderr, "sendRTPOverTCP: failed!\n"); fflush(stderr);
 #endif
+  return False;
 }
 
 SocketDescriptor::SocketDescriptor(UsageEnvironment& env, int socketNum)
@@ -382,8 +393,13 @@ void SocketDescriptor::tcpReadHandler1(int mask) {
     }
     case AWAITING_STREAM_CHANNEL_ID: {
       // The byte that we read is the stream channel id.
-      fStreamChannelId = c;
-      fTCPReadingState = AWAITING_SIZE1;
+      if (lookupRTPInterface(c) != NULL) { // sanity check
+	fStreamChannelId = c;
+	fTCPReadingState = AWAITING_SIZE1;
+      } else {
+	// This wasn't a stream channel id that we expected.  We're (somehow) in a strange state.  Try to recover:
+	fTCPReadingState = AWAITING_DOLLAR;
+      }
       break;
     }
     case AWAITING_SIZE1: {

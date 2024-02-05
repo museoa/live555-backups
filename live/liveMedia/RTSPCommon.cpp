@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // Common routines used by both RTSP clients and servers
 // Implementation
 
@@ -22,6 +22,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "Locale.hh"
 #include <string.h>
 #include <stdio.h>
+#include <time.h> // for "strftime()" and "gmtime()"
 
 Boolean parseRTSPRequestString(char const* reqStr,
 			       unsigned reqStrSize,
@@ -32,8 +33,10 @@ Boolean parseRTSPRequestString(char const* reqStr,
 			       char* resultURLSuffix,
 			       unsigned resultURLSuffixMaxSize,
 			       char* resultCSeq,
-			       unsigned resultCSeqMaxSize) {
+			       unsigned resultCSeqMaxSize,
+			       unsigned& contentLength) {
   // This parser is currently rather dumb; it should be made smarter #####
+  contentLength = 0; // default value
 
   // Read everything up to the first space as the command name:
   Boolean parseSucceeded = False;
@@ -81,23 +84,19 @@ Boolean parseRTSPRequestString(char const* reqStr,
       while (--k >= i && reqStr[k] == ' ') {} // go back over all spaces before "RTSP/"
       unsigned k1 = k;
       while (k1 > i && reqStr[k1] != '/') --k1;
-      // the URL suffix comes from [k1+1,k]
 
+      // The URL suffix comes from [k1+1,k]
       // Copy "resultURLSuffix":
       if (k - k1 + 1 > resultURLSuffixMaxSize) return False; // there's no room
       unsigned n = 0, k2 = k1+1;
       while (k2 <= k) resultURLSuffix[n++] = reqStr[k2++];
       resultURLSuffix[n] = '\0';
 
-      // Also look for the URL 'pre-suffix' before this:
-      unsigned k3 = (k1 == 0) ? 0 : --k1;
-      while (k3 > i && reqStr[k3] != '/') --k3;
-      // the URL pre-suffix comes from [k3+1,k1]
-
+      // The URL 'pre-suffix' comes from [i+1,k1-1]
       // Copy "resultURLPreSuffix":
-      if (k1 - k3 + 1 > resultURLPreSuffixMaxSize) return False; // there's no room
-      n = 0; k2 = k3+1;
-      while (k2 <= k1) resultURLPreSuffix[n++] = reqStr[k2++];
+      if (k1 - i > resultURLPreSuffixMaxSize) return False; // there's no room
+      n = 0; k2 = i + 1;
+      while (k2 <= k1 - 1) resultURLPreSuffix[n++] = reqStr[k2++];
       resultURLPreSuffix[n] = '\0';
 
       i = k + 7; // to go past " RTSP/"
@@ -114,8 +113,8 @@ Boolean parseRTSPRequestString(char const* reqStr,
     if (reqStr[j] == 'C' && reqStr[j+1] == 'S' && reqStr[j+2] == 'e' &&
 	reqStr[j+3] == 'q' && reqStr[j+4] == ':') {
       j += 5;
-      unsigned n;
       while (j < reqStrSize && (reqStr[j] ==  ' ' || reqStr[j] == '\t')) ++j;
+      unsigned n;
       for (n = 0; n < resultCSeqMaxSize-1 && j < reqStrSize; ++n,++j) {
 	char c = reqStr[j];
 	if (c == '\r' || c == '\n') {
@@ -131,12 +130,27 @@ Boolean parseRTSPRequestString(char const* reqStr,
   }
   if (!parseSucceeded) return False;
 
+  // Also: Look for "Content-Length:" (optional)
+  for (j = i; (int)j < (int)(reqStrSize-15); ++j) {
+    if (reqStr[j] == 'C' && reqStr[j+1] == 'o' && reqStr[j+2] == 'n' && reqStr[j+3] == 't' && reqStr[j+4] == 'e' &&
+	reqStr[j+5] == 'n' && reqStr[j+6] == 't' && reqStr[j+7] == '-' && (reqStr[j+8] == 'L' || reqStr[j+8] == 'l') &&
+	reqStr[j+9] == 'e' && reqStr[j+10] == 'n' && reqStr[j+11] == 'g' && reqStr[j+12] == 't' && reqStr[j+13] == 'h' &&
+	reqStr[j+14] == ':') {
+      j += 15;
+      while (j < reqStrSize && (reqStr[j] ==  ' ' || reqStr[j] == '\t')) ++j;
+      unsigned num;
+      if (sscanf(&reqStr[j], "%u", &num) == 1) {
+	contentLength = num;
+      }
+    }
+  }
   return True;
 }
 
 Boolean parseRangeParam(char const* paramStr, double& rangeStart, double& rangeEnd) {
   double start, end;
-  Locale l("C", LC_NUMERIC);
+  int numCharsMatched = 0;
+  Locale l("C", Numeric);
   if (sscanf(paramStr, "npt = %lf - %lf", &start, &end) == 2) {
     rangeStart = start;
     rangeEnd = end;
@@ -146,6 +160,10 @@ Boolean parseRangeParam(char const* paramStr, double& rangeStart, double& rangeE
   } else if (strcmp(paramStr, "npt=now-") == 0) {
     rangeStart = 0.0;
     rangeEnd = 0.0;
+  } else if (sscanf(paramStr, "clock = %*s%n", &numCharsMatched) == 0 && numCharsMatched > 0) {
+    // We accept "clock=" parameters, but currently do no interpret them.
+  } else if (sscanf(paramStr, "smtpe = %*s%n", &numCharsMatched) == 0 && numCharsMatched > 0) {
+    // We accept "smtpe=" parameters, but currently do no interpret them.
   } else {
     return False; // The header is malformed
   }
@@ -165,4 +183,32 @@ Boolean parseRangeHeader(char const* buf, double& rangeStart, double& rangeEnd) 
   char const* fields = buf + 7;
   while (*fields == ' ') ++fields;
   return parseRangeParam(fields, rangeStart, rangeEnd);
+}
+
+char const* dateHeader() {
+  static char buf[200];
+#if !defined(_WIN32_WCE)
+  time_t tt = time(NULL);
+  strftime(buf, sizeof buf, "Date: %a, %b %d %Y %H:%M:%S GMT\r\n", gmtime(&tt));
+#else
+  // WinCE apparently doesn't have "time()", "strftime()", or "gmtime()",
+  // so generate the "Date:" header a different, WinCE-specific way.
+  // (Thanks to Pierre l'Hussiez for this code)
+  // RSF: But where is the "Date: " string?  This code doesn't look quite right...
+  SYSTEMTIME SystemTime;
+  GetSystemTime(&SystemTime);
+  WCHAR dateFormat[] = L"ddd, MMM dd yyyy";
+  WCHAR timeFormat[] = L"HH:mm:ss GMT\r\n";
+  WCHAR inBuf[200];
+  DWORD locale = LOCALE_NEUTRAL;
+
+  int ret = GetDateFormat(locale, 0, &SystemTime,
+                          (LPTSTR)dateFormat, (LPTSTR)inBuf, sizeof inBuf);
+  inBuf[ret - 1] = ' ';
+  ret = GetTimeFormat(locale, 0, &SystemTime,
+                      (LPTSTR)timeFormat,
+                      (LPTSTR)inBuf + ret, (sizeof inBuf) - ret);
+  wcstombs(buf, inBuf, wcslen(inBuf));
+#endif
+  return buf;
 }

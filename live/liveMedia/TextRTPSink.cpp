@@ -14,32 +14,23 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
-// A HTTP Sink specifically for MPEG Video
-// C++ header
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
+// A generic RTP sink for text codecs (abstract base class)
+// Implementation
 
-#ifndef _MPEG_1OR2_VIDEO_HTTP_SINK_HH
-#define _MPEG_1OR2_VIDEO_HTTP_SINK_HH
+#include "TextRTPSink.hh"
 
-#ifndef _HTTP_SINK_HH
-#include "HTTPSink.hh"
-#endif
+TextRTPSink::TextRTPSink(UsageEnvironment& env,
+			 Groupsock* rtpgs, unsigned char rtpPayloadType,
+			 unsigned rtpTimestampFrequency,
+			 char const* rtpPayloadFormatName)
+  : MultiFramedRTPSink(env, rtpgs, rtpPayloadType, rtpTimestampFrequency,
+		       rtpPayloadFormatName) {
+}
 
-class MPEG1or2VideoHTTPSink: public HTTPSink {
-public:
-  static MPEG1or2VideoHTTPSink* createNew(UsageEnvironment& env, Port ourPort);
-  // if ourPort.num() == 0, we'll choose (& return) port
+TextRTPSink::~TextRTPSink() {
+}
 
-protected:
-  MPEG1or2VideoHTTPSink(UsageEnvironment& env, int ourSocket);
-      // called only by createNew()
-  virtual ~MPEG1or2VideoHTTPSink();
-
-private: // redefined virtual functions:
-  virtual Boolean isUseableFrame(unsigned char* framePtr, unsigned frameSize);
-
-private:
-  Boolean fHaveSeenFirstVSH;
-};
-
-#endif
+char const* TextRTPSink::sdpMediaType() const {
+  return "text";
+}

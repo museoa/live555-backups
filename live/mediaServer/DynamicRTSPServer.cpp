@@ -13,7 +13,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2010, Live Networks, Inc.  All rights reserved
+// Copyright (c) 1996-2012, Live Networks, Inc.  All rights reserved
 // A subclass of "RTSPServer" that creates "ServerMediaSession"s on demand,
 // based on whether or not the specified stream name exists as a file
 // Implementation
@@ -26,23 +26,16 @@ DynamicRTSPServer*
 DynamicRTSPServer::createNew(UsageEnvironment& env, Port ourPort,
 			     UserAuthenticationDatabase* authDatabase,
 			     unsigned reclamationTestSeconds) {
-  int ourSocket = -1;
+  int ourSocket = setUpOurSocket(env, ourPort);
+  if (ourSocket == -1) return NULL;
 
-  do {
-    int ourSocket = setUpOurSocket(env, ourPort);
-    if (ourSocket == -1) break;
-
-    return new DynamicRTSPServer(env, ourSocket, ourPort, authDatabase, reclamationTestSeconds);
-  } while (0);
-
-  if (ourSocket != -1) ::closeSocket(ourSocket);
-  return NULL;
+  return new DynamicRTSPServer(env, ourSocket, ourPort, authDatabase, reclamationTestSeconds);
 }
 
 DynamicRTSPServer::DynamicRTSPServer(UsageEnvironment& env, int ourSocket,
 				     Port ourPort,
 				     UserAuthenticationDatabase* authDatabase, unsigned reclamationTestSeconds)
-  : RTSPServer(env, ourSocket, ourPort, authDatabase, reclamationTestSeconds) {
+  : RTSPServerSupportingHTTPStreaming(env, ourSocket, ourPort, authDatabase, reclamationTestSeconds) {
 }
 
 DynamicRTSPServer::~DynamicRTSPServer() {
@@ -79,6 +72,15 @@ DynamicRTSPServer::lookupServerMediaSession(char const* streamName) {
   }
 }
 
+// Special code for handling Matroska files:
+static char newMatroskaDemuxWatchVariable;
+static MatroskaFileServerDemux* demux;
+static void onMatroskaDemuxCreation(MatroskaFileServerDemux* newDemux, void* /*clientData*/) {
+  demux = newDemux;
+  newMatroskaDemuxWatchVariable = 1;
+}
+// END Special code for handling Matroska files:
+
 #define NEW_SMS(description) do {\
 char const* descStr = description\
     ", streamed by the LIVE555 Media Server";\
@@ -101,6 +103,10 @@ static ServerMediaSession* createNewSMS(UsageEnvironment& env,
     // Assumed to be an AMR Audio file:
     NEW_SMS("AMR Audio");
     sms->addSubsession(AMRAudioFileServerMediaSubsession::createNew(env, fileName, reuseSource));
+  } else if (strcmp(extension, ".ac3") == 0) {
+    // Assumed to be an AC-3 Audio file:
+    NEW_SMS("AC-3 Audio");
+    sms->addSubsession(AC3AudioFileServerMediaSubsession::createNew(env, fileName, reuseSource));
   } else if (strcmp(extension, ".m4e") == 0) {
     // Assumed to be a MPEG-4 Video Elementary Stream file:
     NEW_SMS("MPEG-4 Video");
@@ -161,6 +167,19 @@ static ServerMediaSession* createNewSMS(UsageEnvironment& env,
 
     NEW_SMS("DV Video");
     sms->addSubsession(DVVideoFileServerMediaSubsession::createNew(env, fileName, reuseSource));
+  } else if (strcmp(extension, ".mkv") == 0 || strcmp(extension, ".webm") == 0) {
+    // Assumed to be a Matroska file (note that WebM ('.webm') files are also Matroska files)
+    NEW_SMS("Matroska video+audio+(optional)subtitles");
+
+    // Create a Matroska file server demultiplexor for the specified file.  (We enter the event loop to wait for this to complete.)
+    newMatroskaDemuxWatchVariable = 0;
+    MatroskaFileServerDemux::createNew(env, fileName, onMatroskaDemuxCreation, NULL);
+    env.taskScheduler().doEventLoop(&newMatroskaDemuxWatchVariable);
+
+    ServerMediaSubsession* smss;
+    while ((smss = demux->newServerMediaSubsession()) != NULL) {
+      sms->addSubsession(smss);
+    }
   }
 
   return sms;

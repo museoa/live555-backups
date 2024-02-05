@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A generic RTSP client - for a single "rtsp://" URL
 // C++ header
 
@@ -30,8 +30,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #ifndef _DIGEST_AUTHENTICATION_HH
 #include "DigestAuthentication.hh"
 #endif
-
-#define RTSPCLIENT_SYNCHRONOUS_INTERFACE 1 // For now, continue to support the old synchronous interface as well
 
 class RTSPClient: public Medium {
 public:
@@ -56,6 +54,8 @@ public:
       //             "resultString" for a successful "DESCRIBE" command will be the media session's SDP description.
       //             "resultString" for a successful "OPTIONS" command will be a list of allowed commands.
       //         Note that this string can be present (i.e., not NULL) even if "resultCode" is non-zero - i.e., an error message.
+      //         Also, "resultString" can be NULL, even if "resultCode" is zero (e.g., if the RTSP command succeeded, but without
+      //             including an appropriate result header).
       //         Note also that this string is dynamically allocated, and must be freed by the handler (or the caller)
       //             - using "delete[]".
 
@@ -142,15 +142,16 @@ public:
 			      RTSPClient*& resultClient);
 
   static Boolean parseRTSPURL(UsageEnvironment& env, char const* url,
-			      NetAddress& address, portNumBits& portNum, char const** urlSuffix = NULL);
-      // (ignores any "<username>[:<password>]@" in "url"); to get those, use:
-  static Boolean parseRTSPURLUsernamePassword(char const* url,
-					      char*& username, char*& password);
+			      char*& username, char*& password, NetAddress& address, portNumBits& portNum, char const** urlSuffix = NULL);
+      // Parses "url" as "rtsp://[<username>[:<password>]@]<server-address-or-name>[:<port>][/<stream-name>]"
+      // (Note that the returned "username" and "password" are either NULL, or heap-allocated strings that the caller must later delete[].)
 
   void setUserAgentString(char const* userAgentName);
-  // sets an alternative string to be used in RTSP "User-Agent:" headers
+      // sets an alternative string to be used in RTSP "User-Agent:" headers
 
   unsigned sessionTimeoutParameter() const { return fSessionTimeoutParameter; }
+
+  char const* url() const { return fBaseURL; }
 
   static unsigned responseBufferSize;
 
@@ -159,6 +160,8 @@ protected:
 	     int verbosityLevel, char const* applicationName, portNumBits tunnelOverHTTPPortNum);
       // called only by createNew();
   virtual ~RTSPClient();
+
+  void setBaseURL(char const* url);
 
 private: // redefined virtual functions
   virtual Boolean isRTSPClient() const;
@@ -200,6 +203,7 @@ private:
   class RequestQueue {
   public:
     RequestQueue();
+    RequestQueue(RequestQueue& origQueue); // moves the queue contents to the new queue
     virtual ~RequestQueue();
 
     void enqueue(RequestRecord* request); // "request" must not be NULL
@@ -216,7 +220,6 @@ private:
   void reset();
   void resetTCPSockets();
   void resetResponseBuffer();
-  void setBaseURL(char const* url);
   int openConnection(); // -1: failure; 0: pending; 1: success
   int connectToServer(int socketNum, portNumBits remotePortNum); // used to implement "openConnection()"; result values are the same
   char* createAuthenticatorString(char const* cmd, char const* url);
@@ -261,13 +264,15 @@ private:
   void incomingDataHandler1();
   void handleResponseBytes(int newBytesRead);
 
-private:
+protected:
   int fVerbosityLevel;
+
+private:
   portNumBits fTunnelOverHTTPPortNum;
   char* fUserAgentHeaderStr;
   unsigned fUserAgentHeaderStrLen;
   int fInputSocketNum, fOutputSocketNum;
-  unsigned fServerAddress;
+  netAddressBits fServerAddress;
   unsigned fCSeq; // sequence number, used in consecutive requests
   char* fBaseURL;
   Authenticator fCurrentAuthenticator;
@@ -329,6 +334,9 @@ public:
 				   char*& parameterValue);
   Boolean teardownMediaSession(MediaSession& session);
   Boolean teardownMediaSubsession(MediaSubsession& subsession);
+
+  static Boolean parseRTSPURLUsernamePassword(char const* url,
+					      char*& username, char*& password);
 private: // used to implement the old interface:
   static void responseHandlerForSyncInterface(RTSPClient* rtspClient,
 					      int responseCode, char* responseString);

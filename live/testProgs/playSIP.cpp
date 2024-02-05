@@ -13,7 +13,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2010, Live Networks, Inc.  All rights reserved
+// Copyright (c) 1996-2012, Live Networks, Inc.  All rights reserved
 // A SIP client test program that opens a SIP URL argument,
 // and extracts the data from each incoming RTP stream.
 
@@ -80,7 +80,7 @@ void getSDPDescription(RTSPClient::responseHandler* afterFunc) {
 }
 
 void setupSubsession(MediaSubsession* subsession, Boolean /*streamUsingTCP*/, RTSPClient::responseHandler* afterFunc) {
-  subsession->sessionId = "mumble"; // anything that's non-NULL will work
+  subsession->setSessionId("mumble"); // anything that's non-NULL will work
 
   afterFunc(NULL, 0, NULL);
 }

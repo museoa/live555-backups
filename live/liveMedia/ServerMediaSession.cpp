@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A data structure that represents a session that consists of
 // potentially multiple (audio and/or video) sub-sessions
 // (This data structure is used for media *streamers* - i.e., servers.
@@ -64,9 +64,16 @@ ServerMediaSession::ServerMediaSession(UsageEnvironment& env,
     fSubsessionsTail(NULL), fSubsessionCounter(0),
     fReferenceCount(0), fDeleteWhenUnreferenced(False) {
   fStreamName = strDup(streamName == NULL ? "" : streamName);
-  fInfoSDPString = strDup(info == NULL ? libNameStr : info);
-  fDescriptionSDPString
-    = strDup(description == NULL ? libNameStr : description);
+
+  char* libNamePlusVersionStr = NULL; // by default
+  if (info == NULL || description == NULL) {
+    libNamePlusVersionStr = new char[strlen(libNameStr) + strlen(libVersionStr) + 1];
+    sprintf(libNamePlusVersionStr, "%s%s", libNameStr, libVersionStr);
+  }
+  fInfoSDPString = strDup(info == NULL ? libNamePlusVersionStr : info);
+  fDescriptionSDPString = strDup(description == NULL ? libNamePlusVersionStr : description);
+  delete[] libNamePlusVersionStr;
+
   fMiscSDPLines = strDup(miscSDPLines == NULL ? "" : miscSDPLines);
 
   gettimeofday(&fCreationTime, NULL);
@@ -183,10 +190,8 @@ Boolean ServerMediaSession::isServerMediaSession() const {
 }
 
 char* ServerMediaSession::generateSDPDescription() {
-  struct in_addr ipAddress;
-  ipAddress.s_addr = ourIPAddress(envir());
-  char* const ipAddressStr = strDup(our_inet_ntoa(ipAddress));
-  unsigned ipAddressStrSize = strlen(ipAddressStr);
+  AddressString ipAddressStr(ourIPAddress(envir()));
+  unsigned ipAddressStrSize = strlen(ipAddressStr.val());
 
   // For a SSM sessions, we need a "a=source-filter: incl ..." line also:
   char* sourceFilterLine;
@@ -197,7 +202,7 @@ char* ServerMediaSession::generateSDPDescription() {
     unsigned const sourceFilterFmtSize = strlen(sourceFilterFmt) + ipAddressStrSize + 1;
 
     sourceFilterLine = new char[sourceFilterFmtSize];
-    sprintf(sourceFilterLine, sourceFilterFmt, ipAddressStr);
+    sprintf(sourceFilterLine, sourceFilterFmt, ipAddressStr.val());
   } else {
     sourceFilterLine = strDup("");
   }
@@ -262,7 +267,7 @@ char* ServerMediaSession::generateSDPDescription() {
     sprintf(sdp, sdpPrefixFmt,
 	    fCreationTime.tv_sec, fCreationTime.tv_usec, // o= <session id>
 	    1, // o= <version> // (needs to change if params are modified)
-	    ipAddressStr, // o= <address>
+	    ipAddressStr.val(), // o= <address>
 	    fDescriptionSDPString, // s= <description>
 	    fInfoSDPString, // i= <info>
 	    libNameStr, libVersionStr, // a=tool:
@@ -281,7 +286,7 @@ char* ServerMediaSession::generateSDPDescription() {
     }
   } while (0);
 
-  delete[] rangeLine; delete[] sourceFilterLine; delete[] ipAddressStr;
+  delete[] rangeLine; delete[] sourceFilterLine;
   return sdp;
 }
 
@@ -339,8 +344,13 @@ void ServerMediaSubsession::pauseStream(unsigned /*clientSessionId*/,
   // default implementation: do nothing
 }
 void ServerMediaSubsession::seekStream(unsigned /*clientSessionId*/,
-				       void* /*streamToken*/, double /*seekNPT*/) {
+				       void* /*streamToken*/, double& /*seekNPT*/, double /*streamDuration*/, u_int64_t& numBytes) {
   // default implementation: do nothing
+  numBytes = 0;
+}
+FramedSource* ServerMediaSubsession::getStreamSource(void* /*streamToken*/) {
+  // default implementation: return NULL
+  return NULL;
 }
 void ServerMediaSubsession::setStreamScale(unsigned /*clientSessionId*/,
 					   void* /*streamToken*/, float /*scale*/) {

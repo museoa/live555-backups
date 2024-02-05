@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A generic SIP client
 // Implementation
 
@@ -60,13 +60,13 @@ SIPClient::SIPClient(UsageEnvironment& env,
 
   struct in_addr ourAddress;
   ourAddress.s_addr = ourIPAddress(env); // hack
-  fOurAddressStr = strDup(our_inet_ntoa(ourAddress));
+  fOurAddressStr = strDup(AddressString(ourAddress).val());
   fOurAddressStrSize = strlen(fOurAddressStr);
 
   fOurSocket = new Groupsock(env, ourAddress, 0, 255);
   if (fOurSocket == NULL) {
     env << "ERROR: Failed to create socket for addr "
-	<< our_inet_ntoa(ourAddress) << ": "
+	<< fOurAddressStr << ": "
 	<< env.getResultMsg() << "\n";
   }
 
@@ -84,7 +84,7 @@ SIPClient::SIPClient(UsageEnvironment& env,
     fOurSocket = new Groupsock(env, ourAddress, fOurPortNum, 255);
     if (fOurSocket == NULL) {
       env << "ERROR: Failed to create socket for addr "
-	  << our_inet_ntoa(ourAddress) << ", port "
+	  << fOurAddressStr << ", port "
 	  << fOurPortNum << ": "
 	  << env.getResultMsg() << "\n";
     }
@@ -181,8 +181,8 @@ char* SIPClient::invite(char const* url, Authenticator* authenticator) {
   delete[] (char*)fURL; fURL = strDup(url);
   fURLSize = strlen(fURL);
 
-  fCallId = our_random();
-  fFromTag = our_random();
+  fCallId = our_random32();
+  fFromTag = our_random32();
 
   return invite1(authenticator);
 }
@@ -250,7 +250,7 @@ char* SIPClient::invite1(Authenticator* authenticator) {
       "Content-Type: application/sdp\r\n"
       "%s" /* Proxy-Authorization: line (if any) */
       "%s" /* User-Agent: line */
-      "Content-length: %d\r\n\r\n"
+      "Content-Length: %d\r\n\r\n"
       "%s";
     unsigned inviteCmdSize = strlen(cmdFmt)
       + fURLSize
@@ -530,7 +530,7 @@ unsigned SIPClient::getResponseCode() {
       if (sscanf(lineStart, "Content-Length: %d", &contentLength) == 1
           || sscanf(lineStart, "Content-length: %d", &contentLength) == 1) {
         if (contentLength < 0) {
-          envir().setResultMsg("Bad \"Content-length:\" header: \"",
+          envir().setResultMsg("Bad \"Content-Length:\" header: \"",
                                lineStart, "\"");
           break;
         }
@@ -544,11 +544,11 @@ unsigned SIPClient::getResponseCode() {
     }
 
     // Use the remaining data as the SDP descr, but first, check
-    // the "Content-length:" header (if any) that we saw.  We may need to
+    // the "Content-Length:" header (if any) that we saw.  We may need to
     // read more data, or we may have extraneous data in the buffer.
     char* bodyStart = nextLineStart;
     if (bodyStart != NULL && contentLength >= 0) {
-      // We saw a "Content-length:" header
+      // We saw a "Content-Length:" header
       unsigned numBodyBytes = &readBuf[bytesRead] - bodyStart;
       if (contentLength > (int)numBodyBytes) {
         // We need to read more data.  First, make sure we have enough
@@ -560,7 +560,7 @@ unsigned SIPClient::getResponseCode() {
           = readBufSize - (bytesRead + (readBuf - readBuffer));
         if (numExtraBytesNeeded > remainingBufferSize) {
           char tmpBuf[200];
-          sprintf(tmpBuf, "Read buffer size (%d) is too small for \"Content-length:\" %d (need a buffer size of >= %d bytes\n",
+          sprintf(tmpBuf, "Read buffer size (%d) is too small for \"Content-Length:\" %d (need a buffer size of >= %d bytes\n",
                   readBufSize, contentLength,
                   readBufSize + numExtraBytesNeeded - remainingBufferSize);
           envir().setResultMsg(tmpBuf);
@@ -606,8 +606,7 @@ char* SIPClient::inviteWithPassword(char const* url, char const* username,
   delete[] (char*)fUserName; fUserName = strDup(username);
   fUserNameSize = strlen(fUserName);
 
-  Authenticator authenticator;
-  authenticator.setUsernameAndPassword(username, password);
+  Authenticator authenticator(username, password);
   char* inviteResult = invite(url, &authenticator);
   if (inviteResult != NULL) {
     // We are already authorized
@@ -640,7 +639,7 @@ Boolean SIPClient::sendACK() {
       "To: %s;tag=%s\r\n"
       "Call-ID: %u@%s\r\n"
       "CSeq: %d ACK\r\n"
-      "Content-length: 0\r\n\r\n";
+      "Content-Length: 0\r\n\r\n";
     unsigned cmdSize = strlen(cmdFmt)
       + fURLSize
       + 2*fUserNameSize + fOurAddressStrSize + 20 /* max int len */
@@ -681,7 +680,7 @@ Boolean SIPClient::sendBYE() {
       "To: %s;tag=%s\r\n"
       "Call-ID: %u@%s\r\n"
       "CSeq: %d ACK\r\n"
-      "Content-length: 0\r\n\r\n";
+      "Content-Length: 0\r\n\r\n";
     unsigned cmdSize = strlen(cmdFmt)
       + fURLSize
       + 2*fUserNameSize + fOurAddressStrSize + 20 /* max int len */

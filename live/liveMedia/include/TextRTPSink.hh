@@ -14,35 +14,28 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
-// MP3 HTTP Sources
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
+// A generic RTP sink for text codecs (abstract base class)
 // C++ header
 
-#ifndef _MP3_HTTP_SOURCE_HH
-#define _MP3_HTTP_SOURCE_HH
+#ifndef _TEXT_RTP_SINK_HH
+#define _TEXT_RTP_SINK_HH
 
-#ifndef _MP3_FILE_SOURCE_HH
-#include "MP3FileSource.hh"
-#endif
-#ifndef _NET_ADDRESS_HH
-#include "NetAddress.hh"
+#ifndef _MULTI_FRAMED_RTP_SINK_HH
+#include "MultiFramedRTPSink.hh"
 #endif
 
-class MP3HTTPSource: public MP3FileSource {
-public:
-  static MP3HTTPSource* createNew(UsageEnvironment& env,
-				  NetAddress const& address, Port port,
-				  char const* remoteHostName,
-				  char const* fileName);
+class TextRTPSink: public MultiFramedRTPSink {
+protected:
+  TextRTPSink(UsageEnvironment& env,
+	      Groupsock* rtpgs, unsigned char rtpPayloadType,
+	      unsigned rtpTimestampFrequency,
+	      char const* rtpPayloadFormatName);
+  // (we're an abstract base class)
+  virtual ~TextRTPSink();
 
-  virtual ~MP3HTTPSource();
-
-private:
-  MP3HTTPSource(UsageEnvironment& env, FILE* fid);
-      // called only by createNew()
-
-  void writeGetCmd(char const* hostName, unsigned portNum,
-		   char const* fileName);
+private: // redefined virtual functions:
+  virtual char const* sdpMediaType() const;
 };
 
 #endif

@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A data structure that represents a session that consists of
 // potentially multiple (audio and/or video) sub-sessions
 // (This data structure is used for media *streamers* - i.e., servers.
@@ -26,6 +26,9 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef _MEDIA_HH
 #include "Media.hh"
+#endif
+#ifndef _FRAMED_SOURCE_HH
+#include "FramedSource.hh"
 #endif
 #ifndef _GROUPEID_HH
 #include "GroupEId.hh"
@@ -57,6 +60,7 @@ public:
   char const* streamName() const { return fStreamName; }
 
   Boolean addSubsession(ServerMediaSubsession* subsession);
+  unsigned numSubsessions() const { return fSubsessionCounter; }
 
   void testScaleFactor(float& scale); // sets "scale" to the actual supported scale
   float duration() const;
@@ -140,8 +144,11 @@ public:
 			   ServerRequestAlternativeByteHandler* serverRequestAlternativeByteHandler,
 			   void* serverRequestAlternativeByteHandlerClientData) = 0;
   virtual void pauseStream(unsigned clientSessionId, void* streamToken);
-  virtual void seekStream(unsigned clientSessionId, void* streamToken, double seekNPT);
+  virtual void seekStream(unsigned clientSessionId, void* streamToken, double& seekNPT, double streamDuration, u_int64_t& numBytes);
+     // "streamDuration", if >0.0, specifies how much data to stream, past "seekNPT".  (If <=0.0, all remaining data is streamed.)
+     // "numBytes" returns the size (in bytes) of the data to be streamed, or 0 if unknown or unlimited.
   virtual void setStreamScale(unsigned clientSessionId, void* streamToken, float scale);
+  virtual FramedSource* getStreamSource(void* streamToken);
   virtual void deleteStream(unsigned clientSessionId, void*& streamToken);
 
   virtual void testScaleFactor(float& scale); // sets "scale" to the actual supported scale

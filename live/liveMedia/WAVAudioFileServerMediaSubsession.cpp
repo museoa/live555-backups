@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A 'ServerMediaSubsession' object that creates new, unicast, "RTPSink"s
 // on demand, from an WAV audio file.
 // Implementation
@@ -43,7 +43,7 @@ WAVAudioFileServerMediaSubsession
 }
 
 void WAVAudioFileServerMediaSubsession
-::seekStreamSource(FramedSource* inputSource, double seekNPT) {
+::seekStreamSource(FramedSource* inputSource, double& seekNPT, double streamDuration, u_int64_t& numBytes) {
   WAVAudioFileSource* wavSource;
   if (fBitsPerSample == 16) {
     // "inputSource" is a filter; its input source is the original WAV file source:
@@ -56,7 +56,11 @@ void WAVAudioFileServerMediaSubsession
   unsigned seekSampleNumber = (unsigned)(seekNPT*fSamplingFrequency);
   unsigned seekByteNumber = (seekSampleNumber*fNumChannels*fBitsPerSample)/8;
 
-  wavSource->seekToPCMByte(seekByteNumber);
+  unsigned numDurationSamples = (unsigned)(streamDuration*fSamplingFrequency);
+  unsigned numDurationBytes = (numDurationSamples*fNumChannels*fBitsPerSample)/8;
+  numBytes = (u_int64_t)numDurationBytes;
+
+  wavSource->seekToPCMByte(seekByteNumber, numDurationBytes);
 }
 
 void WAVAudioFileServerMediaSubsession
@@ -86,9 +90,8 @@ FramedSource* WAVAudioFileServerMediaSubsession
 
     fAudioFormat = wavSource->getAudioFormat();
     fBitsPerSample = wavSource->bitsPerSample();
-    if (fBitsPerSample != 8 && fBitsPerSample !=  16) {
-      envir() << "The input file contains " << fBitsPerSample
-	      << " bit-per-sample audio, which we don't handle\n";
+    if (!(fBitsPerSample == 4 || fBitsPerSample == 8 || fBitsPerSample == 16)) {
+      envir() << "The input file contains " << fBitsPerSample << " bit-per-sample audio, which we don't handle\n";
       break;
     }
     fSamplingFrequency = wavSource->samplingFrequency();
@@ -169,6 +172,21 @@ RTPSink* WAVAudioFileServerMediaSubsession
 	payloadFormatCode = 8; // a static RTP payload type
       } else {
 	payloadFormatCode = rtpPayloadTypeIfDynamic;
+      }
+    } else if (fAudioFormat == WA_IMA_ADPCM) {
+      mimeType = "DVI4";
+      payloadFormatCode = rtpPayloadTypeIfDynamic; // by default; could be changed below:
+      // Use a static payload type, if one is defined:
+      if (fNumChannels == 1) {
+	if (fSamplingFrequency == 8000) {
+	  payloadFormatCode = 5; // a static RTP payload type
+	} else if (fSamplingFrequency == 16000) {
+	  payloadFormatCode = 6; // a static RTP payload type
+	} else if (fSamplingFrequency == 11025) {
+	  payloadFormatCode = 16; // a static RTP payload type
+	} else if (fSamplingFrequency == 22050) {
+	  payloadFormatCode = 17; // a static RTP payload type
+	}
       }
     } else { //unknown format
 		break;

@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A sink that generates a QuickTime file from a composite media session
 // Implementation
 
@@ -403,7 +403,7 @@ Boolean QuickTimeFileSink::continuePlaying() {
 
 void QuickTimeFileSink
 ::afterGettingFrame(void* clientData, unsigned packetDataSize,
-		    unsigned /*numTruncatedBytes*/,
+		    unsigned numTruncatedBytes,
 		    struct timeval presentationTime,
 		    unsigned /*durationInMicroseconds*/) {
   SubsessionIOState* ioState = (SubsessionIOState*)clientData;
@@ -411,6 +411,11 @@ void QuickTimeFileSink
     // Ignore this data:
     ioState->fOurSink.continuePlaying();
     return;
+  }
+  if (numTruncatedBytes > 0) {
+    ioState->envir() << "QuickTimeFileSink::afterGettingFrame(): The input frame data was too large for our buffer.  "
+                     << numTruncatedBytes
+                     << " bytes of trailing data was dropped!  Correct this by increasing the \"bufferSize\" parameter in the \"createNew()\" call.\n";
   }
   ioState->afterGettingFrame(packetDataSize, presentationTime);
 }
@@ -1263,8 +1268,8 @@ void QuickTimeFileSink::setWord(int64_t filePosn, unsigned size) {
     return;
   } while (0);
 
-  // One of the fseek()s failed, probable because we're not a seekable file
-  envir() << "QuickTimeFileSink::setWord(): fseek failed (err "
+  // One of the SeekFile64()s failed, probable because we're not a seekable file
+  envir() << "QuickTimeFileSink::setWord(): SeekFile64 failed (err "
 	  << envir().getErrno() << ")\n";
 }
 
@@ -1277,8 +1282,8 @@ void QuickTimeFileSink::setWord64(int64_t filePosn, u_int64_t size) {
     return;
   } while (0);
 
-  // One of the fseek()s failed, probable because we're not a seekable file
-  envir() << "QuickTimeFileSink::setWord(): fseek failed (err "
+  // One of the SeekFile64()s failed, probable because we're not a seekable file
+  envir() << "QuickTimeFileSink::setWord(): SeekFile64 failed (err "
 	  << envir().getErrno() << ")\n";
 }
 
@@ -1782,8 +1787,8 @@ addAtom(esds);
   } else if (strcmp(subsession.mediumName(), "video") == 0) {
     // MPEG-4 video
     size += addWord(0x00000000); // ???
-    size += addWord(0x03370000); // ???
-    size += addWord(0x1f042f20); // ???
+    size += addWord(0x03330000); // ???
+    size += addWord(0x1f042b20); // ???
     size += addWord(0x1104fd46); // ???
     size += addWord(0x000d4e10); // ???
     size += addWord(0x000d4e10); // ???
@@ -1870,8 +1875,8 @@ addAtom(avcC);
 
   size_t comma_pos = strcspn(psets, ",");
   psets[comma_pos] = '\0';
-  char* sps_b64 = psets;
-  char* pps_b64 = &psets[comma_pos+1];
+  char const* sps_b64 = psets;
+  char const* pps_b64 = &psets[comma_pos+1];
   unsigned sps_count;
   unsigned char* sps_data = base64Decode(sps_b64, sps_count, false);
   unsigned pps_count;

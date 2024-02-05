@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "mTunnel" multicast access service
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // Helper routines to implement 'group sockets'
 // Implementation
 
@@ -36,17 +36,55 @@ netAddressBits SendingInterfaceAddr = INADDR_ANY;
 netAddressBits ReceivingInterfaceAddr = INADDR_ANY;
 
 static void socketErr(UsageEnvironment& env, char const* errorMsg) {
-	env.setResultErrMsg(errorMsg);
+  env.setResultErrMsg(errorMsg);
 }
 
-static int reuseFlag = 1;
-
-NoReuse::NoReuse() {
-  reuseFlag = 0;
+NoReuse::NoReuse(UsageEnvironment& env)
+  : fEnv(env) {
+  groupsockPriv(fEnv)->reuseFlag = 0;
 }
 
 NoReuse::~NoReuse() {
-  reuseFlag = 1;
+  groupsockPriv(fEnv)->reuseFlag = 1;
+  reclaimGroupsockPriv(fEnv);
+}
+
+
+_groupsockPriv* groupsockPriv(UsageEnvironment& env) {
+  if (env.groupsockPriv == NULL) { // We need to create it
+    _groupsockPriv* result = new _groupsockPriv;
+    result->socketTable = NULL;
+    result->reuseFlag = 1; // default value => allow reuse of socket numbers
+    env.groupsockPriv = result;
+  }
+  return (_groupsockPriv*)(env.groupsockPriv);
+}
+
+void reclaimGroupsockPriv(UsageEnvironment& env) {
+  _groupsockPriv* priv = (_groupsockPriv*)(env.groupsockPriv);
+  if (priv->socketTable == NULL && priv->reuseFlag == 1/*default value*/) {
+    // We can delete the structure (to save space); it will get created again, if needed:
+    delete priv;
+    env.groupsockPriv = NULL;
+  }
+}
+
+static int createSocket(int type) {
+  // Call "socket()" to create a (IPv4) socket of the specified type.
+  // But also set it to have the 'close on exec' property (if we can)
+  int sock;
+
+#ifdef SOCK_CLOEXEC
+  sock = socket(AF_INET, type|SOCK_CLOEXEC, 0);
+  if (sock != -1 || errno != EINVAL) return sock;
+  // An "errno" of EINVAL likely means that the system wasn't happy with the SOCK_CLOEXEC; fall through and try again without it:
+#endif
+
+  sock = socket(AF_INET, type, 0);
+#ifdef FD_CLOEXEC
+  if (sock != -1) fcntl(sock, F_SETFD, FD_CLOEXEC);
+#endif
+  return sock;
 }
 
 int setupDatagramSocket(UsageEnvironment& env, Port port) {
@@ -55,12 +93,14 @@ int setupDatagramSocket(UsageEnvironment& env, Port port) {
     return -1;
   }
 
-  int newSocket = socket(AF_INET, SOCK_DGRAM, 0);
+  int newSocket = createSocket(SOCK_DGRAM);
   if (newSocket < 0) {
     socketErr(env, "unable to create datagram socket: ");
     return newSocket;
   }
 
+  int reuseFlag = groupsockPriv(env)->reuseFlag;
+  reclaimGroupsockPriv(env);
   if (setsockopt(newSocket, SOL_SOCKET, SO_REUSEADDR,
 		 (const char*)&reuseFlag, sizeof reuseFlag) < 0) {
     socketErr(env, "setsockopt(SO_REUSEADDR) error: ");
@@ -129,7 +169,7 @@ int setupDatagramSocket(UsageEnvironment& env, Port port) {
 }
 
 Boolean makeSocketNonBlocking(int sock) {
-#if defined(__WIN32__) || defined(_WIN32) || defined(IMN_PIM)
+#if defined(__WIN32__) || defined(_WIN32)
   unsigned long arg = 1;
   return ioctlsocket(sock, FIONBIO, &arg) == 0;
 #elif defined(VXWORKS)
@@ -142,7 +182,7 @@ Boolean makeSocketNonBlocking(int sock) {
 }
 
 Boolean makeSocketBlocking(int sock) {
-#if defined(__WIN32__) || defined(_WIN32) || defined(IMN_PIM)
+#if defined(__WIN32__) || defined(_WIN32)
   unsigned long arg = 0;
   return ioctlsocket(sock, FIONBIO, &arg) == 0;
 #elif defined(VXWORKS)
@@ -161,12 +201,14 @@ int setupStreamSocket(UsageEnvironment& env,
     return -1;
   }
 
-  int newSocket = socket(AF_INET, SOCK_STREAM, 0);
+  int newSocket = createSocket(SOCK_STREAM);
   if (newSocket < 0) {
     socketErr(env, "unable to create stream socket: ");
     return newSocket;
   }
 
+  int reuseFlag = groupsockPriv(env)->reuseFlag;
+  reclaimGroupsockPriv(env);
   if (setsockopt(newSocket, SOL_SOCKET, SO_REUSEADDR,
 		 (const char*)&reuseFlag, sizeof reuseFlag) < 0) {
     socketErr(env, "setsockopt(SO_REUSEADDR) error: ");
@@ -424,9 +466,15 @@ Boolean socketJoinGroupSSM(UsageEnvironment& env, int socket,
   if (!IsMulticastAddress(groupAddress)) return True; // ignore this case
 
   struct ip_mreq_source imr;
-  imr.imr_multiaddr.s_addr = groupAddress;
-  imr.imr_sourceaddr.s_addr = sourceFilterAddr;
-  imr.imr_interface.s_addr = ReceivingInterfaceAddr;
+#ifdef ANDROID
+    imr.imr_multiaddr = groupAddress;
+    imr.imr_sourceaddr = sourceFilterAddr;
+    imr.imr_interface = ReceivingInterfaceAddr;
+#else
+    imr.imr_multiaddr.s_addr = groupAddress;
+    imr.imr_sourceaddr.s_addr = sourceFilterAddr;
+    imr.imr_interface.s_addr = ReceivingInterfaceAddr;
+#endif
   if (setsockopt(socket, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP,
 		 (const char*)&imr, sizeof (struct ip_mreq_source)) < 0) {
     socketErr(env, "setsockopt(IP_ADD_SOURCE_MEMBERSHIP) error: ");
@@ -442,9 +490,15 @@ Boolean socketLeaveGroupSSM(UsageEnvironment& /*env*/, int socket,
   if (!IsMulticastAddress(groupAddress)) return True; // ignore this case
 
   struct ip_mreq_source imr;
-  imr.imr_multiaddr.s_addr = groupAddress;
-  imr.imr_sourceaddr.s_addr = sourceFilterAddr;
-  imr.imr_interface.s_addr = ReceivingInterfaceAddr;
+#ifdef ANDROID
+    imr.imr_multiaddr = groupAddress;
+    imr.imr_sourceaddr = sourceFilterAddr;
+    imr.imr_interface = ReceivingInterfaceAddr;
+#else
+    imr.imr_multiaddr.s_addr = groupAddress;
+    imr.imr_sourceaddr.s_addr = sourceFilterAddr;
+    imr.imr_interface.s_addr = ReceivingInterfaceAddr;
+#endif
   if (setsockopt(socket, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP,
 		 (const char*)&imr, sizeof (struct ip_mreq_source)) < 0) {
     return False;
@@ -479,12 +533,12 @@ Boolean getSourcePort(UsageEnvironment& env, int socket, Port& port) {
   return True;
 }
 
-static Boolean badAddress(netAddressBits addr) {
+static Boolean badAddressForUs(netAddressBits addr) {
   // Check for some possible erroneous addresses:
-  netAddressBits hAddr = ntohl(addr);
-  return (hAddr == 0x7F000001 /* 127.0.0.1 */
-	  || hAddr == 0
-	  || hAddr == (netAddressBits)(~0));
+  netAddressBits nAddr = htonl(addr);
+  return (nAddr == 0x7F000001 /* 127.0.0.1 */
+	  || nAddr == 0
+	  || nAddr == (netAddressBits)(~0));
 }
 
 Boolean loopbackWorks = 1;
@@ -540,69 +594,55 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
 	break;
       }
 
-      loopbackWorks = 1;
+      // We use this packet's source address, if it's good:
+      loopbackWorks = !badAddressForUs(fromAddr.sin_addr.s_addr);
     } while (0);
-
-    if (!loopbackWorks) do {
-      // We couldn't find our address using multicast loopback
-      // so try instead to look it up directly.
-      char hostname[100];
-      hostname[0] = '\0';
-      gethostname(hostname, sizeof hostname);
-      if (hostname[0] == '\0') {
-	env.setResultErrMsg("initial gethostname() failed");
-	break;
-      }
-
-#if defined(VXWORKS)
-#include <hostLib.h>
-      if (ERROR == (ourAddress = hostGetByName( hostname ))) break;
-#else
-      struct hostent* hstent
-	= (struct hostent*)gethostbyname(hostname);
-      if (hstent == NULL || hstent->h_length != 4) {
-	env.setResultErrMsg("initial gethostbyname() failed");
-	break;
-      }
-      // Take the first address that's not bad
-      // (This code, like many others, won't handle IPv6)
-      netAddressBits addr = 0;
-      for (unsigned i = 0; ; ++i) {
-	char* addrPtr = hstent->h_addr_list[i];
-	if (addrPtr == NULL) break;
-
-	netAddressBits a = *(netAddressBits*)addrPtr;
-	if (!badAddress(a)) {
-	  addr = a;
-	  break;
-	}
-      }
-      if (addr != 0) {
-	fromAddr.sin_addr.s_addr = addr;
-      } else {
-	env.setResultMsg("no address");
-	break;
-      }
-    } while (0);
-
-    // Make sure we have a good address:
-    netAddressBits from = fromAddr.sin_addr.s_addr;
-    if (badAddress(from)) {
-      char tmp[100];
-      sprintf(tmp,
-	      "This computer has an invalid IP address: 0x%x",
-	      (netAddressBits)(ntohl(from)));
-      env.setResultMsg(tmp);
-      from = 0;
-    }
-
-    ourAddress = from;
-#endif
 
     if (sock >= 0) {
       socketLeaveGroup(env, sock, testAddr.s_addr);
       closeSocket(sock);
     }
+
+    if (!loopbackWorks) do {
+      // We couldn't find our address using multicast loopback,
+      // so try instead to look it up directly - by first getting our host name, and then resolving this host name
+      char hostname[100];
+      hostname[0] = '\0';
+      int result = gethostname(hostname, sizeof hostname);
+      if (result != 0 || hostname[0] == '\0') {
+	env.setResultErrMsg("initial gethostname() failed");
+	break;
+      }
+
+      // Try to resolve "hostname" to an IP address:
+      NetAddressList addresses(hostname);
+      NetAddressList::Iterator iter(addresses);
+      NetAddress const* address;
+
+      // Take the first address that's not bad:
+      netAddressBits addr = 0;
+      while ((address = iter.nextAddress()) != NULL) {
+	netAddressBits a = *(netAddressBits*)(address->data());
+	if (!badAddressForUs(a)) {
+	  addr = a;
+	  break;
+	}
+      }
+
+      // Assign the address that we found to "fromAddr" (as if the 'loopback' method had worked), to simplify the code below: 
+      fromAddr.sin_addr.s_addr = addr;
+    } while (0);
+
+    // Make sure we have a good address:
+    netAddressBits from = fromAddr.sin_addr.s_addr;
+    if (badAddressForUs(from)) {
+      char tmp[100];
+      sprintf(tmp, "This computer has an invalid IP address: %s", AddressString(from).val());
+      env.setResultMsg(tmp);
+      from = 0;
+    }
+
+    ourAddress = from;
 
     // Use our newly-discovered IP address, and the current time,
     // to initialize the random number generator's seed:
@@ -623,7 +663,7 @@ netAddressBits chooseRandomIPv4SSMAddress(UsageEnvironment& env) {
   netAddressBits const first = 0xE8000100, lastPlus1 = 0xE8FFFFFF;
   netAddressBits const range = lastPlus1 - first;
 
-  return htonl(first + ((netAddressBits)our_random())%range);
+  return ntohl(first + ((netAddressBits)our_random())%range);
 }
 
 char const* timestampString() {
@@ -654,7 +694,7 @@ char const* timestampString() {
   return (char const*)&timeString;
 }
 
-#if (defined(__WIN32__) || defined(_WIN32)) && !defined(IMN_PIM)
+#if defined(__WIN32__) || defined(_WIN32)
 // For Windoze, we need to implement our own gettimeofday()
 #if !defined(_WIN32_WCE)
 #include <sys/timeb.h>

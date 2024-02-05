@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A filter that passes through (unchanged) chunks that contain an integral number
 // of MPEG-2 Transport Stream packets, but returning (in "fDurationInMicroseconds")
 // an updated estimate of the time gap between chunks.
@@ -59,7 +59,7 @@ public:
   }
 
   double firstClock, lastClock, firstRealTime, lastRealTime;
-  unsigned lastPacketNum;
+  u_int64_t lastPacketNum;
 };
 
 
@@ -73,7 +73,8 @@ MPEG2TransportStreamFramer* MPEG2TransportStreamFramer
 MPEG2TransportStreamFramer
 ::MPEG2TransportStreamFramer(UsageEnvironment& env, FramedSource* inputSource)
   : FramedFilter(env, inputSource),
-    fTSPacketCount(0), fTSPacketDurationEstimate(0.0), fTSPCRCount(0) {
+    fTSPacketCount(0), fTSPacketDurationEstimate(0.0), fTSPCRCount(0),
+    fLimitNumTSPacketsToStream(False), fNumTSPacketsToStream(0) {
   fPIDStatusTable = HashTable::create(ONE_WORD_HASH_KEYS);
 }
 
@@ -89,7 +90,22 @@ void MPEG2TransportStreamFramer::clearPIDStatusTable() {
   }
 }
 
+void MPEG2TransportStreamFramer::setNumTSPacketsToStream(unsigned long numTSRecordsToStream) {
+  fNumTSPacketsToStream = numTSRecordsToStream;
+  fLimitNumTSPacketsToStream = numTSRecordsToStream > 0;
+}
+
 void MPEG2TransportStreamFramer::doGetNextFrame() {
+  if (fLimitNumTSPacketsToStream) {
+    if (fNumTSPacketsToStream == 0) {
+      handleClosure(this);
+      return;
+    }
+    if (fNumTSPacketsToStream*TRANSPORT_PACKET_SIZE < fMaxSize) {
+      fMaxSize = fNumTSPacketsToStream*TRANSPORT_PACKET_SIZE;
+    }
+  }
+
   // Read directly from our input source into our client's buffer:
   fFrameSize = 0;
   fInputSource->getNextFrame(fTo, fMaxSize,
@@ -120,6 +136,7 @@ void MPEG2TransportStreamFramer::afterGettingFrame1(unsigned frameSize,
 						    struct timeval presentationTime) {
   fFrameSize += frameSize;
   unsigned const numTSPackets = fFrameSize/TRANSPORT_PACKET_SIZE;
+  fNumTSPacketsToStream -= numTSPackets;
   fFrameSize = numTSPackets*TRANSPORT_PACKET_SIZE; // an integral # of TS packets
   if (fFrameSize == 0) {
     // We didn't read a complete TS packet; assume that the input source has closed.
@@ -209,15 +226,18 @@ void MPEG2TransportStreamFramer
 #endif
   } else {
     // We've seen this PID's PCR before; update our per-packet duration estimate:
-    double durationPerPacket
-      = (clock - pidStatus->lastClock)/(fTSPacketCount - pidStatus->lastPacketNum);
+    int64_t packetsSinceLast = (int64_t)(fTSPacketCount - pidStatus->lastPacketNum);
+      // it's "int64_t" because some compilers can't convert "u_int64_t" -> "double"
+    double durationPerPacket = (clock - pidStatus->lastClock)/packetsSinceLast;
 
     // Hack (suggested by "Romain"): Don't update our estimate if this PCR appeared unusually quickly.
     // (This can produce more accurate estimates for wildly VBR streams.)
     double meanPCRPeriod = 0.0;
     if (fTSPCRCount > 0) {
-      meanPCRPeriod=(double)fTSPacketCount/fTSPCRCount;
-      if (fTSPacketCount - pidStatus->lastPacketNum < meanPCRPeriod*PCR_PERIOD_VARIATION_RATIO) return;
+      double tsPacketCount = (double)(int64_t)fTSPacketCount;
+      double tsPCRCount = (double)(int64_t)fTSPCRCount;
+      meanPCRPeriod = tsPacketCount/tsPCRCount;
+      if (packetsSinceLast < meanPCRPeriod*PCR_PERIOD_VARIATION_RATIO) return;
     }
 
     if (fTSPacketDurationEstimate == 0.0) { // we've just started

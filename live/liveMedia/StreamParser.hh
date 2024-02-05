@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // Abstract class for parsing a byte stream
 // C++ header
 
@@ -97,6 +97,10 @@ protected: // we're a virtual base class
 
   unsigned& totNumValidBytes() { return fTotNumValidBytes; }
 
+  Boolean haveSeenEOF() const { return fHaveSeenEOF; }
+
+  unsigned bankSize() const;
+
 private:
   unsigned char* curBank() { return fCurBank; }
   unsigned char* nextToParse() { return &curBank()[fCurParserIndex]; }
@@ -115,11 +119,15 @@ private:
 				unsigned numTruncatedBytes,
 				struct timeval presentationTime,
 				unsigned durationInMicroseconds);
+  void afterGettingBytes1(unsigned numBytesRead, struct timeval presentationTime);
+
+  static void onInputClosure(void* clientData);
+  void onInputClosure1();
 
 private:
   FramedSource* fInputSource; // should be a byte-stream source??
-  FramedSource::onCloseFunc* fOnInputCloseFunc;
-  void* fOnInputCloseClientData;
+  FramedSource::onCloseFunc* fClientOnInputCloseFunc;
+  void* fClientOnInputCloseClientData;
   clientContinueFunc* fClientContinueFunc;
   void* fClientContinueClientData;
 
@@ -138,6 +146,11 @@ private:
 
   // The total number of valid bytes stored in the current bank:
   unsigned fTotNumValidBytes; // <= BANK_SIZE
+
+  // Whether we have seen EOF on the input source:
+  Boolean fHaveSeenEOF;
+
+  struct timeval fLastSeenPresentationTime; // hack used for EOF handling
 };
 
 #endif

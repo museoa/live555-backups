@@ -14,18 +14,43 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A data structure that represents a session that consists of
 // potentially multiple (audio and/or video) sub-sessions
 // (This data structure is used for media *receivers* - i.e., clients.
 //  For media streamers, use "ServerMediaSession" instead.)
 // C++ header
 
+/* NOTE: To support receiving your own custom RTP payload format, you must first define a new subclass of "MultiFramedRTPSource"
+   (or "BasicUDPSource") that implements it.  Then define your own subclass of "MediaSession" and "MediaSubsession", as follows:
+   - In your subclass of "MediaSession" (named, for example, "myMediaSession"):
+       - Define and implement your own static member function
+           static myMediaSession* createNew(UsageEnvironment& env, char const* sdpDescription);
+	 and call this - instead of "MediaSession::createNew()" - in your application, when you create a new "MediaSession" object.
+       - Reimplement the "createNewMediaSubsession()" virtual function, as follows:
+           MediaSubsession* myMediaSession::createNewMediaSubsession() { return new myMediaSubsession(*this); }
+   - In your subclass of "MediaSubsession" (named, for example, "myMediaSubsession"):
+       - Reimplement the "createSourceObjects()" virtual function, perhaps similar to this:
+           Boolean myMediaSubsession::createSourceObjects(int useSpecialRTPoffset) {
+	     if (strcmp(fCodecName, "X-MY-RTP-PAYLOAD-FORMAT") == 0) {
+	       // This subsession uses our custom RTP payload format:
+	       fReadSource = fRTPSource = myRTPPayloadFormatRTPSource::createNew( <parameters> );
+	       return True;
+	     } else {
+	       // This subsession uses some other RTP payload format - perhaps one that we already implement:
+	       return ::createSourceObjects(useSpecialRTPoffset);
+	     }
+	   }  
+*/
+
 #ifndef _MEDIA_SESSION_HH
 #define _MEDIA_SESSION_HH
 
 #ifndef _RTCP_HH
 #include "RTCP.hh"
+#endif
+#ifndef _FRAMED_FILTER_HH
+#include "FramedFilter.hh"
 #endif
 
 class MediaSubsession; // forward
@@ -63,6 +88,8 @@ protected:
   MediaSession(UsageEnvironment& env);
       // called only by createNew();
   virtual ~MediaSession();
+
+  virtual MediaSubsession* createNewMediaSubsession();
 
   Boolean initializeWithSDP(char const* sdpDescription);
   Boolean parseSDPLine(char const* input, char const*& nextLine);
@@ -141,6 +168,8 @@ public:
   FramedSource* readSource() { return fReadSource; }
     // This is the source that client sinks read from.  It is usually
     // (but not necessarily) the same as "rtpSource()"
+  void addFilter(FramedFilter* filter);
+    // Changes "readSource()" to "filter" (which must have just been created with "readSource()" as its input)
 
   double playStartTime() const;
   double playEndTime() const;
@@ -157,12 +186,16 @@ public:
       // this subsession would use.  (By default, the client port number
       // is gotten from the original SDP description, or - if the SDP
       // description does not specfy a client port number - an ephemeral
-      // (even) port number is chosen.)  This routine should *not* be
+      // (even) port number is chosen.)  This routine must *not* be
       // called after initiate().
+  void receiveRawMP3ADUs() { fReceiveRawMP3ADUs = True; } // optional hack for audio/MPA-ROBUST; must not be called after Initiate()
   char*& connectionEndpointName() { return fConnectionEndpointName; }
   char const* connectionEndpointName() const {
     return fConnectionEndpointName;
   }
+
+  // 'Bandwidth' parameter, set in the "b=" SDP line:
+  unsigned bandwidth() const { return fBandwidth; }
 
   // Various parameters set in "a=fmtp:" SDP lines:
   unsigned fmtp_auxiliarydatasizelength() const { return fAuxiliarydatasizelength; }
@@ -186,8 +219,11 @@ public:
   Boolean fmtp_cpresent() const { return fCpresent; }
   Boolean fmtp_randomaccessindication() const { return fRandomaccessindication; }
   char const* fmtp_config() const { return fConfig; }
+  char const* fmtp_configuration() const { return fmtp_config(); }
   char const* fmtp_mode() const { return fMode; }
   char const* fmtp_spropparametersets() const { return fSpropParameterSets; }
+  char const* fmtp_emphasis() const { return fEmphasis; }
+  char const* fmtp_channelorder() const { return fChannelOrder; }
 
   netAddressBits connectionEndpointAddress() const;
       // Converts "fConnectionEndpointName" to an address (or 0 if unknown)
@@ -196,9 +232,11 @@ public:
       // the destination address and port of the RTP and RTCP objects.
       // This is typically called by RTSP clients after doing "SETUP".
 
+  char const* sessionId() const { return fSessionId; }
+  void setSessionId(char const* sessionId);
+
   // Public fields that external callers can use to keep state.
   // (They are responsible for all storage management on these fields)
-  char const* sessionId; // used by RTSP
   unsigned short serverPortNum; // in host byte order (used by RTSP)
   unsigned char rtpChannelId, rtcpChannelId; // used by RTSP (for RTP/TCP)
   MediaSink* sink; // callers can use this to keep track of who's playing us
@@ -239,6 +277,9 @@ protected:
   Boolean parseSDPAttribute_x_dimensions(char const* sdpLine);
   Boolean parseSDPAttribute_framerate(char const* sdpLine);
 
+  virtual Boolean createSourceObjects(int useSpecialRTPoffset);
+    // create "fRTPSource" and "fReadSource" member objects, after we've been initialized via SDP
+
 protected:
   // Linkage fields:
   MediaSession& fParent;
@@ -266,7 +307,7 @@ protected:
   unsigned fOctetalign, fProfile_level_id, fRobustsorting;
   unsigned fSizelength, fStreamstateindication, fStreamtype;
   Boolean fCpresent, fRandomaccessindication;
-  char *fConfig, *fMode, *fSpropParameterSets;
+  char *fConfig, *fMode, *fSpropParameterSets, *fEmphasis, *fChannelOrder;
 
   double fPlayStartTime;
   double fPlayEndTime;
@@ -279,10 +320,14 @@ protected:
   float fScale; // set from a RTSP "Scale:" header
   double fNPT_PTS_Offset; // set by "getNormalPlayTime()"; add this to a PTS to get NPT
 
-  // Fields set by initiate():
+  // Fields set or used by initiate():
   Groupsock* fRTPSocket; Groupsock* fRTCPSocket; // works even for unicast
   RTPSource* fRTPSource; RTCPInstance* fRTCPInstance;
   FramedSource* fReadSource;
+  Boolean fReceiveRawMP3ADUs;
+
+  // Other fields:
+  char* fSessionId; // used by RTSP
 };
 
 #endif

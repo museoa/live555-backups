@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A RTSP server
 // C++ header
 
@@ -119,7 +119,7 @@ protected:
 private: // redefined virtual functions
   virtual Boolean isRTSPServer() const;
 
-protected:
+public: // should be protected, but some old compilers complain otherwise
   // The state of each individual session handled by a RTSP server:
   class RTSPClientSession {
   public:
@@ -133,7 +133,8 @@ protected:
     virtual void handleCmd_notFound(char const* cseq);
     virtual void handleCmd_unsupportedTransport(char const* cseq);
     virtual void handleCmd_OPTIONS(char const* cseq);
-    virtual void handleCmd_DESCRIBE(char const* cseq, char const* urlSuffix,
+    virtual void handleCmd_DESCRIBE(char const* cseq,
+				    char const* urlPreSuffix, char const* urlSuffix,
 				    char const* fullRequestStr);
     virtual void handleCmd_SETUP(char const* cseq,
 				 char const* urlPreSuffix, char const* urlSuffix,
@@ -153,12 +154,17 @@ protected:
 					 char const* cseq, char const* fullRequestStr);
     // Support for optional RTSP-over-HTTP tunneling:
     virtual Boolean parseHTTPRequestString(char* resultCmdName, unsigned resultCmdNameMaxSize,
-					   char* sessionCookie, unsigned sessionCookieMaxSize);
+					   char* urlSuffix, unsigned urlSuffixMaxSize,
+					   char* sessionCookie, unsigned sessionCookieMaxSize,
+					   char* acceptStr, unsigned acceptStrMaxSize);
     virtual void handleHTTPCmd_notSupported();
-    virtual void handleHTTPCmd_GET(char const* sessionCookie);
-    virtual Boolean handleHTTPCmd_POST(char const* sessionCookie, unsigned char const* extraData, unsigned extraDataSize);
+    virtual void handleHTTPCmd_notFound();
+    virtual void handleHTTPCmd_TunnelingGET(char const* sessionCookie);
+    virtual Boolean handleHTTPCmd_TunnelingPOST(char const* sessionCookie, unsigned char const* extraData, unsigned extraDataSize);
+    virtual void handleHTTPCmd_StreamingGET(char const* urlSuffix, char const* fullRequestStr);
   protected:
     UsageEnvironment& envir() { return fOurServer.envir(); }
+    void closeSockets();
     void reclaimStreamStates();
     void resetRequestBuffer();
     Boolean authenticationOK(char const* cmdName, char const* cseq,
@@ -195,8 +201,10 @@ protected:
       ServerMediaSubsession* subsession;
       void* streamToken;
     } * fStreamStates;
+    unsigned fRecursionCount;
   };
 
+protected:
   // If you subclass "RTSPClientSession", then you should also redefine this virtual function in order
   // to create new objects of your subclass:
   virtual RTSPClientSession*
@@ -209,7 +217,7 @@ protected:
     virtual ~ServerMediaSessionIterator();
     ServerMediaSession* next();
   private:
-    HashTable::Iterator *fOurIterator;
+    HashTable::Iterator* fOurIterator;
     ServerMediaSession* fNextPtr;
   };
 

@@ -13,9 +13,13 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2010, Live Networks, Inc.  All rights reserved
+// Copyright (c) 1996-2012, Live Networks, Inc.  All rights reserved
 // A common framework, used for the "openRTSP" and "playSIP" applications
 // Implementation
+//
+// NOTE: If you want to develop your own RTSP client application (or embed RTSP client functionality into your own application),
+// then we don't recommend using this code as a model, because it is too complex (with many options).
+// Instead, we recommend using the "testRTSPClient" application code as a model.
 
 #include "playCommon.hh"
 #include "BasicUsageEnvironment.hh"
@@ -293,6 +297,7 @@ int main(int argc, char** argv) {
     }
 
     case 'u': { // specify a username and password
+      if (argc < 4) usage(); // there's no argv[3] (for the "password")
       username = argv[2];
       password = argv[3];
       argv+=2; argc-=2;
@@ -310,8 +315,7 @@ int main(int argc, char** argv) {
 	}
       }
 
-      ourAuthenticator = new Authenticator;
-      ourAuthenticator->setUsernameAndPassword(username, password);
+      ourAuthenticator = new Authenticator(username, password);
       break;
     }
 
@@ -441,14 +445,14 @@ int main(int argc, char** argv) {
 
     ++argv; --argc;
   }
-  if (argc != 2) usage();
+  if (argc != 2) usage(); // there must be exactly one "rtsp://" URL at the end
   if (outputQuickTimeFile && outputAVIFile) {
-    *env << "The -i and -q (or -4) flags cannot both be used!\n";
+    *env << "The -i and -q (or -4) options cannot both be used!\n";
     usage();
   }
   Boolean outputCompositeFile = outputQuickTimeFile || outputAVIFile;
   if (!createReceivers && outputCompositeFile) {
-    *env << "The -r and -q (or -4 or -i) flags cannot both be used!\n";
+    *env << "The -r and -q (or -4 or -i) options cannot both be used!\n";
     usage();
   }
   if (outputCompositeFile && !movieWidthOptionSet) {
@@ -464,16 +468,16 @@ int main(int argc, char** argv) {
 	 << movieFPS << " frames-per-second\n";
   }
   if (audioOnly && videoOnly) {
-    *env << "The -a and -v flags cannot both be used!\n";
+    *env << "The -a and -v options cannot both be used!\n";
     usage();
   }
   if (sendOptionsRequestOnly && !sendOptionsRequest) {
-    *env << "The -o and -O flags cannot both be used!\n";
+    *env << "The -o and -O options cannot both be used!\n";
     usage();
   }
   if (tunnelOverHTTPPortNum > 0) {
     if (streamUsingTCP) {
-      *env << "The -t and -T flags cannot both be used!\n";
+      *env << "The -t and -T options cannot both be used!\n";
       usage();
     } else {
       streamUsingTCP = True;
@@ -529,7 +533,7 @@ void continueAfterOPTIONS(RTSPClient*, int resultCode, char* resultString) {
 
 void continueAfterDESCRIBE(RTSPClient*, int resultCode, char* resultString) {
   if (resultCode != 0) {
-    *env << "Failed to get a SDP description from URL \"" << streamURL << "\": " << resultString << "\n";
+    *env << "Failed to get a SDP description for the URL \"" << streamURL << "\": " << resultString << "\n";
     shutdown();
   }
 
@@ -543,7 +547,7 @@ void continueAfterDESCRIBE(RTSPClient*, int resultCode, char* resultString) {
     *env << "Failed to create a MediaSession object from the SDP description: " << env->getResultMsg() << "\n";
     shutdown();
   } else if (!session->hasSubsessions()) {
-    *env << "This session has no media subsessions (i.e., \"m=\" lines)\n";
+    *env << "This session has no media subsessions (i.e., no \"m=\" lines)\n";
     shutdown();
   }
 
@@ -813,6 +817,10 @@ void continueAfterPLAY(RTSPClient*, int resultCode, char* resultString) {
   Boolean timerIsBeingUsed = False;
   double secondsToDelay = duration;
   if (duration > 0) {
+    // First, adjust "duration" based on any change to the play range (that was specified in the "PLAY" response):
+    double rangeAdjustment = (session->playEndTime() - session->playStartTime()) - (endTime - initialSeekTime);
+    if (duration + rangeAdjustment > 0.0) duration += rangeAdjustment;
+
     timerIsBeingUsed = True;
     double absScale = scale > 0 ? scale : -scale; // ASSERT: scale != 0
     secondsToDelay = duration/absScale + durationSlop;
@@ -893,7 +901,16 @@ void sessionAfterPlaying(void* /*clientData*/) {
   if (!playContinuously) {
     shutdown(0);
   } else {
-    // We've been asked to play the stream(s) over again:
+    // We've been asked to play the stream(s) over again.
+    // First, reset state from the current session:
+    if (env != NULL) {
+      env->taskScheduler().unscheduleDelayedTask(sessionTimerTask);
+      env->taskScheduler().unscheduleDelayedTask(arrivalCheckTimerTask);
+      env->taskScheduler().unscheduleDelayedTask(interPacketGapCheckTimerTask);
+      env->taskScheduler().unscheduleDelayedTask(qosMeasurementTimerTask);
+    }
+    totNumPacketsReceived = ~0;
+
     startPlayingSession(session, initialSeekTime, endTime, scale, continueAfterPLAY);
   }
 }

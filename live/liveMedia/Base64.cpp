@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // Base64 encoding and decoding
 // implementation
 
@@ -37,7 +37,7 @@ static void initBase64DecodeTable() {
   base64DecodeTable[(unsigned char)'='] = 0;
 }
 
-unsigned char* base64Decode(char* in, unsigned& resultSize,
+unsigned char* base64Decode(char const* in, unsigned& resultSize,
 			    Boolean trimTrailingZeros) {
   static Boolean haveInitedBase64DecodeTable = False;
   if (!haveInitedBase64DecodeTable) {

@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // A filter that breaks up a H.264 Video Elementary Stream into NAL units.
 // C++ header
 
@@ -27,7 +27,8 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 class H264VideoStreamFramer: public MPEGVideoStreamFramer {
 public:
-  static H264VideoStreamFramer* createNew(UsageEnvironment& env, FramedSource* inputSource);
+  static H264VideoStreamFramer* createNew(UsageEnvironment& env, FramedSource* inputSource,
+					  Boolean includeStartCodeInOutput = False);
 
   void getSPSandPPS(u_int8_t*& sps, unsigned& spsSize, u_int8_t*& pps, unsigned& ppsSize) const{
     // Returns pointers to copies of the most recently seen SPS (sequence parameter set) and PPS (picture parameter set) NAL unit.
@@ -36,8 +37,19 @@ public:
     pps = fLastSeenPPS; ppsSize = fLastSeenPPSSize;
   }
 
+  void setSPSandPPS(u_int8_t* sps, unsigned spsSize, u_int8_t* pps, unsigned ppsSize) {
+    // Assigns copies of the SPS and PPS NAL units.  If this function is not called, then these NAL units are assigned
+    // only if/when they appear in the input stream.  
+    saveCopyOfSPS(sps, spsSize);
+    saveCopyOfPPS(pps, ppsSize);
+  }
+  void setSPSandPPS(char const* sPropParameterSetsStr);
+    // As above, except that the SPS and PPS NAL units are decoded from the input string, which must be a Base-64 encoding of
+    // these NAL units (in either order), separated by a comma.  (This string is typically found in a SDP description, and
+    // accessed using "MediaSubsession::fmtp_spropparametersets()".
+
 protected:
-  H264VideoStreamFramer(UsageEnvironment& env, FramedSource* inputSource, Boolean createParser = True);
+  H264VideoStreamFramer(UsageEnvironment& env, FramedSource* inputSource, Boolean createParser, Boolean includeStartCodeInOutput);
   virtual ~H264VideoStreamFramer();
 
   void saveCopyOfSPS(u_int8_t* from, unsigned size);
@@ -50,6 +62,7 @@ private:
   void setPresentationTime() { fPresentationTime = fNextPresentationTime; }
 
 private:
+  Boolean fIncludeStartCodeInOutput;
   u_int8_t* fLastSeenSPS;
   unsigned fLastSeenSPSSize;
   u_int8_t* fLastSeenPPS;

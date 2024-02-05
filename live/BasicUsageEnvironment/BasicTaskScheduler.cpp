@@ -13,7 +13,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // Basic Usage Environment: for a simple, non-scripted, console application
 // Implementation
 
@@ -88,8 +88,6 @@ void BasicTaskScheduler::SingleStep(unsigned maxDelayTime) {
       // To stop this from happening again, create a dummy socket:
       int dummySocketNum = socket(AF_INET, SOCK_DGRAM, 0);
       FD_SET((unsigned)dummySocketNum, &fReadSet);
-      FD_SET((unsigned)dummySocketNum, &fWriteSet);
-      FD_SET((unsigned)dummySocketNum, &fExceptionSet);
     }
     if (err != EINTR) {
 #else

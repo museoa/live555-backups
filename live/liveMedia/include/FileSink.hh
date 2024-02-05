@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // File Sinks
 // C++ header
 
@@ -52,8 +52,9 @@ protected:
 				unsigned numTruncatedBytes,
 				struct timeval presentationTime,
 				unsigned durationInMicroseconds);
-  virtual void afterGettingFrame1(unsigned frameSize,
-				  struct timeval presentationTime);
+  virtual void afterGettingFrame(unsigned frameSize,
+				 unsigned numTruncatedBytes,
+				 struct timeval presentationTime);
 
   FILE* fOutFid;
   unsigned char* fBuffer;

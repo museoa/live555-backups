@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // RTP sink for JPEG video (RFC 2435)
 // Implementation
 
@@ -49,7 +49,7 @@ void JPEGVideoRTPSink
 ::doSpecialFrameHandling(unsigned fragmentationOffset,
 			 unsigned char* /*frameStart*/,
 			 unsigned /*numBytesInFrame*/,
-			 struct timeval frameTimestamp,
+			 struct timeval framePresentationTime,
 			 unsigned numRemainingBytes) {
   // Our source is known to be a JPEGVideoSource
   JPEGVideoSource* source = (JPEGVideoSource*)fSource;
@@ -115,7 +115,7 @@ void JPEGVideoRTPSink
   }
 
   // Also set the RTP timestamp:
-  setTimestamp(frameTimestamp);
+  setTimestamp(framePresentationTime);
 }
 
 

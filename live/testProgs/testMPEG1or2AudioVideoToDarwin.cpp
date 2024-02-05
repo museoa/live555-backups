@@ -13,7 +13,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2010, Live Networks, Inc.  All rights reserved
+// Copyright (c) 1996-2012, Live Networks, Inc.  All rights reserved
 // A test program that reads a MPEG-1 or 2 Program Stream file,
 // splits it into Audio and Video Elementary Streams,
 // and streams both using RTP, through a remote Darwin Streaming Server.
@@ -23,8 +23,8 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 // This demo software is provided only as a courtesy to those developers who - for whatever reason - wish
 // to send outgoing streams through a separate Darwin Streaming Server.  However, it is not necessary to use
 // a Darwin Streaming Server in order to serve streams using RTP/RTSP.  Instead, the "LIVE555 Streaming Media"
-// includes its own RTSP/RTP server implementation, which you should use instead.  For tips on using our
-// RTSP/RTP server implementation, see the "testOnDemandRTSPServer" demo application, and/or the
+// software includes its own RTSP/RTP server implementation, which you should use instead.  For tips on using
+// our RTSP/RTP server implementation, see the "testOnDemandRTSPServer" demo application, and/or the
 // "live555MediaServer" application (in the "mediaServer") directory.
 //////////////////////////
 

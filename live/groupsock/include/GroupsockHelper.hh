@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "mTunnel" multicast access service
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // Helper routines to implement 'group sockets'
 // C++ header
 
@@ -104,20 +104,31 @@ char const* timestampString();
 //          }
 class NoReuse {
 public:
-  NoReuse();
+  NoReuse(UsageEnvironment& env);
   ~NoReuse();
+
+private:
+  UsageEnvironment& fEnv;
 };
 
 
-#if (defined(__WIN32__) || defined(_WIN32)) && !defined(IMN_PIM)
+// Define the "UsageEnvironment"-specific "groupsockPriv" structure:
+
+struct _groupsockPriv { // There should be only one of these allocated
+  HashTable* socketTable;
+  int reuseFlag;
+};
+_groupsockPriv* groupsockPriv(UsageEnvironment& env); // allocates it if necessary
+void reclaimGroupsockPriv(UsageEnvironment& env);
+
+
+#if defined(__WIN32__) || defined(_WIN32)
 // For Windoze, we need to implement our own gettimeofday()
 extern int gettimeofday(struct timeval*, int*);
 #endif
 
 // The following are implemented in inet.c:
 extern "C" netAddressBits our_inet_addr(char const*);
-extern "C" char* our_inet_ntoa(struct in_addr);
-extern "C" struct hostent* our_gethostbyname(char* name);
 extern "C" void our_srandom(int x);
 extern "C" long our_random();
 extern "C" u_int32_t our_random32(); // because "our_random()" returns a 31-bit number

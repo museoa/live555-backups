@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // H.264 Video RTP Sources
 // Implementation
 
@@ -41,7 +41,7 @@ private: // redefined virtual functions
 };
 
 
-///////// MPEG4H264VideoRTPSource implementation ////////
+///////// H264VideoRTPSource implementation ////////
 
 H264VideoRTPSource*
 H264VideoRTPSource::createNew(UsageEnvironment& env, Groupsock* RTPgs,

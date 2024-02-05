@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2012 Live Networks, Inc.  All rights reserved.
 // AMR Audio File sinks
 // Implementation
 
@@ -62,8 +62,9 @@ Boolean AMRAudioFileSink::sourceIsCompatibleWithUs(MediaSource& source) {
   return source.isAMRAudioSource();
 }
 
-void AMRAudioFileSink::afterGettingFrame1(unsigned frameSize,
-					  struct timeval presentationTime) {
+void AMRAudioFileSink::afterGettingFrame(unsigned frameSize,
+					 unsigned numTruncatedBytes,
+					 struct timeval presentationTime) {
   AMRAudioSource* source = (AMRAudioSource*)fSource;
   if (source == NULL) return; // sanity check
 
@@ -96,5 +97,5 @@ void AMRAudioFileSink::afterGettingFrame1(unsigned frameSize,
   }
 
   // Call the parent class to complete the normal file write with the input data:
-  FileSink::afterGettingFrame1(frameSize, presentationTime);
+  FileSink::afterGettingFrame(frameSize, numTruncatedBytes, presentationTime);
 }
