@@ -109,7 +109,8 @@ public:
       //  and http://images.apple.com/br/quicktime/pdf/QTSS_Modules.pdf
   portNumBits httpServerPortNum() const; // in host byte order.  (Returns 0 if not present.)
 
-  void setTLSState(char const* certFileName, char const* privKeyFileName);
+  void setTLSState(char const* certFileName, char const* privKeyFileName,
+		   Boolean weServeSRTP = False/*later change to True #####@@@@@*/);
 
 protected:
   RTSPServer(UsageEnvironment& env,
@@ -191,6 +192,7 @@ public: // should be protected, but some old compilers complain otherwise
         //     reimplement "RTSPServer::weImplementREGISTER()" and "RTSPServer::implementCmd_REGISTER()" instead.
     virtual void handleCmd_bad();
     virtual void handleCmd_notSupported();
+    virtual void handleCmd_redirect(char const* urlSuffix);
     virtual void handleCmd_notFound();
     virtual void handleCmd_sessionNotFound();
     virtual void handleCmd_unsupportedTransport();
@@ -329,6 +331,7 @@ private:
   UserAuthenticationDatabase* fAuthDB;
   Boolean fAllowStreamingRTPOverTCP; // by default, True
   Boolean fOurConnectionsUseTLS; // by default, False
+  Boolean fWeServeSRTP; // used only if "fOurConnectionsUseTLS" is True
 };
 
 
