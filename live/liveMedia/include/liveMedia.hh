@@ -92,6 +92,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "VP8VideoRTPSink.hh"
 #include "VP9VideoRTPSink.hh"
 #include "MPEG4GenericRTPSink.hh"
+#include "RawVideoRTPSink.hh"
 #include "MPEG1or2VideoStreamDiscreteFramer.hh"
 #include "MPEG4VideoStreamDiscreteFramer.hh"
 #include "DeviceSource.hh"
