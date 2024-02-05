@@ -356,8 +356,8 @@ Boolean MediaSession::parseSDPLine_i(char const* sdpLine) {
 Boolean MediaSession::parseSDPLine_c(char const* sdpLine) {
   // Check for "c=IN IP4 <connection-endpoint>"
   // or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
-  // (Later, do something with <ttl+numAddresses> also #####)
   // (ditto for "c=IN IP6 ...")
+  // (Later, do something with <ttl+numAddresses> also #####)
   return parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName)
     || parseStringValue(sdpLine, "c=IN IP6 %[^/\r\n]", fConnectionEndpointName);
 }
@@ -1037,8 +1037,8 @@ void MediaSubsession
 Boolean MediaSubsession::parseSDPLine_c(char const* sdpLine) {
   // Check for "c=IN IP4 <connection-endpoint>"
   // or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
-  // (Later, do something with <ttl+numAddresses> also #####)
   // (ditto for "c=IN IP6 ...")
+  // (Later, do something with <ttl+numAddresses> also #####)
   return parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName)
     || parseStringValue(sdpLine, "c=IN IP6 %[^/\r\n]", fConnectionEndpointName);
 }

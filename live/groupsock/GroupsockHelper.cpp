@@ -45,8 +45,8 @@ extern "C" int initializeWinsockIfNecessary();
 #include <stdio.h>
 
 // By default, use INADDR_ANY for the sending and receiving interfaces:
-netAddressBits SendingInterfaceAddr = INADDR_ANY;
-netAddressBits ReceivingInterfaceAddr = INADDR_ANY;
+ipv4AddressBits SendingInterfaceAddr = INADDR_ANY;
+ipv4AddressBits ReceivingInterfaceAddr = INADDR_ANY;
 
 static void socketErr(UsageEnvironment& env, char const* errorMsg) {
   env.setResultErrMsg(errorMsg);
@@ -146,7 +146,7 @@ int setupDatagramSocket(UsageEnvironment& env, Port port) {
 #endif
 
   // Note: Windoze requires binding, even if the port number is 0
-  netAddressBits addr = INADDR_ANY;
+  ipv4AddressBits addr = INADDR_ANY;
 #if defined(__WIN32__) || defined(_WIN32)
 #else
   if (port.num() != 0 || ReceivingInterfaceAddr != INADDR_ANY) {
@@ -408,8 +408,7 @@ Boolean writeSocket(UsageEnvironment& env,
 		    int socket, struct sockaddr_storage const& addressAndPort,
 		    unsigned char* buffer, unsigned bufferSize) {
   do {
-    SOCKLEN_T dest_len
-      = addressAndPort.ss_family == AF_INET ? sizeof (sockaddr_in) : sizeof (sockaddr_in6);
+    SOCKLEN_T dest_len = addressSize(addressAndPort);
     int bytesSent = sendto(socket, (char*)buffer, bufferSize, 0,
 			   (struct sockaddr const*)&addressAndPort, dest_len);
     if (bytesSent != (int)bufferSize) {
@@ -657,7 +656,7 @@ Boolean getSourcePort(UsageEnvironment& env, int socket, Port& port) {
   return True;
 }
 
-static Boolean badIPv4AddressForUs(ipv4AddressBits addr) {
+static Boolean isBadIPv4AddressForUs(ipv4AddressBits addr) {
   // Check for some possible erroneous addresses:
   ipv4AddressBits nAddr = htonl(addr);
   return (nAddr == 0x7F000001 /* 127.0.0.1 */
@@ -665,17 +664,23 @@ static Boolean badIPv4AddressForUs(ipv4AddressBits addr) {
 	  || nAddr == (ipv4AddressBits)(~0));
 }
 
-static Boolean badIPv6AddressForUs(ipv6AddressBits addr) {
-  return True; // fix later for IPv6 
+static Boolean isBadIPv6AddressForUs(ipv6AddressBits addr) {
+  // We consider an IPv6 address bad only if the first 15 bytes are 0,
+  // and the 16th byte is 0 (unspecified) or 1 (loopback):
+  for (unsigned i = 0; i < 15; ++i) {
+    if (addr[i] != 0) return False;
+  }
+
+  return addr[15] == 0 || addr[15] == 1;
 }
 
-static Boolean badAddressForUs(struct sockaddr_storage const& addr) {
+static Boolean isBadAddressForUs(struct sockaddr_storage const& addr) {
   switch (addr.ss_family) {
     case AF_INET: {
-      return badIPv4AddressForUs(((sockaddr_in&)addr).sin_addr.s_addr);
+      return isBadIPv4AddressForUs(((sockaddr_in&)addr).sin_addr.s_addr);
     }
     case AF_INET6: {
-      return badIPv6AddressForUs(((sockaddr_in6&)addr).sin6_addr.s6_addr);
+      return isBadIPv6AddressForUs(((sockaddr_in6&)addr).sin6_addr.s6_addr);
     }
     default: {
       return True;
@@ -683,11 +688,11 @@ static Boolean badAddressForUs(struct sockaddr_storage const& addr) {
   }
 }
 
-static Boolean badAddressForUs(NetAddress const& addr) {
+static Boolean isBadAddressForUs(NetAddress const& addr) {
   if (addr.length() == sizeof (ipv4AddressBits)) {
-    return badIPv4AddressForUs(*(ipv4AddressBits*)(addr.data()));
+    return isBadIPv4AddressForUs(*(ipv4AddressBits*)(addr.data()));
   } else if (addr.length() == sizeof (ipv6AddressBits)) {
-    return badIPv6AddressForUs(*(ipv6AddressBits*)(addr.data()));
+    return isBadIPv6AddressForUs(*(ipv6AddressBits*)(addr.data()));
   } else {
     return True;
   }
@@ -695,8 +700,8 @@ static Boolean badAddressForUs(NetAddress const& addr) {
 
 Boolean loopbackWorks = 1;
 
-netAddressBits ourIPAddress(UsageEnvironment& env) {
-  static netAddressBits ourAddress = 0;
+ipv4AddressBits ourIPAddress(UsageEnvironment& env) {
+  static ipv4AddressBits ourAddress = 0;
   int sock = -1;
   struct sockaddr_storage testAddr;
 
@@ -757,7 +762,7 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
       }
 
       // We use this packet's source address, if it's good:
-      loopbackWorks = !badAddressForUs(fromAddr);
+      loopbackWorks = !isBadAddressForUs(fromAddr);
 #endif
     } while (0);
 
@@ -785,7 +790,7 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
       // Take the first address that's not bad:
       NetAddress const* address;
       while ((address = iter.nextAddress()) != NULL) {
-	if (!badAddressForUs(*address)) break;
+	if (!isBadAddressForUs(*address)) break;
       }
       if (address == NULL) break; // no good address found
 
@@ -795,7 +800,7 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
     } while (0);
 
     // Make sure we have a good address:
-    if (badAddressForUs(fromAddr)) {
+    if (isBadAddressForUs(fromAddr)) {
       char tmp[100];
       sprintf(tmp, "This computer has an invalid IP address: %s", AddressString(fromAddr).val());
       env.setResultMsg(tmp);

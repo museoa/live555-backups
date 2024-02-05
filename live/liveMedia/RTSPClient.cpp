@@ -755,8 +755,10 @@ Boolean RTSPClient::setRequestFields(RequestRecord* request,
     if (cmdURL[0] == '\0') cmdURL = (char*)"/";
     delete[] username;
     delete[] password;
-    netAddressBits serverAddress = *(netAddressBits*)(destAddress.data());
-    AddressString serverAddressString(serverAddress);
+
+    struct sockaddr_storage serverAddr;
+    copyAddress(serverAddr, &destAddress);
+    AddressString serverAddressString(serverAddr);
     
     protocolStr = "HTTP/1.0";
     

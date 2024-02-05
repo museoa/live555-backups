@@ -34,10 +34,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #endif
 
 // Definition of a type representing a low-level network address.
-// At present, this is 32-bits, for IPv4.  Later, generalize it,
-// to allow for IPv6.
-typedef u_int32_t netAddressBits; // deprecated
-
+    // Note that the type "netAddressBits" is no longer defined; use "ipv4AddressBits" instead.
 typedef u_int32_t ipv4AddressBits;
 typedef u_int8_t ipv6AddressBits[16]; // 128 bits
 

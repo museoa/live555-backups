@@ -69,6 +69,7 @@ char* RTSPServer::rtspURLPrefix(int clientSocket) const {
   struct sockaddr_storage ourAddress;
   if (clientSocket < 0) {
     // Use our default IP address in the URL:
+        // Fix later to support IPv6
     ourAddress.ss_family = AF_INET;
     ((sockaddr_in&)ourAddress).sin_addr.s_addr = ReceivingInterfaceAddr != 0
       ? ReceivingInterfaceAddr
@@ -1439,8 +1440,8 @@ void RTSPServer::RTSPClientSession
     // (in case we're a multi-homed server):
     struct sockaddr_storage sourceAddr; SOCKLEN_T namelen = sizeof sourceAddr;
     getsockname(ourClientConnection->fClientInputSocket, (struct sockaddr*)&sourceAddr, &namelen);
-    netAddressBits origSendingInterfaceAddr = SendingInterfaceAddr;
-    netAddressBits origReceivingInterfaceAddr = ReceivingInterfaceAddr;
+    ipv4AddressBits origSendingInterfaceAddr = SendingInterfaceAddr;
+    ipv4AddressBits origReceivingInterfaceAddr = ReceivingInterfaceAddr;
     
     subsession->getStreamParameters(fOurSessionId, ourClientConnection->fClientAddr,
 				    clientRTPPort, clientRTCPPort,

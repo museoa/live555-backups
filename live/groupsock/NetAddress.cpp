@@ -202,15 +202,24 @@ NetAddressList::NetAddressList(char const* hostname)
   // Use "getaddrinfo()" (rather than the older, deprecated "gethostbyname()"):
   struct addrinfo addrinfoHints;
   memset(&addrinfoHints, 0, sizeof addrinfoHints);
-  addrinfoHints.ai_family = AF_INET; // For now, we're interested in IPv4 addresses only
+  addrinfoHints.ai_flags = AI_ADDRCONFIG; // We only care about addresses that we can handle
+  addrinfoHints.ai_family = AF_INET; // First, look up an IPv4 address for the name
   struct addrinfo* addrinfoResultPtr = NULL;
   int result = getaddrinfo(hostname, NULL, &addrinfoHints, &addrinfoResultPtr);
+  if (result != 0 || addrinfoResultPtr == NULL) {
+    // Try again, looking up an IPv6 address for the name instead:
+    addrinfoHints.ai_family = AF_INET6;
+    result = getaddrinfo(hostname, NULL, &addrinfoHints, &addrinfoResultPtr);
+  }
   if (result != 0 || addrinfoResultPtr == NULL) return; // no luck
 
   // First, count the number of addresses:
   const struct addrinfo* p = addrinfoResultPtr;
   while (p != NULL) {
-    if (p->ai_addrlen < 4) continue; // sanity check: skip over addresses that are too small
+    if (p->ai_family != AF_INET && p->ai_family != AF_INET6) continue; // unsupported address
+    // Sanity check: Also check the address length:
+    if (p->ai_family == AF_INET && p->ai_addrlen < sizeof (struct sockaddr_in)) continue;
+    if (p->ai_family == AF_INET6 && p->ai_addrlen < sizeof (struct sockaddr_in6)) continue;
     ++fNumAddresses;
     p = p->ai_next;
   }
@@ -222,8 +231,16 @@ NetAddressList::NetAddressList(char const* hostname)
   unsigned i = 0;
   p = addrinfoResultPtr;
   while (p != NULL) {
-    if (p->ai_addrlen < 4) continue;
-    fAddressArray[i++] = new NetAddress((u_int8_t const*)&(((struct sockaddr_in*)p->ai_addr)->sin_addr.s_addr), 4);
+    // Same sanity checks as before:
+    if (p->ai_family != AF_INET && p->ai_family != AF_INET6) continue; // unsupported address
+    if (p->ai_family == AF_INET && p->ai_addrlen < sizeof (struct sockaddr_in)) continue;
+    if (p->ai_family == AF_INET6 && p->ai_addrlen < sizeof (struct sockaddr_in6)) continue;
+
+    if (p->ai_family == AF_INET) { // IPv4
+      fAddressArray[i++] = new NetAddress((u_int8_t const*)&(((struct sockaddr_in*)p->ai_addr)->sin_addr.s_addr), sizeof (ipv4AddressBits));
+    } else { // IPv6
+      fAddressArray[i++] = new NetAddress((u_int8_t const*)&(((struct sockaddr_in6*)p->ai_addr)->sin6_addr.s6_addr), sizeof (ipv6AddressBits));
+    }
     p = p->ai_next;
   }
 
@@ -373,7 +390,7 @@ void* AddressPortLookupTable::Iterator::next() {
 }
 
 
-////////// isMulticastAddress() implementation //////////
+////////// IsMulticastAddress() implementation //////////
 
 Boolean IsMulticastAddress(struct sockaddr_storage const& address) {
   switch (address.ss_family) {
