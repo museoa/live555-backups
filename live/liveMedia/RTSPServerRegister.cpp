@@ -204,12 +204,12 @@ RTSPServer::RTSPClientConnection::ParamsForREGISTER
 ::ParamsForREGISTER(char const* cmd/*"REGISTER" or "DEREGISTER"*/,
 		    RTSPServer::RTSPClientConnection* ourConnection, char const* url, char const* urlSuffix,
 		    Boolean reuseConnection, Boolean deliverViaTCP, char const* proxyURLSuffix)
-  : fCmd(cmd), fOurConnection(ourConnection), fURL(strDup(url)), fURLSuffix(strDup(urlSuffix)),
+  : fCmd(strDup(cmd)), fOurConnection(ourConnection), fURL(strDup(url)), fURLSuffix(strDup(urlSuffix)),
     fReuseConnection(reuseConnection), fDeliverViaTCP(deliverViaTCP), fProxyURLSuffix(strDup(proxyURLSuffix)) {
 }
 
 RTSPServer::RTSPClientConnection::ParamsForREGISTER::~ParamsForREGISTER() {
-  delete[] fURL; delete[] fURLSuffix; delete[] fProxyURLSuffix;
+  delete[] fCmd; delete[] fURL; delete[] fURLSuffix; delete[] fProxyURLSuffix;
 }
 
 void RTSPServer
