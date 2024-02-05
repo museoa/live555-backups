@@ -358,7 +358,7 @@ public:
 						    Port ourPort = 0, UserAuthenticationDatabase* authDatabase = NULL,
 						    int verbosityLevel = 0, char const* applicationName = NULL);
       // If ourPort.num() == 0, we'll choose the port number ourself.  (Use the following function to get it.)
-  portNumBits serverPortNum() const { return ntohs(fRTSPServerPort.num()); }
+  portNumBits serverPortNum() const { return ntohs(fServerPort.num()); }
 
 protected:
   HandlerServerForREGISTERCommand(UsageEnvironment& env, onRTSPClientCreationFunc* creationFunc, int ourSocket, Port ourPort,
