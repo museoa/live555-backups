@@ -418,6 +418,10 @@ int readSocket(UsageEnvironment& env,
     socketErr(env, "recvfrom() error: ");
   } else if (bytesRead == 0) {
     // "recvfrom()" on a stream socket can return 0 if the remote end has closed the connection.  Treat this as an error:
+    fromAddress.ss_family = AF_INET;
+    ((sockaddr_in&)fromAddress).sin_addr.s_addr = 0;
+    ((sockaddr_in&)fromAddress).sin_port = 0;
+
     return -1;
   }
 
