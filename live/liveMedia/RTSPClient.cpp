@@ -275,7 +275,7 @@ Boolean RTSPClient::parseRTSPURL(UsageEnvironment& env, char const* url,
     }
     if (lastAtPtr != NULL) {      
       // We found <username> (and perhaps <password>).  Copy them into newly-allocated result strings:
-      if (colonPasswordStart == NULL) colonPasswordStart = lastAtPtr;
+      if (colonPasswordStart == NULL || colonPasswordStart > lastAtPtr) colonPasswordStart = lastAtPtr;
 
       char const* usernameStart = from;
       unsigned usernameLen = colonPasswordStart - usernameStart;
