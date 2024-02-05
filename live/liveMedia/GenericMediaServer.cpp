@@ -32,7 +32,8 @@ void GenericMediaServer::addServerMediaSession(ServerMediaSession* serverMediaSe
   
   char const* sessionName = serverMediaSession->streamName();
   if (sessionName == NULL) sessionName = "";
-  removeServerMediaSession(sessionName); // in case an existing "ServerMediaSession" with this name already exists
+  removeServerMediaSession(sessionName);
+      // in case an existing "ServerMediaSession" with this name already exists
   
   fServerMediaSessions->Add(sessionName, (void*)serverMediaSession);
 }
@@ -66,7 +67,9 @@ void GenericMediaServer
   memberFunctionRecord->fServer = this;
   memberFunctionRecord->fMemberFunc = memberFunc;
   
-  lookupServerMediaSession(streamName, lsmsMemberFunctionCompletionFunc, memberFunctionRecord);
+  GenericMediaServer
+    ::lookupServerMediaSession(streamName,
+			       lsmsMemberFunctionCompletionFunc, memberFunctionRecord);
 }
 
 void GenericMediaServer::removeServerMediaSession(ServerMediaSession* serverMediaSession) {

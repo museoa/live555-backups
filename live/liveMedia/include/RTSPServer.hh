@@ -69,17 +69,29 @@ public:
 			    char const* proxyURLSuffix = NULL);
   // Used to turn off a previous "registerStream()" - using our custom "DEREGISTER" RTSP command.
   
-  char* rtspURL(ServerMediaSession const* serverMediaSession, int clientSocket = -1) const;
+  char* rtspURL(ServerMediaSession const* serverMediaSession,
+		int clientSocket = -1, Boolean useIPv6 = False) const;
       // returns a "rtsp://" URL that could be used to access the
       // specified session (which must already have been added to
       // us using "addServerMediaSession()".
       // This string is dynamically allocated; caller should delete[]
       // (If "clientSocket" is non-negative, then it is used (by calling "getsockname()") to determine
       //  the IP address to be used in the URL.)
-  char* rtspURLPrefix(int clientSocket = -1) const;
+  // Shortcuts:
+  char* ipv4rtspURL(ServerMediaSession const* serverMediaSession, int clientSocket = -1) {
+    return rtspURL(serverMediaSession, clientSocket, False);
+  }
+  char* ipv6rtspURL(ServerMediaSession const* serverMediaSession, int clientSocket = -1) {
+    return rtspURL(serverMediaSession, clientSocket, True);
+  }
+
+  char* rtspURLPrefix(int clientSocket = -1, Boolean useIPv6 = False) const;
       // like "rtspURL()", except that it returns just the common prefix used by
       // each session's "rtsp://" URL.
       // This string is dynamically allocated; caller should delete[]
+  // Shortcuts:
+  char* ipv4rtspURLPrefix(int clientSocket = -1) { return rtspURLPrefix(clientSocket, False); }
+  char* ipv6rtspURLPrefix(int clientSocket = -1) { return rtspURLPrefix(clientSocket, True); }
 
   UserAuthenticationDatabase* setAuthenticationDatabase(UserAuthenticationDatabase* newDB);
       // Changes the server's authentication database to "newDB", returning a pointer to the old database (if there was one).

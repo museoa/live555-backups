@@ -107,7 +107,7 @@ Boolean addressIsNull(sockaddr_storage const& address) {
     }
     case AF_INET6: {
       for (unsigned i = 0; i < 16; ++i) {
-	if (((sockaddr_in6&)_nullIPv6Address).sin6_addr.s6_addr[i] != 0) return False;
+	if (((sockaddr_in6 const&)address).sin6_addr.s6_addr[i] != 0) return False;
       }
       return True;
     }

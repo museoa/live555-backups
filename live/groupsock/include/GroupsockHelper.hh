@@ -78,8 +78,11 @@ Boolean getSourcePort(UsageEnvironment& env, int socket, int domain, Port& port)
 
 ipv4AddressBits ourIPv4Address(UsageEnvironment& env); // in network order
 ipv6AddressBits const& ourIPv6Address(UsageEnvironment& env);
+
+Boolean weHaveAnIPv4Address(UsageEnvironment& env);
+Boolean weHaveAnIPv6Address(UsageEnvironment& env);
 Boolean weHaveAnIPAddress(UsageEnvironment& env);
-  // returns True if we have neither an IPv4 or an IPv6 address
+  // returns True if we have either an IPv4 or an IPv6 address
 
 // IPv4 addresses of our sending and receiving interfaces.  (By default, these
 // are INADDR_ANY (i.e., 0), specifying the default interface.)
@@ -109,8 +112,8 @@ char const* timestampString();
     SET_SOCKADDR_SIN_LEN(var);
 #define MAKE_SOCKADDR_IN6(var,prt) /*adr,prt must be in network order*/\
     struct sockaddr_in6 var;\
+    memset(&var, 0, sizeof var);\
     var.sin6_family = AF_INET6;\
-    for (unsigned i = 0; i < 16; ++i) var.sin6_addr.s6_addr[i] = 0;\
     var.sin6_port = (prt);\
     SET_SOCKADDR_SIN6_LEN(var);
 

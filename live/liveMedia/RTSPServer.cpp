@@ -55,8 +55,9 @@ Boolean RTSPServer::lookupByName(UsageEnvironment& env,
 }
 
 char* RTSPServer
-::rtspURL(ServerMediaSession const* serverMediaSession, int clientSocket) const {
-  char* urlPrefix = rtspURLPrefix(clientSocket);
+::rtspURL(ServerMediaSession const* serverMediaSession,
+	  int clientSocket, Boolean useIPv6) const {
+  char* urlPrefix = rtspURLPrefix(clientSocket, useIPv6);
   char const* sessionName = serverMediaSession->streamName();
   
   char* resultURL = new char[strlen(urlPrefix) + strlen(sessionName) + 1];
@@ -66,16 +67,19 @@ char* RTSPServer
   return resultURL;
 }
 
-char* RTSPServer::rtspURLPrefix(int clientSocket) const {
+char* RTSPServer::rtspURLPrefix(int clientSocket, Boolean useIPv6) const {
   struct sockaddr_storage ourAddress;
 
   if (clientSocket < 0) {
     // Use our default IP address in the URL:
-        // Fix later to support IPv6
-    ourAddress.ss_family = AF_INET;
-    ((sockaddr_in&)ourAddress).sin_addr.s_addr = ReceivingInterfaceAddr != 0
-      ? ReceivingInterfaceAddr
-      : ourIPv4Address(envir()); // hack
+    if (!useIPv6) { // IPv4
+      ourAddress.ss_family = AF_INET;
+      ((sockaddr_in&)ourAddress).sin_addr.s_addr = ourIPv4Address(envir());
+    } else {
+      ourAddress.ss_family = AF_INET6;
+      ipv6AddressBits const& ourAddr6 = ourIPv6Address(envir());
+      for (unsigned i = 0; i < 16; ++i) ((sockaddr_in6&)ourAddress).sin6_addr.s6_addr[i] = ourAddr6[i];
+    }
   } else {
     SOCKLEN_T namelen = sizeof ourAddress;
 
