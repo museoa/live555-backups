@@ -67,10 +67,10 @@ enum MIKEYPayloadType {
 		       HDR = 255
 };
 
-MIKEYState::MIKEYState()
+MIKEYState::MIKEYState(Boolean useEncryption)
   : // Set default encryption/authentication parameters:
-  fEncryptSRTP(True),
-  fEncryptSRTCP(True),
+  fEncryptSRTP(useEncryption),
+  fEncryptSRTCP(useEncryption),
   fMKI(our_random32()),
   fUseAuthentication(True),
 

@@ -131,16 +131,16 @@ void RTPSink::resetPresentationTimes() {
   fInitialPresentationTime.tv_usec = fMostRecentPresentationTime.tv_usec = 0;
 }
 
-void RTPSink::setupForSRTP() {
+void RTPSink::setupForSRTP(Boolean useEncryption) {
   // Set up keying state for streaming via SRTP:
   delete fCrypto; delete fMIKEYState;
-  fMIKEYState = new MIKEYState;
+  fMIKEYState = new MIKEYState(useEncryption);
   fCrypto = new SRTPCryptographicContext(*fMIKEYState);
 }
 
-u_int8_t* RTPSink::setupForSRTP(unsigned& resultMIKEYStateMessageSize) {
+u_int8_t* RTPSink::setupForSRTP(Boolean useEncryption, unsigned& resultMIKEYStateMessageSize) {
   // Set up keying state for streaming via SRTP:
-  setupForSRTP();
+  setupForSRTP(useEncryption);
 
   u_int8_t* MIKEYStateMessage = fMIKEYState->generateMessage(resultMIKEYStateMessageSize);
   return MIKEYStateMessage;

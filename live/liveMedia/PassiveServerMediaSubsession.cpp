@@ -72,8 +72,8 @@ PassiveServerMediaSubsession::sdpLines(int /*addressFamily*/) {
   if (fSDPLines == NULL ) {
     // Construct a set of SDP lines that describe this subsession:
     // Use the components from "rtpSink".
-    if (fParentSession->streamingIsEncrypted) { // Hack to set up for SRTP/SRTCP
-      fRTPSink.setupForSRTP();
+    if (fParentSession->streamingUsesSRTP) { // Hack to set up for SRTP/SRTCP
+      fRTPSink.setupForSRTP(fParentSession->streamingIsEncrypted);
       if (fRTCPInstance != NULL) fRTCPInstance->setupForSRTCP();
     }
 
@@ -116,7 +116,7 @@ PassiveServerMediaSubsession::sdpLines(int /*addressFamily*/) {
     sprintf(sdpLines, sdpFmt,
 	    mediaType, // m= <media>
 	    portNum, // m= <port>
-	    fParentSession->streamingIsEncrypted ? "S" : "",
+	    fParentSession->streamingUsesSRTP ? "S" : "",
 	    rtpPayloadType, // m= <fmt list>
 	    gs.groupAddress().ss_family == AF_INET ? "IP4" : "IP6", // c= address type
 	    groupAddressStr.val(), // c= <connection address>

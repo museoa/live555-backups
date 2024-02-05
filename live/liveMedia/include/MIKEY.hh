@@ -30,7 +30,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 class MIKEYState {
 public:
-  MIKEYState(); // initialize with default parameters
+  MIKEYState(Boolean useEncryption = True); // initialize with default parameters
   virtual ~MIKEYState();
 
   static MIKEYState* createNew(u_int8_t const* messageToParse, unsigned messageSize);

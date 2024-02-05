@@ -72,8 +72,9 @@ OnDemandServerMediaSubsession::sdpLines(int addressFamily) {
     unsigned char rtpPayloadType = 96 + trackNumber()-1; // if dynamic
     RTPSink* dummyRTPSink = createNewRTPSink(dummyGroupsock, rtpPayloadType, inputSource);
     if (dummyRTPSink != NULL) {
-      if (fParentSession->streamingIsEncrypted) {
-	fMIKEYStateMessage = dummyRTPSink->setupForSRTP(fMIKEYStateMessageSize);
+      if (fParentSession->streamingUsesSRTP) {
+	fMIKEYStateMessage = dummyRTPSink->setupForSRTP(fParentSession->streamingIsEncrypted,
+							fMIKEYStateMessageSize);
       }
 
       if (dummyRTPSink->estimatedBitrate() > 0) estBitrate = dummyRTPSink->estimatedBitrate();
@@ -175,7 +176,7 @@ void OnDemandServerMediaSubsession
 	rtpSink = mediaSource == NULL ? NULL
 	  : createNewRTPSink(rtpGroupsock, rtpPayloadType, mediaSource);
 	if (rtpSink != NULL) {
-	  if (fParentSession->streamingIsEncrypted) {
+	  if (fParentSession->streamingUsesSRTP) {
 	    rtpSink->setupForSRTP(fMIKEYStateMessage, fMIKEYStateMessageSize);
 	  }
 	  if (rtpSink->estimatedBitrate() > 0) streamBitrate = rtpSink->estimatedBitrate();
@@ -469,7 +470,7 @@ void OnDemandServerMediaSubsession
   sprintf(sdpLines, sdpFmt,
 	  mediaType, // m= <media>
 	  portNumForSDP, // m= <port>
-	  fParentSession->streamingIsEncrypted ? "S" : "",
+	  fParentSession->streamingUsesSRTP ? "S" : "",
 	  rtpPayloadType, // m= <fmt list>
 	  addressForSDP.ss_family == AF_INET ? "IP4" : "IP6", ipAddressStr.val(), // c= address
 	  estBitrate, // b=AS:<bandwidth>

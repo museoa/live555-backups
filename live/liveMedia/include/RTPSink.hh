@@ -51,9 +51,9 @@ public:
 
   unsigned numChannels() const { return fNumChannels; }
 
-  void setupForSRTP();
+  void setupForSRTP(Boolean useEncryption);
       // sets up keying/encryption state for streaming via SRTP, using default values.
-  u_int8_t* setupForSRTP(unsigned& resultMIKEYStateMessageSize);
+  u_int8_t* setupForSRTP(Boolean useEncryption, unsigned& resultMIKEYStateMessageSize);
       // as above, but returns the binary MIKEY state
   void setupForSRTP(u_int8_t const* MIKEYStateMessage, unsigned MIKEYStateMessageSize);
       // as above, but takes a MIKEY state message as parameter
