@@ -28,6 +28,10 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "NetCommon.h"
 #endif
 
+#ifndef _BOOLEAN_HH
+#include "Boolean.hh"
+#endif
+
 #ifndef _STRDUP_HH
 // "strDup()" is used often, so include this here, so everyone gets it:
 #include "strDup.hh"
@@ -96,6 +100,7 @@ private:
 
 typedef void TaskFunc(void* clientData);
 typedef void* TaskToken;
+typedef u_int32_t EventTriggerId;
 
 class TaskScheduler {
 public:
@@ -132,11 +137,19 @@ public:
         // Changes any socket handling for "oldSocketNum" so that occurs with "newSocketNum" instead.
 
   virtual void doEventLoop(char* watchVariable = NULL) = 0;
-	// Stops the current thread of control from proceeding,
-	// but allows delayed tasks (and/or background I/O handling)
-	// to proceed.
-        // (If "watchVariable" is not NULL, then we return from this
-        // routine when *watchVariable != 0)
+      // Causes further execution to take place within the event loop.
+      // Delayed tasks, background I/O handling, and other events are handled, sequentially (as a single thread of control).
+      // (If "watchVariable" is not NULL, then we return from this routine when *watchVariable != 0)
+
+  virtual EventTriggerId createEventTrigger(TaskFunc* eventHandlerProc) = 0;
+      // Creates a 'trigger' for an event, which - if it occurs - will be handled (from the event loop) using "eventHandlerProc".
+      // (Returns 0 iff no such trigger can be created (e.g., because of implementation limits on the number of triggers).)
+  virtual void deleteEventTrigger(EventTriggerId eventTriggerId) = 0;
+
+  virtual void triggerEvent(EventTriggerId eventTriggerId, void* clientData = NULL) = 0;
+      // Causes the (previously-registered) handler function for the specified event to be handled (from the event loop).
+      // The handler function is called with "clientData" as parameter.
+      // Note: This function (unlike other library functions) may be called from an external thread - to signal an external event.
 
   // The following two functions are deprecated, and are provided for backwards-compatibility only:
   void turnOnBackgroundReadHandling(int socketNum, BackgroundHandlerProc* handlerProc, void* clientData) {
