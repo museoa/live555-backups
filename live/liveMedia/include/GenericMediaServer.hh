@@ -90,6 +90,8 @@ public: // should be protected, but some old compilers complain otherwise
 
   protected:
     friend class GenericMediaServer;
+    friend class ClientSession;
+    friend class RTSPServer; // needed to make some broken Windows compilers work; remove this in the future when we end support for Windows
     GenericMediaServer& fOurServer;
     int fOurSocket;
     struct sockaddr_in fClientAddr;
@@ -108,6 +110,7 @@ public: // should be protected, but some old compilers complain otherwise
 
   protected:
     friend class GenericMediaServer;
+    friend class ClientConnection;
     GenericMediaServer& fOurServer;
     u_int32_t fOurSessionId;
     ServerMediaSession* fOurServerMediaSession;
@@ -118,6 +121,8 @@ protected:
   createNewClientConnection(int clientSocket, struct sockaddr_in clientAddr) = 0;
 
 protected:
+  friend class ClientConnection;
+  friend class ClientSession;	
   int fServerSocket;
   Port fServerPort;
 

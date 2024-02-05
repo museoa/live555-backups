@@ -176,14 +176,14 @@ public:
 	      Groupsock* rtpGS, Groupsock* rtcpGS);
   virtual ~StreamState();
 
-  void startPlaying(Destinations* destinations,
+  void startPlaying(Destinations* destinations, unsigned clientSessionId,
 		    TaskFunc* rtcpRRHandler, void* rtcpRRHandlerClientData,
 		    ServerRequestAlternativeByteHandler* serverRequestAlternativeByteHandler,
                     void* serverRequestAlternativeByteHandlerClientData);
   void pause();
   void sendRTCPAppPacket(u_int8_t subtype, char const* name,
 			 u_int8_t* appDependentData, unsigned appDependentDataSize);
-  void endPlaying(Destinations* destinations);
+  void endPlaying(Destinations* destinations, unsigned clientSessionId);
   void reclaim();
 
   unsigned& referenceCount() { return fReferenceCount; }

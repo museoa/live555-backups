@@ -187,7 +187,7 @@ Boolean RTSPServer::setUpTunnelingOverHTTP(Port httpPort) {
   if (fHTTPServerSocket >= 0) {
     fHTTPServerPort = httpPort;
     envir().taskScheduler().turnOnBackgroundReadHandling(fHTTPServerSocket,
-							 (TaskScheduler::BackgroundHandlerProc*)&incomingConnectionHandlerHTTP, this);
+							 incomingConnectionHandlerHTTP, this);
     return True;
   }
   
@@ -380,7 +380,7 @@ RTSPServer::RTSPClientConnection::~RTSPClientConnection() {
     delete[] fOurSessionCookie;
   }
   
-  closeSockets();
+  closeSocketsRTSP();
 }
 
 // Special mechanism for handling our custom "REGISTER" command:
@@ -479,7 +479,7 @@ void RTSPServer::RTSPClientConnection
   } while (0);
   
   if (session != NULL) {
-    // Decrement it's reference count, now that we're done using it:
+    // Decrement its reference count, now that we're done using it:
     session->decrementReferenceCount();
     if (session->referenceCount() == 0 && session->deleteWhenUnreferenced()) {
       fOurServer.removeServerMediaSession(session);
@@ -701,7 +701,7 @@ void RTSPServer::RTSPClientConnection::resetRequestBuffer() {
   fBase64RemainderCount = 0;
 }
 
-void RTSPServer::RTSPClientConnection::closeSockets() {
+void RTSPServer::RTSPClientConnection::closeSocketsRTSP() {
   // First, tell our server to stop any streaming that it might be doing over our output socket:
   fOurRTSPServer.stopTCPStreamingOnSocket(fClientOutputSocket);
 
@@ -712,7 +712,7 @@ void RTSPServer::RTSPClientConnection::closeSockets() {
   }
   fClientOutputSocket = -1;
   
-  GenericMediaServer::ClientConnection::closeSockets(); // closes fClientInputSocket
+  closeSockets(); // closes fClientInputSocket
 }
 
 void RTSPServer::RTSPClientConnection::handleAlternativeRequestByte(void* instance, u_int8_t requestByte) {
@@ -727,7 +727,7 @@ void RTSPServer::RTSPClientConnection::handleAlternativeRequestByte1(u_int8_t re
   } else if (requestByte == 0xFE) {
     // Another hack: The new handler of the input TCP socket no longer needs it, so take back control of it:
     envir().taskScheduler().setBackgroundHandling(fClientInputSocket, SOCKET_READABLE|SOCKET_EXCEPTION,
-						  (TaskScheduler::BackgroundHandlerProc*)&incomingRequestHandler, this);
+						  incomingRequestHandler, this);
   } else {
     // Normal case: Add this character to our buffer; then try to handle the data that we have buffered so far:
     if (fRequestBufferBytesLeft == 0 || fRequestBytesAlreadySeen >= REQUEST_BUFFER_SIZE) return;
@@ -1265,7 +1265,7 @@ void RTSPServer::RTSPClientConnection
   envir().taskScheduler().disableBackgroundHandling(fClientInputSocket);
   fClientInputSocket = newSocketNum;
   envir().taskScheduler().setBackgroundHandling(fClientInputSocket, SOCKET_READABLE|SOCKET_EXCEPTION,
-						(TaskScheduler::BackgroundHandlerProc*)&incomingRequestHandler, this);
+						incomingRequestHandler, this);
   
   // Also write any extra data to our buffer, and handle it:
   if (extraDataSize > 0 && extraDataSize <= fRequestBufferBytesLeft/*sanity check; should always be true*/) {

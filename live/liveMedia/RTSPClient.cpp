@@ -175,8 +175,8 @@ void RTSPClient::sendDummyUDPPackets(MediaSubsession& subsession, unsigned numDu
   if (subsession.rtcpInstance() != NULL) gs2 = subsession.rtcpInstance()->RTCPgs();
   u_int32_t const dummy = 0xFEEDFACE;
   for (unsigned i = 0; i < numDummyPackets; ++i) {
-    if (gs1 != NULL) gs1->output(envir(), 255, (unsigned char*)&dummy, sizeof dummy);
-    if (gs2 != NULL) gs2->output(envir(), 255, (unsigned char*)&dummy, sizeof dummy);
+    if (gs1 != NULL) gs1->output(envir(), (unsigned char*)&dummy, sizeof dummy);
+    if (gs2 != NULL) gs2->output(envir(), (unsigned char*)&dummy, sizeof dummy);
   }
 }
 
@@ -687,7 +687,7 @@ Boolean RTSPClient::setRequestFields(RequestRecord* request,
       Boolean requestMulticastStreaming
 	= IsMulticastAddress(connectionAddress) || (connectionAddress == 0 && forceMulticastOnUnspecified);
       transportTypeStr = requestMulticastStreaming ? ";multicast" : ";unicast";
-      portTypeStr = ";client_port";
+      portTypeStr = requestMulticastStreaming ? ";port" : ";client_port";
       rtpNumber = subsession.clientPortNum();
       if (rtpNumber == 0) {
 	envir().setResultMsg("Client port number unknown\n");
@@ -814,6 +814,10 @@ Boolean RTSPClient::setRequestFields(RequestRecord* request,
       extraHeadersWereAllocated = True;
       sprintf(extraHeaders, "%s%s%s%s", sessionStr, scaleStr, speedStr, rangeStr);
       delete[] sessionStr; delete[] scaleStr; delete[] speedStr; delete[] rangeStr;
+    } else {
+      // Create a "Session:" header; this makes up our 'extra headers':
+      extraHeaders = createSessionString(sessionId);
+      extraHeadersWereAllocated = True;
     }
   }
 

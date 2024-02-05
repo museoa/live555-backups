@@ -268,7 +268,7 @@ private:
   void resetTCPSockets();
   void resetResponseBuffer();
   int openConnection(); // -1: failure; 0: pending; 1: success
-  int connectToServer(int socketNum, portNumBits remotePortNum); // used to implement "openConnection()"; result values are the same
+  virtual int connectToServer(int socketNum, portNumBits remotePortNum); // used to implement "openConnection()"; result values are the same
   char* createAuthenticatorString(char const* cmd, char const* url);
   char* createBlocksizeString(Boolean streamUsingTCP);
   void handleRequestError(RequestRecord* request);

@@ -119,6 +119,7 @@ private: // redefined virtual functions
 
 public: // should be protected, but some old compilers complain otherwise
   // The state of a TCP connection used by a RTSP client:
+  class RTSPClientSession; // forward
   class RTSPClientConnection: public GenericMediaServer::ClientConnection {
   public:
     // A data structure that's used to implement the "REGISTER" command:
@@ -143,6 +144,7 @@ public: // should be protected, but some old compilers complain otherwise
     virtual ~RTSPClientConnection();
 
     friend class RTSPServer;
+    friend class RTSPClientSession;
 
     // Make the handler functions for each command virtual, to allow subclasses to reimplement them, if necessary:
     virtual void handleCmd_OPTIONS();
@@ -172,7 +174,7 @@ public: // should be protected, but some old compilers complain otherwise
     virtual void handleHTTPCmd_StreamingGET(char const* urlSuffix, char const* fullRequestStr);
   protected:
     void resetRequestBuffer();
-    void closeSockets();
+    void closeSocketsRTSP();
     static void handleAlternativeRequestByte(void*, u_int8_t requestByte);
     void handleAlternativeRequestByte1(u_int8_t requestByte);
     Boolean authenticationOK(char const* cmdName, char const* urlSuffix, char const* fullRequestStr);
@@ -206,6 +208,7 @@ public: // should be protected, but some old compilers complain otherwise
     virtual ~RTSPClientSession();
 
     friend class RTSPServer;
+    friend class RTSPClientConnection;
     // Make the handler functions for each command virtual, to allow subclasses to redefine them:
     virtual void handleCmd_SETUP(RTSPClientConnection* ourClientConnection,
 				 char const* urlPreSuffix, char const* urlSuffix, char const* fullRequestStr);
