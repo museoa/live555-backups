@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2020 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2021 Live Networks, Inc.  All rights reserved.
 // A generic SIP client
 // Implementation
 
@@ -147,16 +147,21 @@ void SIPClient::reset() {
 
   delete[] (char*)fToTagStr; fToTagStr = NULL; fToTagStrSize = 0;
   fServerPortNum = 0;
-  fServerAddress.s_addr = 0;
+  fServerAddressIsSet = False;
   delete[] (char*)fURL; fURL = NULL; fURLSize = 0;
 }
 
-void SIPClient::setProxyServer(unsigned proxyServerAddress,
+void SIPClient::setProxyServer(ipv4AddressBits proxyServerAddress,
 			       portNumBits proxyServerPortNum) {
-  fServerAddress.s_addr = proxyServerAddress;
+  struct sockaddr_in& serverAddress4 = (struct sockaddr_in&)fServerAddress;
+      // Later, fix to allow for IPv6
+  serverAddress4.sin_addr.s_addr = proxyServerAddress;
+  fServerAddressIsSet = True;
+
   fServerPortNum = proxyServerPortNum;
+
   if (fOurSocket != NULL) {
-    fOurSocket->changeDestinationParameters(fServerAddress,
+    fOurSocket->changeDestinationParameters(serverAddress4.sin_addr,
 					    fServerPortNum, 255);
   }
 }
@@ -733,13 +738,15 @@ Boolean SIPClient::processURL(char const* url) {
   do {
     // If we don't already have a server address/port, then
     // get these by parsing the URL:
-    if (fServerAddress.s_addr == 0) {
+    if (!fServerAddressIsSet) {
       NetAddress destAddress;
       if (!parseSIPURL(envir(), url, destAddress, fServerPortNum)) break;
-      fServerAddress.s_addr = *(unsigned*)(destAddress.data());
+      copyAddress(fServerAddress, destAddress);
+      fServerAddressIsSet = True;
 
       if (fOurSocket != NULL) {
-	fOurSocket->changeDestinationParameters(fServerAddress,
+	fOurSocket->changeDestinationParameters(((struct sockaddr_in&)fServerAddress).sin_addr,
+						    // Later, fix for IPv6
 						fServerPortNum, 255);
       }
     }
@@ -754,7 +761,7 @@ Boolean SIPClient::parseSIPURL(UsageEnvironment& env, char const* url,
 			       NetAddress& address,
 			       portNumBits& portNum) {
   do {
-    // Parse the URL as "sip:<username>@<address>:<port>/<etc>"
+    // Parse the URL as "sip:<username>@<server-name-or-address>:<port>/<etc>"
     // (with ":<port>" and "/<etc>" optional)
     // Also, skip over any "<username>[:<password>]@" preceding <address>
     char const* prefix = "sip:";
@@ -781,13 +788,23 @@ Boolean SIPClient::parseSIPURL(UsageEnvironment& env, char const* url,
       ++from1;
     }
 
+    // Next, parse <server-address-or-name>
     char* to = &parseBuffer[0];
+    Boolean isInSquareBrackets = False; //  by default
+    if (*from == '[') {
+      ++from;
+      isInSquareBrackets = True;
+    }
     unsigned i;
     for (i = 0; i < parseBufferSize; ++i) {
-      if (*from == '\0' || *from == ':' || *from == '/') {
-	// We've completed parsing the address
-	*to = '\0';
-	break;
+      if (*from == '\0' ||
+          (*from == ':' && !isInSquareBrackets) ||
+          *from == '/' ||
+          (*from == ']' && isInSquareBrackets)) {
+        // We've completed parsing the address
+        *to = '\0';
+        if (*from == ']' && isInSquareBrackets) ++from;
+        break;
       }
       *to++ = *from++;
     }

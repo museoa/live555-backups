@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2020 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2021 Live Networks, Inc.  All rights reserved.
 // A generic RTSP client
 // Implementation
 
@@ -380,8 +380,7 @@ RTSPClient::RTSPClient(UsageEnvironment& env, char const* rtspURL,
 		       portNumBits tunnelOverHTTPPortNum, int socketNumToServer)
   : Medium(env),
     desiredMaxIncomingPacketSize(0), fVerbosityLevel(verbosityLevel), fCSeq(1),
-    fAllowBasicAuthentication(True), fServerAddress(0),
-    fTunnelOverHTTPPortNum(tunnelOverHTTPPortNum),
+    fAllowBasicAuthentication(True), fTunnelOverHTTPPortNum(tunnelOverHTTPPortNum),
     fUserAgentHeaderStr(NULL), fUserAgentHeaderStrLen(0),
     fInputSocketNum(-1), fOutputSocketNum(-1), fBaseURL(NULL), fTCPStreamIdCount(0),
     fLastSessionId(NULL), fSessionTimeoutParameter(0), fSessionCookieCounter(0), fHTTPTunnelingConnectionIsPending(False),
@@ -430,7 +429,6 @@ void RTSPClient::reset() {
   fRequestsAwaitingConnection.reset();
   fRequestsAwaitingHTTPTunneling.reset();
   fRequestsAwaitingResponse.reset();
-  fServerAddress = 0;
 
   setBaseURL(NULL);
 
@@ -902,7 +900,7 @@ int RTSPClient::openConnection() {
     envir() << "Created new TCP socket " << fInputSocketNum << " for connection\n";
       
     // Connect to the remote endpoint:
-    fServerAddress = *(netAddressBits*)(destAddress.data());
+    copyAddress(fServerAddress, destAddress);
     int connectResult = connectToServer(fInputSocketNum, destPortNum);
     if (connectResult < 0) break;
     else if (connectResult > 0) {
@@ -924,11 +922,13 @@ int RTSPClient::openConnection() {
 }
 
 int RTSPClient::connectToServer(int socketNum, portNumBits remotePortNum) {
-  MAKE_SOCKADDR_IN(remoteName, fServerAddress, htons(remotePortNum));
+  ((struct sockaddr_in&)fServerAddress).sin_port = htons(remotePortNum); // same posn for IPv6
+  SOCKLEN_T address_len
+      = fServerAddress.ss_family == AF_INET ? sizeof (sockaddr_in) : sizeof (sockaddr_in6);
   if (fVerbosityLevel >= 1) {
-    envir() << "Connecting to " << AddressString(remoteName).val() << ", port " << remotePortNum << " on socket " << socketNum << "...\n";
+    envir() << "Connecting to " << AddressString(fServerAddress).val() << ", port " << remotePortNum << " on socket " << socketNum << "...\n";
   }
-  if (connect(socketNum, (struct sockaddr*) &remoteName, sizeof remoteName) != 0) {
+  if (connect(socketNum, (struct sockaddr*)&fServerAddress, address_len) != 0) {
     int const err = envir().getErrno();
     if (err == EINPROGRESS || err == EWOULDBLOCK) {
       // The connection is pending; we'll need to handle it later.  Wait for our socket to be 'writable', or have an exception.
@@ -1263,7 +1263,8 @@ Boolean RTSPClient::handleSETUPResponse(MediaSubsession& subsession, char const*
       // Normal case.
       // Set the RTP and RTCP sockets' destination address and port from the information in the SETUP response (if present):
       netAddressBits destAddress = subsession.connectionEndpointAddress();
-      if (destAddress == 0) destAddress = fServerAddress;
+      if (destAddress == 0) destAddress = ((struct sockaddr_in const&)fServerAddress).sin_addr.s_addr;
+          // Later fix for IPv6
       subsession.setDestinations(destAddress);
     }
 

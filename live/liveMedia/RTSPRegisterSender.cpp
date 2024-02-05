@@ -14,13 +14,12 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2020 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2021 Live Networks, Inc.  All rights reserved.
 // Special objects which, when created, sends a custom RTSP "REGISTER" (or "DEREGISTER") command
 // to a specified client.
 // Implementation
 
 #include "RTSPRegisterSender.hh"
-#include <GroupsockHelper.hh> // for MAKE_SOCKADDR_IN
 
 ////////// RTSPRegisterOrDeregisterSender implementation /////////
 
@@ -79,15 +78,8 @@ RTSPRegisterSender* RTSPRegisterSender
 void RTSPRegisterSender::grabConnection(int& sock, struct sockaddr_storage& remoteAddress) {
   sock = grabSocket();
 
-  //  MAKE_SOCKADDR_IN(remoteAddress4, fServerAddress, htons(fRemoteClientPortNum));
-  //  remoteAddress = remoteAddress4;
-  struct sockaddr_in& remoteAddress4 = (struct sockaddr_in&)remoteAddress; // later, support IPv6
-#ifdef HAVE_SOCKADDR_LEN
-  remoteAddress4.sin_len = sizeof remoteAddress;
-#endif
-  remoteAddress4.sin_family = AF_INET;
-  remoteAddress4.sin_port = htons(fRemoteClientPortNum);
-  remoteAddress4.sin_addr.s_addr = fServerAddress;
+  remoteAddress = fServerAddress;
+  ((struct sockaddr_in&)remoteAddress).sin_port = htons(fRemoteClientPortNum); // same posn for IPv6
 }
 
 RTSPRegisterSender
