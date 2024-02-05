@@ -302,19 +302,44 @@ Boolean IsMulticastAddress(netAddressBits address) {
 AddressString::AddressString(struct sockaddr_in const& addr) {
   init(addr.sin_addr.s_addr);
 }
-
 AddressString::AddressString(struct in_addr const& addr) {
   init(addr.s_addr);
 }
-
-AddressString::AddressString(netAddressBits addr) {
+AddressString::AddressString(ipv4AddressBits const& addr) {
   init(addr);
 }
 
-void AddressString::init(netAddressBits addr) {
-  fVal = new char[16]; // large enough for "abc.def.ghi.jkl"
-  netAddressBits addrNBO = htonl(addr); // make sure we have a value in a known byte order: big endian
-  sprintf(fVal, "%u.%u.%u.%u", (addrNBO>>24)&0xFF, (addrNBO>>16)&0xFF, (addrNBO>>8)&0xFF, addrNBO&0xFF);
+AddressString::AddressString(struct sockaddr_in6 const& addr) {
+  init(addr.sin6_addr.s6_addr);
+}
+AddressString::AddressString(struct in6_addr const& addr) {
+  init(addr.s6_addr);
+}
+AddressString::AddressString(ipv6AddressBits const& addr) {
+  init(addr);
+}
+
+AddressString::AddressString(struct sockaddr_storage const& addr) {
+  switch (addr.ss_family) {
+    case AF_INET: {
+      init(((sockaddr_in*)&addr)->sin_addr.s_addr);
+      break;
+    }
+    case AF_INET6: {
+      init(((sockaddr_in6*)&addr)->sin6_addr.s6_addr);
+      break;
+    }
+  }
+}
+
+void AddressString::init(ipv4AddressBits const& addr) {
+  fVal = new char[INET_ADDRSTRLEN];
+  inet_ntop(AF_INET, &addr, fVal, INET_ADDRSTRLEN);
+}
+
+void AddressString::init(ipv6AddressBits const& addr) {
+  fVal = new char[INET6_ADDRSTRLEN];
+  inet_ntop(AF_INET6, &addr, fVal, INET6_ADDRSTRLEN);
 }
 
 AddressString::~AddressString() {

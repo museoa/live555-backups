@@ -36,7 +36,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 // Definition of a type representing a low-level network address.
 // At present, this is 32-bits, for IPv4.  Later, generalize it,
 // to allow for IPv6.
-typedef u_int32_t netAddressBits;
+typedef u_int32_t netAddressBits; // deprecated
 
 typedef u_int32_t ipv4AddressBits;
 typedef u_int8_t ipv6AddressBits[16]; // 128 bits
@@ -144,19 +144,30 @@ private:
 Boolean IsMulticastAddress(netAddressBits address);
 
 
-// A mechanism for displaying an IPv4 address in ASCII.  This is intended to replace "inet_ntoa()", which is not thread-safe.
+// A mechanism for displaying an IP (v4 or v6) address in ASCII.
+// (This encapsulates the "inet_ntop()" function.)
 class AddressString {
 public:
+  // IPv4 input:
   AddressString(struct sockaddr_in const& addr);
   AddressString(struct in_addr const& addr);
-  AddressString(netAddressBits addr); // "addr" is assumed to be in host byte order here
+  AddressString(ipv4AddressBits const& addr); // "addr" is assumed to be in host byte order
+
+  // IPv6 input:
+  AddressString(struct sockaddr_in6 const& addr);
+  AddressString(struct in6_addr const& addr);
+  AddressString(ipv6AddressBits const& addr); // "addr" is assumed to be in host byte order
+
+  // IPv4 or IPv6 input:
+  AddressString(struct sockaddr_storage const& addr);
 
   virtual ~AddressString();
 
   char const* val() const { return fVal; }
 
 private:
-  void init(netAddressBits addr); // used to implement each of the constructors
+  void init(ipv4AddressBits const& addr); // used to implement the IPv4 constructors
+  void init(ipv6AddressBits const& addr); // used to implement the IPv6 constructors
 
 private:
   char* fVal; // The result ASCII string: allocated by the constructor; deleted by the destructor

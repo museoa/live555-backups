@@ -66,10 +66,11 @@ char* RTSPServer
 }
 
 char* RTSPServer::rtspURLPrefix(int clientSocket) const {
-  struct sockaddr_in ourAddress;
+  struct sockaddr_storage ourAddress;
   if (clientSocket < 0) {
     // Use our default IP address in the URL:
-    ourAddress.sin_addr.s_addr = ReceivingInterfaceAddr != 0
+    ourAddress.ss_family = AF_INET;
+    ((sockaddr_in*)&ourAddress)->sin_addr.s_addr = ReceivingInterfaceAddr != 0
       ? ReceivingInterfaceAddr
       : ourIPAddress(envir()); // hack
   } else {
@@ -79,12 +80,16 @@ char* RTSPServer::rtspURLPrefix(int clientSocket) const {
   
   char urlBuffer[100]; // more than big enough for "rtsp://<ip-address>:<port>/"
   
+  char const* addressPrefixInURL = ourAddress.ss_family == AF_INET6 ? "[" : "";
+  char const* addressSuffixInURL = ourAddress.ss_family == AF_INET6 ? "]" : "";
+
   portNumBits portNumHostOrder = ntohs(fServerPort.num());
   if (portNumHostOrder == 554 /* the default port number */) {
-    sprintf(urlBuffer, "rtsp://%s/", AddressString(ourAddress).val());
+    sprintf(urlBuffer, "rtsp://%s%s%s/",
+	    addressPrefixInURL, AddressString(ourAddress).val(), addressSuffixInURL);
   } else {
-    sprintf(urlBuffer, "rtsp://%s:%hu/",
-	    AddressString(ourAddress).val(), portNumHostOrder);
+    sprintf(urlBuffer, "rtsp://%s%s%s:%hu/",
+	    addressPrefixInURL, AddressString(ourAddress).val(), addressSuffixInURL, portNumHostOrder);
   }
   
   return strDup(urlBuffer);
