@@ -439,6 +439,7 @@ void RTSPServer::incomingConnectionHandler(int serverSocket) {
     }
     return;
   }
+  ignoreSigPipeOnSocket(clientSocket); // so that clients on the same host that are killed don't also kill us
   makeSocketNonBlocking(clientSocket);
   increaseSendBufferTo(envir(), clientSocket, 50*1024);
   
