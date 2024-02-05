@@ -74,7 +74,7 @@ Boolean socketLeaveGroupSSM(UsageEnvironment&, int socket,
 			    struct sockaddr_storage const& groupAddress,
 			    struct sockaddr_storage const& sourceFilterAddr);
 
-Boolean getSourcePort(UsageEnvironment& env, int socket, Port& port);
+Boolean getSourcePort(UsageEnvironment& env, int socket, int domain, Port& port);
 
 ipv4AddressBits ourIPAddress(UsageEnvironment& env); // in network order
 

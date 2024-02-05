@@ -115,25 +115,30 @@ void GenericMediaServer::deleteServerMediaSession(char const* streamName) {
 }
 
 GenericMediaServer
-::GenericMediaServer(UsageEnvironment& env, int ourSocket, Port ourPort,
+::GenericMediaServer(UsageEnvironment& env, int ourSocketIPv4, int ourSocketIPv6, Port ourPort,
 		     unsigned reclamationSeconds)
   : Medium(env),
-    fServerSocket(ourSocket), fServerPort(ourPort), fReclamationSeconds(reclamationSeconds),
+    fServerSocketIPv4(ourSocketIPv4), fServerSocketIPv6(ourSocketIPv6),
+    fServerPort(ourPort), fReclamationSeconds(reclamationSeconds),
     fServerMediaSessions(HashTable::create(STRING_HASH_KEYS)),
     fClientConnections(HashTable::create(ONE_WORD_HASH_KEYS)),
     fClientSessions(HashTable::create(STRING_HASH_KEYS)),
     fPreviousClientSessionId(0)
 {
-  ignoreSigPipeOnSocket(fServerSocket); // so that clients on the same host that are killed don't also kill us
+  ignoreSigPipeOnSocket(fServerSocketIPv4); // so that clients on the same host that are killed don't also kill us
+  ignoreSigPipeOnSocket(fServerSocketIPv6); // ditto
   
   // Arrange to handle connections from others:
-  env.taskScheduler().turnOnBackgroundReadHandling(fServerSocket, incomingConnectionHandler, this);
+  env.taskScheduler().turnOnBackgroundReadHandling(fServerSocketIPv4, incomingConnectionHandlerIPv4, this);
+  env.taskScheduler().turnOnBackgroundReadHandling(fServerSocketIPv6, incomingConnectionHandlerIPv6, this);
 }
 
 GenericMediaServer::~GenericMediaServer() {
   // Turn off background read handling:
-  envir().taskScheduler().turnOffBackgroundReadHandling(fServerSocket);
-  ::closeSocket(fServerSocket);
+  envir().taskScheduler().turnOffBackgroundReadHandling(fServerSocketIPv4);
+  ::closeSocket(fServerSocketIPv4);
+  envir().taskScheduler().turnOffBackgroundReadHandling(fServerSocketIPv6);
+  ::closeSocket(fServerSocketIPv6);
 }
 
 void GenericMediaServer::cleanup() {
@@ -193,7 +198,7 @@ int GenericMediaServer::setUpOurSocket(UsageEnvironment& env, Port& ourPort, int
     
     if (ourPort.num() == 0) {
       // bind() will have chosen a port for us; return it also:
-      if (!getSourcePort(env, ourSocket, ourPort)) break;
+      if (!getSourcePort(env, ourSocket, domain, ourPort)) break;
     }
     
     return ourSocket;
@@ -203,12 +208,19 @@ int GenericMediaServer::setUpOurSocket(UsageEnvironment& env, Port& ourPort, int
   return -1;
 }
 
-void GenericMediaServer::incomingConnectionHandler(void* instance, int /*mask*/) {
+void GenericMediaServer::incomingConnectionHandlerIPv4(void* instance, int /*mask*/) {
   GenericMediaServer* server = (GenericMediaServer*)instance;
-  server->incomingConnectionHandler();
+  server->incomingConnectionHandlerIPv4();
 }
-void GenericMediaServer::incomingConnectionHandler() {
-  incomingConnectionHandlerOnSocket(fServerSocket);
+void GenericMediaServer::incomingConnectionHandlerIPv6(void* instance, int /*mask*/) {
+  GenericMediaServer* server = (GenericMediaServer*)instance;
+  server->incomingConnectionHandlerIPv6();
+}
+void GenericMediaServer::incomingConnectionHandlerIPv4() {
+  incomingConnectionHandlerOnSocket(fServerSocketIPv4);
+}
+void GenericMediaServer::incomingConnectionHandlerIPv6() {
+  incomingConnectionHandlerOnSocket(fServerSocketIPv6);
 }
 
 void GenericMediaServer::incomingConnectionHandlerOnSocket(int serverSocket) {

@@ -99,7 +99,7 @@ public:
 
 protected:
   RTSPServer(UsageEnvironment& env,
-	     int ourSocket, Port ourPort,
+	     int ourSocketIPv4, int ourSocketIPv6, Port ourPort,
 	     UserAuthenticationDatabase* authDatabase,
 	     unsigned reclamationSeconds);
       // called only by createNew();
@@ -287,8 +287,10 @@ protected:
   virtual ClientSession* createNewClientSession(u_int32_t sessionId);
 
 private:
-  static void incomingConnectionHandlerHTTP(void*, int /*mask*/);
-  void incomingConnectionHandlerHTTP();
+  static void incomingConnectionHandlerHTTPIPv4(void*, int /*mask*/);
+  void incomingConnectionHandlerHTTPIPv4();
+  static void incomingConnectionHandlerHTTPIPv6(void*, int /*mask*/);
+  void incomingConnectionHandlerHTTPIPv6();
 
   void noteTCPStreamingOnSocket(int socketNum, RTSPClientSession* clientSession, unsigned trackNum);
   void unnoteTCPStreamingOnSocket(int socketNum, RTSPClientSession* clientSession, unsigned trackNum);
@@ -299,7 +301,7 @@ private:
   friend class RTSPClientSession;
   friend class RegisterRequestRecord;
   friend class DeregisterRequestRecord;
-  int fHTTPServerSocket; // for optional RTSP-over-HTTP tunneling
+  int fHTTPServerSocketIPv4, fHTTPServerSocketIPv6; // for optional RTSP-over-HTTP tunneling
   Port fHTTPServerPort; // ditto
   HashTable* fClientConnectionsForHTTPTunneling; // maps client-supplied 'session cookie' strings to "RTSPClientConnection"s
     // (used only for optional RTSP-over-HTTP tunneling)
@@ -326,7 +328,7 @@ public:
 						   char const* backEndPassword = NULL);
 
 protected:
-  RTSPServerWithREGISTERProxying(UsageEnvironment& env, int ourSocket, Port ourPort,
+  RTSPServerWithREGISTERProxying(UsageEnvironment& env, int ourSocketIPv4, int ourSocketIPv6, Port ourPort,
 				 UserAuthenticationDatabase* authDatabase, UserAuthenticationDatabase* authDatabaseForREGISTER,
 				 unsigned reclamationSeconds,
 				 Boolean streamRTPOverTCP, int verbosityLevelForProxying,

@@ -53,7 +53,7 @@ Boolean OutputSocket::write(struct sockaddr_storage const& addressAndPort, u_int
   if (sourcePortNum() == 0) {
     // Now that we've sent a packet, we can find out what the
     // kernel chose as our ephemeral source port number:
-    if (!getSourcePort(env(), socketNum(), fSourcePort)) {
+    if (!getSourcePort(env(), socketNum(), addressAndPort.ss_family, fSourcePort)) {
       if (DebugLevel >= 1)
 	env() << *this
 	     << ": failed to get source port: "

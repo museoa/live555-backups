@@ -2090,16 +2090,17 @@ void RTSPClient::RequestQueue::reset() {
 HandlerServerForREGISTERCommand* HandlerServerForREGISTERCommand
 ::createNew(UsageEnvironment& env, onRTSPClientCreationFunc* creationFunc, Port ourPort,
 	    UserAuthenticationDatabase* authDatabase, int verbosityLevel, char const* applicationName) {
-  int ourSocket = setUpOurSocket(env, ourPort, AF_INET); // later, also support IPv6 
-  if (ourSocket == -1) return NULL;
+  int ourSocketIPv4 = setUpOurSocket(env, ourPort, AF_INET);
+  int ourSocketIPv6 = setUpOurSocket(env, ourPort, AF_INET6);
+  if (ourSocketIPv4 < 0 && ourSocketIPv6 < 0) return NULL;
 
-  return new HandlerServerForREGISTERCommand(env, creationFunc, ourSocket, ourPort, authDatabase, verbosityLevel, applicationName);
+  return new HandlerServerForREGISTERCommand(env, creationFunc, ourSocketIPv4, ourSocketIPv6, ourPort, authDatabase, verbosityLevel, applicationName);
 }
 
 HandlerServerForREGISTERCommand
-::HandlerServerForREGISTERCommand(UsageEnvironment& env, onRTSPClientCreationFunc* creationFunc, int ourSocket, Port ourPort,
+::HandlerServerForREGISTERCommand(UsageEnvironment& env, onRTSPClientCreationFunc* creationFunc, int ourSocketIPv4, int ourSocketIPv6, Port ourPort,
                                   UserAuthenticationDatabase* authDatabase, int verbosityLevel, char const* applicationName)
-  : RTSPServer(env, ourSocket, ourPort, authDatabase, 30/*small reclamationTestSeconds*/),
+  : RTSPServer(env, ourSocketIPv4, ourSocketIPv6, ourPort, authDatabase, 30/*small reclamationTestSeconds*/),
     fCreationFunc(creationFunc), fVerbosityLevel(verbosityLevel), fApplicationName(strDup(applicationName)) {
 }
 

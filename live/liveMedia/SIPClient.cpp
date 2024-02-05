@@ -89,7 +89,7 @@ SIPClient::SIPClient(UsageEnvironment& env,
   // send a 0-length packet, so that the "getSourcePort()" call will work.
   fOurSocket->output(envir(), (unsigned char*)"", 0);
   Port srcPort(0);
-  getSourcePort(env, fOurSocket->socketNum(), srcPort);
+  getSourcePort(env, fOurSocket->socketNum(), AF_INET, srcPort); // later, allow for IPv6
   if (srcPort.num() != 0) {
     fOurPortNum = ntohs(srcPort.num());
   } else {

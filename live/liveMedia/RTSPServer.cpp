@@ -30,10 +30,11 @@ RTSPServer*
 RTSPServer::createNew(UsageEnvironment& env, Port ourPort,
 		      UserAuthenticationDatabase* authDatabase,
 		      unsigned reclamationSeconds) {
-  int ourSocket = setUpOurSocket(env, ourPort, AF_INET); // later, update to support IPv6
-  if (ourSocket == -1) return NULL;
+  int ourSocketIPv4 = setUpOurSocket(env, ourPort, AF_INET);
+  int ourSocketIPv6 = setUpOurSocket(env, ourPort, AF_INET6);
+  if (ourSocketIPv4 < 0 && ourSocketIPv6 < 0) return NULL;
   
-  return new RTSPServer(env, ourSocket, ourPort, authDatabase, reclamationSeconds);
+  return new RTSPServer(env, ourSocketIPv4, ourSocketIPv6, ourPort, authDatabase, reclamationSeconds);
 }
 
 Boolean RTSPServer::lookupByName(UsageEnvironment& env,
@@ -104,11 +105,14 @@ UserAuthenticationDatabase* RTSPServer::setAuthenticationDatabase(UserAuthentica
 }
 
 Boolean RTSPServer::setUpTunnelingOverHTTP(Port httpPort) {
-  fHTTPServerSocket = setUpOurSocket(envir(), httpPort, AF_INET); // later, update to support IPv6
-  if (fHTTPServerSocket >= 0) {
+  fHTTPServerSocketIPv4 = setUpOurSocket(envir(), httpPort, AF_INET);
+  fHTTPServerSocketIPv6 = setUpOurSocket(envir(), httpPort, AF_INET6);
+  if (fHTTPServerSocketIPv4 >= 0 || fHTTPServerSocketIPv6 >= 0) {
     fHTTPServerPort = httpPort;
-    envir().taskScheduler().turnOnBackgroundReadHandling(fHTTPServerSocket,
-							 incomingConnectionHandlerHTTP, this);
+    envir().taskScheduler().turnOnBackgroundReadHandling(fHTTPServerSocketIPv4,
+							 incomingConnectionHandlerHTTPIPv4, this);
+    envir().taskScheduler().turnOnBackgroundReadHandling(fHTTPServerSocketIPv6,
+							 incomingConnectionHandlerHTTPIPv6, this);
     return True;
   }
   
@@ -141,11 +145,11 @@ Boolean RTSPServer::specialClientUserAccessCheck(int /*clientSocket*/, struct so
 
 
 RTSPServer::RTSPServer(UsageEnvironment& env,
-		       int ourSocket, Port ourPort,
+		       int ourSocketIPv4, int ourSocketIPv6, Port ourPort,
 		       UserAuthenticationDatabase* authDatabase,
 		       unsigned reclamationSeconds)
-  : GenericMediaServer(env, ourSocket, ourPort, reclamationSeconds),
-    fHTTPServerSocket(-1), fHTTPServerPort(0),
+  : GenericMediaServer(env, ourSocketIPv4, ourSocketIPv6, ourPort, reclamationSeconds),
+    fHTTPServerSocketIPv4(-1), fHTTPServerSocketIPv6(-1), fHTTPServerPort(0),
     fClientConnectionsForHTTPTunneling(NULL), // will get created if needed
     fTCPStreamingDatabase(HashTable::create(ONE_WORD_HASH_KEYS)),
     fPendingRegisterOrDeregisterRequests(HashTable::create(ONE_WORD_HASH_KEYS)),
@@ -170,8 +174,10 @@ public:
 
 RTSPServer::~RTSPServer() {
   // Turn off background HTTP read handling (if any):
-  envir().taskScheduler().turnOffBackgroundReadHandling(fHTTPServerSocket);
-  ::closeSocket(fHTTPServerSocket);
+  envir().taskScheduler().turnOffBackgroundReadHandling(fHTTPServerSocketIPv4);
+  ::closeSocket(fHTTPServerSocketIPv4);
+  envir().taskScheduler().turnOffBackgroundReadHandling(fHTTPServerSocketIPv6);
+  ::closeSocket(fHTTPServerSocketIPv6);
   
   cleanup(); // Removes all "ClientSession" and "ClientConnection" objects, and their tables.
   delete fClientConnectionsForHTTPTunneling;
@@ -195,12 +201,19 @@ Boolean RTSPServer::isRTSPServer() const {
   return True;
 }
 
-void RTSPServer::incomingConnectionHandlerHTTP(void* instance, int /*mask*/) {
+void RTSPServer::incomingConnectionHandlerHTTPIPv4(void* instance, int /*mask*/) {
   RTSPServer* server = (RTSPServer*)instance;
-  server->incomingConnectionHandlerHTTP();
+  server->incomingConnectionHandlerHTTPIPv4();
 }
-void RTSPServer::incomingConnectionHandlerHTTP() {
-  incomingConnectionHandlerOnSocket(fHTTPServerSocket);
+void RTSPServer::incomingConnectionHandlerHTTPIPv4() {
+  incomingConnectionHandlerOnSocket(fHTTPServerSocketIPv4);
+}
+void RTSPServer::incomingConnectionHandlerHTTPIPv6(void* instance, int /*mask*/) {
+  RTSPServer* server = (RTSPServer*)instance;
+  server->incomingConnectionHandlerHTTPIPv6();
+}
+void RTSPServer::incomingConnectionHandlerHTTPIPv6() {
+  incomingConnectionHandlerOnSocket(fHTTPServerSocketIPv6);
 }
 
 void RTSPServer

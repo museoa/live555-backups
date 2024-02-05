@@ -32,7 +32,7 @@ public:
 				      unsigned reclamationTestSeconds = 65);
 
 protected:
-  DynamicRTSPServer(UsageEnvironment& env, int ourSocket, Port ourPort,
+  DynamicRTSPServer(UsageEnvironment& env, int ourSocketIPv4, int ourSocketIPv6, Port ourPort,
 		    UserAuthenticationDatabase* authDatabase, unsigned reclamationTestSeconds);
   // called only by createNew();
   virtual ~DynamicRTSPServer();

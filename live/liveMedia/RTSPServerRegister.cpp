@@ -326,10 +326,11 @@ RTSPServerWithREGISTERProxying* RTSPServerWithREGISTERProxying
 	    unsigned reclamationSeconds,
 	    Boolean streamRTPOverTCP, int verbosityLevelForProxying,
 	    char const* backEndUsername, char const* backEndPassword) {
-  int ourSocket = setUpOurSocket(env, ourPort, AF_INET); // later, also support IPv6
-  if (ourSocket == -1) return NULL;
+  int ourSocketIPv4 = setUpOurSocket(env, ourPort, AF_INET);
+  int ourSocketIPv6 = setUpOurSocket(env, ourPort, AF_INET6);
+  if (ourSocketIPv4 < 0 && ourSocketIPv6 < 0) return NULL;
   
-  return new RTSPServerWithREGISTERProxying(env, ourSocket, ourPort,
+  return new RTSPServerWithREGISTERProxying(env, ourSocketIPv4, ourSocketIPv6, ourPort,
 					    authDatabase, authDatabaseForREGISTER,
 					    reclamationSeconds,
 					    streamRTPOverTCP, verbosityLevelForProxying,
@@ -337,12 +338,12 @@ RTSPServerWithREGISTERProxying* RTSPServerWithREGISTERProxying
 }
 
 RTSPServerWithREGISTERProxying
-::RTSPServerWithREGISTERProxying(UsageEnvironment& env, int ourSocket, Port ourPort,
+::RTSPServerWithREGISTERProxying(UsageEnvironment& env, int ourSocketIPv4, int ourSocketIPv6, Port ourPort,
 				 UserAuthenticationDatabase* authDatabase, UserAuthenticationDatabase* authDatabaseForREGISTER,
 				 unsigned reclamationSeconds,
 				 Boolean streamRTPOverTCP, int verbosityLevelForProxying,
 				 char const* backEndUsername, char const* backEndPassword)
-  : RTSPServer(env, ourSocket, ourPort, authDatabase, reclamationSeconds),
+  : RTSPServer(env, ourSocketIPv4, ourSocketIPv6, ourPort, authDatabase, reclamationSeconds),
     fStreamRTPOverTCP(streamRTPOverTCP), fVerbosityLevelForProxying(verbosityLevelForProxying),
     fRegisteredProxyCounter(0), fAllowedCommandNames(NULL), fAuthDBForREGISTER(authDatabaseForREGISTER),
     fBackEndUsername(strDup(backEndUsername)), fBackEndPassword(strDup(backEndPassword)) {

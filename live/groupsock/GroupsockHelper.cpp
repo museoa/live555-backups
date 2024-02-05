@@ -728,12 +728,17 @@ static Boolean getSourcePort0(int socket, portNumBits& resultPortNum/*host order
   return True;
 }
 
-Boolean getSourcePort(UsageEnvironment& env, int socket, Port& port) {
+Boolean getSourcePort(UsageEnvironment& env, int socket, int domain, Port& port) {
   portNumBits portNum = 0;
   if (!getSourcePort0(socket, portNum) || portNum == 0) {
     // Hack - call bind(), then try again:
-    MAKE_SOCKADDR_IN(name, INADDR_ANY, 0);
-    bind(socket, (struct sockaddr*)&name, sizeof name);
+    if (domain == AF_INET) { // IPv4
+      MAKE_SOCKADDR_IN(name, INADDR_ANY, 0);
+      bind(socket, (struct sockaddr*)&name, sizeof name);
+    } else { // IPv6
+      MAKE_SOCKADDR_IN6(name, 0);
+      bind(socket, (struct sockaddr*)&name, sizeof name);
+    }
 
     if (!getSourcePort0(socket, portNum) || portNum == 0) {
       socketErr(env, "getsockname() error: ");

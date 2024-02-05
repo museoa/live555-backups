@@ -783,7 +783,7 @@ Boolean MediaSubsession::initiate(int useSpecialRTPoffset) {
 
 	// Get the client port number:
 	Port clientPort(0);
-	if (!getSourcePort(env(), fRTPSocket->socketNum(), clientPort)) {
+	if (!getSourcePort(env(), fRTPSocket->socketNum(), tempAddr.ss_family, clientPort)) {
 	  break;
 	}
 	fClientPortNum = ntohs(clientPort.num()); 

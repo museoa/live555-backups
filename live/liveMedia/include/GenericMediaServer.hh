@@ -80,7 +80,7 @@ public:
   unsigned numClientSessions() const { return fClientSessions->numEntries(); }
 
 protected:
-  GenericMediaServer(UsageEnvironment& env, int ourSocket, Port ourPort,
+  GenericMediaServer(UsageEnvironment& env, int ourSocketIPv4, int ourSocketIPv6, Port ourPort,
 		     unsigned reclamationSeconds);
       // If "reclamationSeconds" > 0, then the "ClientSession" state for each client will get
       // reclaimed if no activity from the client is detected in at least "reclamationSeconds".
@@ -90,8 +90,10 @@ protected:
 
   static int setUpOurSocket(UsageEnvironment& env, Port& ourPort, int domain);
 
-  static void incomingConnectionHandler(void*, int /*mask*/);
-  void incomingConnectionHandler();
+  static void incomingConnectionHandlerIPv4(void*, int /*mask*/);
+  static void incomingConnectionHandlerIPv6(void*, int /*mask*/);
+  void incomingConnectionHandlerIPv4();
+  void incomingConnectionHandlerIPv6();
   void incomingConnectionHandlerOnSocket(int serverSocket);
 
 public: // should be protected, but some old compilers complain otherwise
@@ -170,7 +172,7 @@ protected:
   friend class ClientConnection;
   friend class ClientSession;	
   friend class ServerMediaSessionIterator;
-  int fServerSocket;
+  int fServerSocketIPv4, fServerSocketIPv6;
   Port fServerPort;
   unsigned fReclamationSeconds;
 
