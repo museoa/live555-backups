@@ -14,7 +14,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2015 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2016 Live Networks, Inc.  All rights reserved.
 // A sink that generates a QuickTime file from a composite media session
 // Implementation
 
@@ -2019,13 +2019,13 @@ addAtom(stss); // Sync-Sample
   if (fCurrentIOState->fHeadSyncFrame != NULL) {
     SyncFrame* currentSyncFrame = fCurrentIOState->fHeadSyncFrame;
 
-    while (currentSyncFrame != NULL &&
-	   (fCurrentIOState->fHeadSyncFrame == fCurrentIOState->fTailSyncFrame ||
-	    currentSyncFrame != fCurrentIOState->fTailSyncFrame)) {
-      // Note: The above condition should really just be "currentSyncFrame != NULL", but QuickTime
-      // has been known to complain about the frame number in the last 'sync frame' record being
-      // 'out of range'.  We try to work around this by omitting the last 'sync frame' record,
-      // if there's more than one:
+    // First, count the number of frames (to use as a sanity check; see below):
+    unsigned totNumFrames = 0;
+    for (ChunkDescriptor* chunk = fCurrentIOState->fHeadChunk; chunk != NULL; chunk = chunk->fNextChunk) totNumFrames += chunk->fNumFrames;
+
+    while (currentSyncFrame != NULL) {
+      if (currentSyncFrame->sfFrameNum >= totNumFrames) break; // sanity check
+      
       ++numEntries;
       size += addWord(currentSyncFrame->sfFrameNum);
       currentSyncFrame = currentSyncFrame->nextSyncFrame;
