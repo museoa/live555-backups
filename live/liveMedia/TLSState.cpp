@@ -100,7 +100,7 @@ Boolean TLSState::setup(int socketNum) {
   do {
     (void)SSL_library_init();
 
-    SSL_METHOD const* meth = TLS_client_method();
+    SSL_METHOD const* meth = SSLv23_client_method();
     if (meth == NULL) break;
 
     fCtx = SSL_CTX_new(meth);
