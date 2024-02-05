@@ -235,8 +235,8 @@ void MultiFramedRTPSource::networkReadHandler1() {
     struct sockaddr_in fromAddress;
     Boolean packetReadWasIncomplete = fPacketReadInProgress != NULL;
     if (!bPacket->fillInData(fRTPInterface, fromAddress, packetReadWasIncomplete)) {
-      if (bPacket->bytesAvailable() == 0) {
-	envir() << "MultiFramedRTPSource error: Hit limit when reading incoming packet over TCP. Increase \"MAX_PACKET_SIZE\"\n";
+      if (bPacket->bytesAvailable() == 0) { // should not happen??
+	envir() << "MultiFramedRTPSource internal error: Hit limit when reading incoming packet over TCP\n";
       }
       fPacketReadInProgress = NULL;
       break;
@@ -338,7 +338,7 @@ void MultiFramedRTPSource::networkReadHandler1() {
 
 ////////// BufferedPacket and BufferedPacketFactory implementation /////
 
-#define MAX_PACKET_SIZE 20000
+#define MAX_PACKET_SIZE 65536
 
 BufferedPacket::BufferedPacket()
   : fPacketSize(MAX_PACKET_SIZE),

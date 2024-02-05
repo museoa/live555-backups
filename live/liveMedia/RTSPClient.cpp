@@ -344,8 +344,10 @@ RTSPClient::RTSPClient(UsageEnvironment& env, char const* rtspURL,
 		       int verbosityLevel, char const* applicationName,
 		       portNumBits tunnelOverHTTPPortNum, int socketNumToServer)
   : Medium(env),
-    fVerbosityLevel(verbosityLevel), fCSeq(1), fAllowBasicAuthentication(True), fServerAddress(0),
-    fTunnelOverHTTPPortNum(tunnelOverHTTPPortNum), fUserAgentHeaderStr(NULL), fUserAgentHeaderStrLen(0),
+    desiredMaxIncomingPacketSize(0), fVerbosityLevel(verbosityLevel), fCSeq(1),
+    fAllowBasicAuthentication(True), fServerAddress(0),
+    fTunnelOverHTTPPortNum(tunnelOverHTTPPortNum),
+    fUserAgentHeaderStr(NULL), fUserAgentHeaderStrLen(0),
     fInputSocketNum(-1), fOutputSocketNum(-1), fBaseURL(NULL), fTCPStreamIdCount(0),
     fLastSessionId(NULL), fSessionTimeoutParameter(0), fSessionCookieCounter(0), fHTTPTunnelingConnectionIsPending(False) {
   setBaseURL(rtspURL);
@@ -675,11 +677,15 @@ Boolean RTSPClient::setRequestFields(RequestRecord* request,
     // When sending more than one "SETUP" request, include a "Session:" header in the 2nd and later commands:
     char* sessionStr = createSessionString(fLastSessionId);
     
-    // The "Transport:" and "Session:" (if present) headers make up the 'extra headers':
-    extraHeaders = new char[transportSize + strlen(sessionStr)];
+    // Optionally include a "Blocksize:" string:
+    char* blocksizeStr = createBlocksizeString(streamUsingTCP);
+
+    // The "Transport:" and "Session:" (if present) and "Blocksize:" (if present) headers
+    // make up the 'extra headers':
+    extraHeaders = new char[transportSize + strlen(sessionStr) + strlen(blocksizeStr)];
     extraHeadersWereAllocated = True;
-    sprintf(extraHeaders, "%s%s", transportStr, sessionStr);
-    delete[] transportStr; delete[] sessionStr;
+    sprintf(extraHeaders, "%s%s%s", transportStr, sessionStr, blocksizeStr);
+    delete[] transportStr; delete[] sessionStr; delete[] blocksizeStr;
   } else if (strcmp(request->commandName(), "GET") == 0 || strcmp(request->commandName(), "POST") == 0) {
     // We will be sending a HTTP (not a RTSP) request.
     // Begin by re-parsing our RTSP URL, to get the stream name (which we'll use as our 'cmdURL'
@@ -905,6 +911,28 @@ char* RTSPClient::createAuthenticatorString(char const* cmd, char const* url) {
 
   // We don't have a (filled-in) authenticator.
   return strDup("");
+}
+
+char* RTSPClient::createBlocksizeString(Boolean streamUsingTCP) {
+  char* blocksizeStr;
+  u_int16_t maxPacketSize = desiredMaxIncomingPacketSize;
+
+  // Allow for the RTP header (if streaming over TCP)
+  // or the IP/UDP/RTP headers (if streaming over UDP):
+  u_int16_t const headerAllowance = streamUsingTCP ? 12 : 50/*conservative*/;
+  if (maxPacketSize < headerAllowance) {
+    maxPacketSize = 0;
+  } else {
+    maxPacketSize -= headerAllowance;
+  }
+
+  if (maxPacketSize > 0) {
+    blocksizeStr = new char[25]; // more than enough space
+    sprintf(blocksizeStr, "Blocksize: %u\r\n", maxPacketSize);
+  } else {
+    blocksizeStr = strDup("");
+  }
+  return blocksizeStr;
 }
 
 void RTSPClient::handleRequestError(RequestRecord* request) {
