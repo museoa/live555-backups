@@ -348,8 +348,6 @@ void ProxyRTSPClient::continueAfterSETUP(int resultCode) {
 	    << "; numSubsessions " << fSetupQueueHead->fParentSession->numSubsessions() << "\n\tqueue:";
     for (ProxyServerMediaSubsession* p = fSetupQueueHead; p != NULL; p = p->fNext) {
       envir() << "\t" << p->codecName();
-      if (p->fNext == fSetupQueueHead) { fprintf(stderr, "##### INTERNAL ERROR 1.1\n"); break; } //##### TEMP FOR DEBUGGING
-      else if (p->fNext == p) { fprintf(stderr, "##### INTERNAL ERROR 1.2\n"); break; } //##### TEMP FOR DEBUGGING
     }
     envir() << "\n";
   }
@@ -357,7 +355,6 @@ void ProxyRTSPClient::continueAfterSETUP(int resultCode) {
 
   // Dequeue the first "ProxyServerMediaSubsession" from our 'SETUP queue'.  It will be the one for which this "SETUP" was done:
   ProxyServerMediaSubsession* smss = fSetupQueueHead; // Assert: != NULL
-  if (fSetupQueueHead == NULL) fprintf(stderr, "##### INTERNAL ERROR 2\n"); else //##### TEMP FOR DEBUGGING
   fSetupQueueHead = fSetupQueueHead->fNext;
   if (fSetupQueueHead == NULL) fSetupQueueTail = NULL;
 
@@ -565,21 +562,21 @@ FramedSource* ProxyServerMediaSubsession::createNewStreamSource(unsigned clientS
       //  "ProxyServerMediaSubsession" to handle the response.  (Note that responses come back in the same order as requests.))
       Boolean queueWasEmpty = proxyRTSPClient->fSetupQueueHead == NULL;
       if (queueWasEmpty) {
-	if (proxyRTSPClient->fSetupQueueTail != NULL) fprintf(stderr, "##### INTERNAL ERROR 3\n");
 	proxyRTSPClient->fSetupQueueHead = this;
 	proxyRTSPClient->fSetupQueueTail = this;
       } else {
-	if (proxyRTSPClient->fSetupQueueTail == NULL) fprintf(stderr, "##### INTERNAL ERROR 4\n"); else { //##### TEMP FOR DEBUGGING
-	  Boolean err5 = False; //##### TEMP FOR DEBUGGING
-	  for (ProxyServerMediaSubsession* psms = proxyRTSPClient->fSetupQueueHead; psms != NULL; psms = psms->fNext) { if (psms == this) { err5 = True; break; } } //##### TEMP FOR DEBUGGING
-	  if (err5) fprintf(stderr, "##### INTERNAL ERROR 5\n"); else { //##### TEMP FOR DEBUGGING
+	// Add ourself to the "RTSPClient"s 'SETUP queue' (if we're not already on it):
+	ProxyServerMediaSubsession* psms;
+	for (psms = proxyRTSPClient->fSetupQueueHead; psms != NULL; psms = psms->fNext) {
+	  if (psms == this) break;
+	}
+	if (psms == NULL) {
 	    proxyRTSPClient->fSetupQueueTail->fNext = this;
 	    proxyRTSPClient->fSetupQueueTail = this;
-	  } //##### TEMP FOR DEBUGGING
-	} //##### TEMP FOR DEBUGGING
+	}
       }
 
-      // Hack: If there's already a pending "SETUP" request (for another track), don't send this track's "SETUP" right away, because
+      // Hack: If there's already a pending "SETUP" request, don't send this track's "SETUP" right away, because
       // the server might not properly handle 'pipelined' requests.  Instead, wait until after previous "SETUP" responses come back.
       if (queueWasEmpty) {
 	proxyRTSPClient->sendSetupCommand(fClientMediaSubsession, ::continueAfterSETUP,
