@@ -82,32 +82,34 @@ void reclaimGroupsockPriv(UsageEnvironment& env) {
   }
 }
 
-static int createSocket(int type) {
-  // Call "socket()" to create a (IPv4) socket of the specified type.
-      // (Later, update to support IPv6)
+static int createSocket(int domain, int type) {
+  // Call "socket()" to create a socket of the specified type.
   // But also set it to have the 'close on exec' property (if we can)
   int sock;
 
+  // In case PF_INET(6) is not defined to be AF_INET(6):
+  int const domain2 = domain == AF_INET ? PF_INET : domain == AF_INET6 ? PF_INET6 : domain;
+
 #ifdef SOCK_CLOEXEC
-  sock = socket(AF_INET, type|SOCK_CLOEXEC, 0);
+  sock = socket(domain2, type|SOCK_CLOEXEC, 0);
   if (sock != -1 || errno != EINVAL) return sock;
   // An "errno" of EINVAL likely means that the system wasn't happy with the SOCK_CLOEXEC; fall through and try again without it:
 #endif
 
-  sock = socket(AF_INET, type, 0);
+  sock = socket(domain2, type, 0);
 #ifdef FD_CLOEXEC
   if (sock != -1) fcntl(sock, F_SETFD, FD_CLOEXEC);
 #endif
   return sock;
 }
 
-int setupDatagramSocket(UsageEnvironment& env, Port port) {
+int setupDatagramSocket(UsageEnvironment& env, Port port, int domain) {
   if (!initializeWinsockIfNecessary()) {
     socketErr(env, "Failed to initialize 'winsock': ");
     return -1;
   }
 
-  int newSocket = createSocket(SOCK_DGRAM);
+  int newSocket = createSocket(domain, SOCK_DGRAM);
   if (newSocket < 0) {
     socketErr(env, "unable to create datagram socket: ");
     return newSocket;
@@ -259,14 +261,14 @@ Boolean setSocketKeepAlive(int sock) {
   return True;
 }
 
-int setupStreamSocket(UsageEnvironment& env,
-                      Port port, Boolean makeNonBlocking, Boolean setKeepAlive) {
+int setupStreamSocket(UsageEnvironment& env, Port port, int domain,
+		      Boolean makeNonBlocking, Boolean setKeepAlive) {
   if (!initializeWinsockIfNecessary()) {
     socketErr(env, "Failed to initialize 'winsock': ");
     return -1;
   }
 
-  int newSocket = createSocket(SOCK_STREAM);
+  int newSocket = createSocket(domain, SOCK_STREAM);
   if (newSocket < 0) {
     socketErr(env, "unable to create stream socket: ");
     return newSocket;
@@ -729,7 +731,7 @@ ipv4AddressBits ourIPAddress(UsageEnvironment& env) {
 
       Port testPort(15947);
 
-      sock = setupDatagramSocket(env, testPort);
+      sock = setupDatagramSocket(env, testPort, AF_INET);
       if (sock < 0) break;
 
       if (!socketJoinGroup(env, sock, testAddr)) break;

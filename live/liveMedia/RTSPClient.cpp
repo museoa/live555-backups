@@ -897,14 +897,14 @@ int RTSPClient::openConnection() {
     }
     
     // We don't yet have a TCP socket (or we used to have one, but it got closed).  Set it up now.
-    fInputSocketNum = setupStreamSocket(envir(), 0);
+    copyAddress(fServerAddress, &destAddress);
+    fInputSocketNum = setupStreamSocket(envir(), 0, fServerAddress.ss_family);
     if (fInputSocketNum < 0) break;
     ignoreSigPipeOnSocket(fInputSocketNum); // so that servers on the same host that get killed don't also kill us
     if (fOutputSocketNum < 0) fOutputSocketNum = fInputSocketNum;
     if (fVerbosityLevel >= 1) envir() << "Created new TCP socket " << fInputSocketNum << " for connection\n";
       
     // Connect to the remote endpoint:
-    copyAddress(fServerAddress, &destAddress);
     int connectResult = connectToServer(fInputSocketNum, destPortNum);
     if (connectResult < 0) break;
     else if (connectResult > 0) {
@@ -1530,7 +1530,7 @@ void RTSPClient::responseHandlerForHTTP_GET1(int responseCode, char* responseStr
 
     // Having successfully set up (using the HTTP "GET" command) the server->client link, set up a second TCP connection
     // (to the same server & port as before) for the client->server link.  All future output will be to this new socket.
-    fOutputSocketNum = setupStreamSocket(envir(), 0);
+    fOutputSocketNum = setupStreamSocket(envir(), 0, fServerAddress.ss_family);
     if (fOutputSocketNum < 0) break;
     ignoreSigPipeOnSocket(fOutputSocketNum); // so that servers on the same host that killed don't also kill us
 

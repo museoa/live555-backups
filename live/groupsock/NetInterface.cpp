@@ -41,9 +41,10 @@ NetInterface::~NetInterface() {
 
 int Socket::DebugLevel = 1; // default value
 
-Socket::Socket(UsageEnvironment& env, Port port)
-  : fEnv(DefaultUsageEnvironment != NULL ? *DefaultUsageEnvironment : env), fPort(port) {
-  fSocketNum = setupDatagramSocket(fEnv, port);
+Socket::Socket(UsageEnvironment& env, Port port, int family)
+  : fEnv(DefaultUsageEnvironment != NULL ? *DefaultUsageEnvironment : env),
+    fPort(port), fFamily(family) {
+  fSocketNum = setupDatagramSocket(fEnv, port, family);
 }
 
 void Socket::reset() {
@@ -61,7 +62,7 @@ Boolean Socket::changePort(Port newPort) {
   unsigned oldSendBufferSize = getSendBufferSize(fEnv, fSocketNum);
   closeSocket(fSocketNum);
 
-  fSocketNum = setupDatagramSocket(fEnv, newPort);
+  fSocketNum = setupDatagramSocket(fEnv, newPort, fFamily);
   if (fSocketNum < 0) {
     fEnv.taskScheduler().turnOffBackgroundReadHandling(oldSocketNum);
     return False;

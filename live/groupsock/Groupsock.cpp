@@ -27,13 +27,13 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 ///////// OutputSocket //////////
 
-OutputSocket::OutputSocket(UsageEnvironment& env)
-  : Socket(env, 0 /* let kernel choose port */),
+OutputSocket::OutputSocket(UsageEnvironment& env, int family)
+  : Socket(env, 0 /* let kernel choose port */, family),
     fSourcePort(0), fLastSentTTL(256/*hack: a deliberately invalid value*/) {
 }
 
-OutputSocket::OutputSocket(UsageEnvironment& env, Port port)
-  : Socket(env, port),
+OutputSocket::OutputSocket(UsageEnvironment& env, Port port, int family)
+  : Socket(env, port, family),
     fSourcePort(0), fLastSentTTL(256/*hack: a deliberately invalid value*/) {
 }
 
@@ -94,7 +94,7 @@ NetInterfaceTrafficStats Groupsock::statsOutgoing;
 // Constructor for a source-independent multicast group
 Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& groupAddr,
 		     Port port, u_int8_t ttl)
-  : OutputSocket(env, port),
+  : OutputSocket(env, port, groupAddr.ss_family),
     fDests(new destRecord(groupAddr, port, ttl, 0, NULL)),
     fIncomingGroupEId(groupAddr, port.num(), ttl) {
   if (!socketJoinGroup(env, socketNum(), groupAddr)) {
@@ -119,7 +119,7 @@ Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& group
 Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& groupAddr,
 		     struct sockaddr_storage const& sourceFilterAddr,
 		     Port port)
-  : OutputSocket(env, port),
+  : OutputSocket(env, port, groupAddr.ss_family),
     fDests(new destRecord(groupAddr, port, 255, 0, NULL)),
     fIncomingGroupEId(groupAddr, sourceFilterAddr, port.num()) {
   // First try a SSM join.  If that fails, try a regular join:
