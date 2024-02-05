@@ -173,17 +173,17 @@ UsageEnvironment& operator<<(UsageEnvironment& s, const Groupsock& g);
 // by (multicast address, port), or by socket number
 class GroupsockLookupTable {
 public:
-  Groupsock* Fetch(UsageEnvironment& env, netAddressBits groupAddress,
+  Groupsock* Fetch(UsageEnvironment& env, struct sockaddr_storage const& groupAddress,
 		   Port port, u_int8_t ttl, Boolean& isNew);
       // Creates a new Groupsock if none already exists
-  Groupsock* Fetch(UsageEnvironment& env, netAddressBits groupAddress,
-		   netAddressBits sourceFilterAddr,
+  Groupsock* Fetch(UsageEnvironment& env, struct sockaddr_storage const& groupAddress,
+		   struct sockaddr_storage const& sourceFilterAddr,
 		   Port port, Boolean& isNew);
       // Creates a new Groupsock if none already exists
-  Groupsock* Lookup(netAddressBits groupAddress, Port port);
+  Groupsock* Lookup(struct sockaddr_storage const& groupAddress, Port port);
       // Returns NULL if none already exists
-  Groupsock* Lookup(netAddressBits groupAddress,
-		    netAddressBits sourceFilterAddr,
+  Groupsock* Lookup(struct sockaddr_storage const& groupAddress,
+		    struct sockaddr_storage const& sourceFilterAddr,
 		    Port port);
       // Returns NULL if none already exists
   Groupsock* Lookup(UsageEnvironment& env, int sock);
@@ -203,8 +203,8 @@ public:
 
 private:
   Groupsock* AddNew(UsageEnvironment& env,
-		    netAddressBits groupAddress,
-		    netAddressBits sourceFilterAddress,
+		    struct sockaddr_storage const& groupAddress,
+		    struct sockaddr_storage const& sourceFilterAddress,
 		    Port port, u_int8_t ttl);
 
 private:

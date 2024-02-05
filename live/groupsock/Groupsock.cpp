@@ -586,15 +586,15 @@ static Groupsock* getGroupsockBySocket(UsageEnvironment& env, int sock) {
 
 Groupsock*
 GroupsockLookupTable::Fetch(UsageEnvironment& env,
-			    netAddressBits groupAddress,
+			    struct sockaddr_storage const& groupAddress,
 			    Port port, u_int8_t ttl,
 			    Boolean& isNew) {
   isNew = False;
   Groupsock* groupsock;
   do {
-    groupsock = (Groupsock*) fTable.Lookup(groupAddress, (~0), port);
+    groupsock = (Groupsock*) fTable.Lookup(groupAddress, port);
     if (groupsock == NULL) { // we need to create one:
-      groupsock = AddNew(env, groupAddress, (~0), port, ttl);
+      groupsock = AddNew(env, groupAddress, AddressPortLookupTable::dummyAddress(), port, ttl);
       if (groupsock == NULL) break;
       isNew = True;
     }
@@ -605,8 +605,8 @@ GroupsockLookupTable::Fetch(UsageEnvironment& env,
 
 Groupsock*
 GroupsockLookupTable::Fetch(UsageEnvironment& env,
-			    netAddressBits groupAddress,
-			    netAddressBits sourceFilterAddr, Port port,
+			    struct sockaddr_storage const& groupAddress,
+			    struct sockaddr_storage const& sourceFilterAddr, Port port,
 			    Boolean& isNew) {
   isNew = False;
   Groupsock* groupsock;
@@ -624,13 +624,13 @@ GroupsockLookupTable::Fetch(UsageEnvironment& env,
 }
 
 Groupsock*
-GroupsockLookupTable::Lookup(netAddressBits groupAddress, Port port) {
-  return (Groupsock*) fTable.Lookup(groupAddress, (~0), port);
+GroupsockLookupTable::Lookup(struct sockaddr_storage const& groupAddress, Port port) {
+  return (Groupsock*) fTable.Lookup(groupAddress, port);
 }
 
 Groupsock*
-GroupsockLookupTable::Lookup(netAddressBits groupAddress,
-			     netAddressBits sourceFilterAddr, Port port) {
+GroupsockLookupTable::Lookup(struct sockaddr_storage const& groupAddress,
+			     struct sockaddr_storage const& sourceFilterAddr, Port port) {
   return (Groupsock*) fTable.Lookup(groupAddress, sourceFilterAddr, port);
 }
 
@@ -640,25 +640,35 @@ Groupsock* GroupsockLookupTable::Lookup(UsageEnvironment& env, int sock) {
 
 Boolean GroupsockLookupTable::Remove(Groupsock const* groupsock) {
   unsetGroupsockBySocket(groupsock);
-  return fTable.Remove(groupsock->groupAddress().s_addr,
-		       groupsock->sourceFilterAddress().s_addr,
+
+  sockaddr_storage address1;
+  address1.ss_family = AF_INET;
+  ((sockaddr_in&)address1).sin_addr = groupsock->groupAddress(); // later fix for IPv6
+
+  sockaddr_storage address2;
+  address2.ss_family = AF_INET;
+  ((sockaddr_in&)address2).sin_addr = groupsock->sourceFilterAddress(); // later fix for IPv6
+  return fTable.Remove(address1,
+		       address2,
 		       groupsock->port());
 }
 
 Groupsock* GroupsockLookupTable::AddNew(UsageEnvironment& env,
-					netAddressBits groupAddress,
-					netAddressBits sourceFilterAddress,
+					struct sockaddr_storage const& groupAddress,
+					struct sockaddr_storage const& sourceFilterAddress,
 					Port port, u_int8_t ttl) {
   Groupsock* groupsock;
   do {
-    struct in_addr groupAddr; groupAddr.s_addr = groupAddress;
-    if (sourceFilterAddress == netAddressBits(~0)) {
+    struct in_addr groupAddr; groupAddr = ((sockaddr_in const&)groupAddress).sin_addr;
+        // later fix for IPv6
+    if (AddressPortLookupTable::addressIsDummy(sourceFilterAddress)) {
       // regular, ISM groupsock
       groupsock = new Groupsock(env, groupAddr, port, ttl);
     } else {
       // SSM groupsock
       struct in_addr sourceFilterAddr;
-      sourceFilterAddr.s_addr = sourceFilterAddress;
+      sourceFilterAddr = ((sockaddr_in const&)sourceFilterAddress).sin_addr;
+        // later fix for IPv6
       groupsock = new Groupsock(env, groupAddr, sourceFilterAddr, port);
     }
 

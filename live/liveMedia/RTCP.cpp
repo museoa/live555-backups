@@ -217,26 +217,22 @@ void RTCPInstance::noteArrivingRR(struct sockaddr_storage const& fromAddressAndP
 
   // Specific RR handler:
   if (fSpecificRRHandlerTable != NULL) {
-    netAddressBits fromAddr;
+    struct sockaddr_storage fromAddress;
     portNumBits fromPortNum;
     if (tcpSocketNum < 0) {
       // Normal case: We read the RTCP packet over UDP
-      if (fromAddressAndPort.ss_family == AF_INET) {
-	struct sockaddr_in const& fromAddressAndPort4 = (struct sockaddr_in const&)fromAddressAndPort;
-	fromAddr = fromAddressAndPort4.sin_addr.s_addr;
-      } else {
-	fromAddr = 0; // later update for IPv6
-      }
+      fromAddress = fromAddressAndPort;
       fromPortNum = ntohs(portNum(fromAddressAndPort));
     } else {
       // Special case: We read the RTCP packet over TCP (interleaved)
-      // Hack: Use the TCP socket and channel id to look up the handler
-      fromAddr = tcpSocketNum;
+      // Hack: Use the TCP socket number and channel id to look up the handler
+      fromAddress.ss_family = AF_INET;
+      ((sockaddr_in&)fromAddress).sin_addr.s_addr = tcpSocketNum;
       fromPortNum = tcpStreamChannelId;
     }
     Port fromPort(fromPortNum);
     RRHandlerRecord* rrHandler
-      = (RRHandlerRecord*)(fSpecificRRHandlerTable->Lookup(fromAddr, (~0), fromPort));
+      = (RRHandlerRecord*)(fSpecificRRHandlerTable->Lookup(fromAddress, fromPort));
     if (rrHandler != NULL) {
       if (rrHandler->rrHandlerTask != NULL) {
 	(*(rrHandler->rrHandlerTask))(rrHandler->rrHandlerClientData);
@@ -325,7 +321,9 @@ void RTCPInstance
   if (fSpecificRRHandlerTable == NULL) {
     fSpecificRRHandlerTable = new AddressPortLookupTable;
   }
-  RRHandlerRecord* existingRecord = (RRHandlerRecord*)fSpecificRRHandlerTable->Add(fromAddress, (~0), fromPort, rrHandler);
+  struct sockaddr_storage fromAddr; fromAddr.ss_family = AF_INET; ((sockaddr_in&)fromAddr).sin_addr.s_addr = fromAddress; // fix later for IPv6
+  RRHandlerRecord* existingRecord
+    = (RRHandlerRecord*)fSpecificRRHandlerTable->Add(fromAddr, fromPort, rrHandler);
   delete existingRecord; // if any
 
 }
@@ -334,10 +332,11 @@ void RTCPInstance
 ::unsetSpecificRRHandler(netAddressBits fromAddress, Port fromPort) {
   if (fSpecificRRHandlerTable == NULL) return;
 
+  struct sockaddr_storage fromAddr; fromAddr.ss_family = AF_INET; ((sockaddr_in&)fromAddr).sin_addr.s_addr = fromAddress; // fix later for IPv6
   RRHandlerRecord* rrHandler
-    = (RRHandlerRecord*)(fSpecificRRHandlerTable->Lookup(fromAddress, (~0), fromPort));
+    = (RRHandlerRecord*)(fSpecificRRHandlerTable->Lookup(fromAddr, fromPort));
   if (rrHandler != NULL) {
-    fSpecificRRHandlerTable->Remove(fromAddress, (~0), fromPort);
+    fSpecificRRHandlerTable->Remove(fromAddr, fromPort);
     delete rrHandler;
   }
 }

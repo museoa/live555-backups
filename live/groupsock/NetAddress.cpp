@@ -246,42 +246,78 @@ UsageEnvironment& operator<<(UsageEnvironment& s, const Port& p) {
 
 ////////// AddressPortLookupTable //////////
 
+#define NUM_RECORDS_IN_KEY_FOR_EACH_ADDRESS (sizeof (struct in6_addr)/sizeof (int))
+#define NUM_RECORDS_IN_KEY_TOTAL (2*NUM_RECORDS_IN_KEY_FOR_EACH_ADDRESS + 1)
+
 AddressPortLookupTable::AddressPortLookupTable()
-  : fTable(HashTable::create(3)) { // three-word keys are used
+  : fTable(HashTable::create(NUM_RECORDS_IN_KEY_TOTAL)) {
 }
 
 AddressPortLookupTable::~AddressPortLookupTable() {
   delete fTable;
 }
 
-void* AddressPortLookupTable::Add(netAddressBits address1,
-				  netAddressBits address2,
+static void setKeyFromAddress(int*& key, struct sockaddr_storage const& address) {
+  if (address.ss_family == AF_INET) {
+    // For an IPv4 address, set the upper 3 words of the key to zero, with the address last:
+    *key++ = 0;
+    *key++ = 0;
+    *key++ = 0;
+    *key++ = ((sockaddr_in const&)address).sin_addr.s_addr;
+  } else {
+    // Assume that the address is IPv6; use all 128 bits (4 words) for the key:
+    struct sockaddr_in6 const& address6 = (struct sockaddr_in6&)address;
+    u_int8_t const* s6a = address6.sin6_addr.s6_addr; // alias
+    *key++ = (s6a[0]<<24)|(s6a[1]<<16)|(s6a[2]<<8)|s6a[3];
+    *key++ = (s6a[4]<<24)|(s6a[5]<<16)|(s6a[6]<<8)|s6a[7];
+    *key++ = (s6a[8]<<24)|(s6a[9]<<16)|(s6a[10]<<8)|s6a[11];
+    *key++ = (s6a[12]<<24)|(s6a[13]<<16)|(s6a[14]<<8)|s6a[15];
+  }
+}
+
+static void setKey(int* key,
+		   struct sockaddr_storage const& address1,
+		   struct sockaddr_storage const& address2,
+		   Port port) {
+  setKeyFromAddress(key, address1);
+  setKeyFromAddress(key, address2);
+  *key = (int)port.num();
+}
+
+void* AddressPortLookupTable::Add(struct sockaddr_storage const& address1,
+				  struct sockaddr_storage const& address2,
 				  Port port, void* value) {
-  int key[3];
-  key[0] = (int)address1;
-  key[1] = (int)address2;
-  key[2] = (int)port.num();
+  int key[NUM_RECORDS_IN_KEY_TOTAL];
+  setKey(key, address1, address2, port);
   return fTable->Add((char*)key, value);
 }
 
-void* AddressPortLookupTable::Lookup(netAddressBits address1,
-				     netAddressBits address2,
+void* AddressPortLookupTable::Lookup(struct sockaddr_storage const& address1,
+				     struct sockaddr_storage const& address2,
 				     Port port) {
-  int key[3];
-  key[0] = (int)address1;
-  key[1] = (int)address2;
-  key[2] = (int)port.num();
+  int key[NUM_RECORDS_IN_KEY_TOTAL];
+  setKey(key, address1, address2, port);
   return fTable->Lookup((char*)key);
 }
 
-Boolean AddressPortLookupTable::Remove(netAddressBits address1,
-				       netAddressBits address2,
+Boolean AddressPortLookupTable::Remove(struct sockaddr_storage const& address1,
+				       struct sockaddr_storage const& address2,
 				       Port port) {
-  int key[3];
-  key[0] = (int)address1;
-  key[1] = (int)address2;
-  key[2] = (int)port.num();
+  int key[NUM_RECORDS_IN_KEY_TOTAL];
+  setKey(key, address1, address2, port);
   return fTable->Remove((char*)key);
+}
+
+static struct sockaddr_storage _dummyAddress;
+struct sockaddr_storage const& AddressPortLookupTable::dummyAddress() {
+  _dummyAddress.ss_family = AF_INET;
+  ((sockaddr_in&)_dummyAddress).sin_addr.s_addr = (~0);
+
+  return _dummyAddress;
+}
+
+Boolean AddressPortLookupTable::addressIsDummy(sockaddr_storage const& address) {
+  return address.ss_family == AF_INET && ((sockaddr_in const&)address).sin_addr.s_addr == (~0);
 }
 
 AddressPortLookupTable::Iterator::Iterator(AddressPortLookupTable& table)

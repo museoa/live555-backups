@@ -118,12 +118,39 @@ public:
   AddressPortLookupTable();
   virtual ~AddressPortLookupTable();
   
-  void* Add(netAddressBits address1, netAddressBits address2, Port port, void* value);
+  void* Add(struct sockaddr_storage const& address1,
+	    struct sockaddr_storage const& address2,
+	    Port port,
+	    void* value);
       // Returns the old value if different, otherwise 0
-  Boolean Remove(netAddressBits address1, netAddressBits address2, Port port);
-  void* Lookup(netAddressBits address1, netAddressBits address2, Port port);
+  void* Add(struct sockaddr_storage const& address1,
+	    Port port,
+	    void* value) {
+    return Add(address1, dummyAddress(), port, value);
+  }
+
+  Boolean Remove(struct sockaddr_storage const& address1,
+		 struct sockaddr_storage const& address2,
+		 Port port);
+  Boolean Remove(struct sockaddr_storage const& address1,
+		 Port port) {
+    return Remove(address1, dummyAddress(), port);
+  }
+
+  void* Lookup(struct sockaddr_storage const& address1,
+	       struct sockaddr_storage const& address2,
+	       Port port);
       // Returns 0 if not found
+  void* Lookup(struct sockaddr_storage const& address1,
+	       Port port) {
+    return Lookup(address1, dummyAddress(), port);
+  }
+
   void* RemoveNext() { return fTable->RemoveNext(); }
+
+  static struct sockaddr_storage const& dummyAddress();
+      // an address to use if you need only "address1", not "address2"
+  static Boolean addressIsDummy(sockaddr_storage const& address);
 
   // Used to iterate through the entries in the table
   class Iterator {
