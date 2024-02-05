@@ -138,42 +138,60 @@ int setupDatagramSocket(UsageEnvironment& env, Port port, int domain) {
 
 #ifdef IP_MULTICAST_LOOP
   const u_int8_t loop = 1;
-  if (setsockopt(newSocket, IPPROTO_IP, IP_MULTICAST_LOOP,
+  if (setsockopt(newSocket,
+		 domain == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+		 domain == AF_INET ? IP_MULTICAST_LOOP : IPV6_MULTICAST_LOOP,
 		 (const char*)&loop, sizeof loop) < 0) {
-    socketErr(env, "setsockopt(IP_MULTICAST_LOOP) error: ");
-    closeSocket(newSocket);
-    return -1;
+    if (domain == AF_INET) { // For some unknown reason, this might not work for IPv6
+      socketErr(env, "setsockopt(IP_MULTICAST_LOOP) error: ");
+      closeSocket(newSocket);
+      return -1;
+    }
   }
 #endif
 #endif
 
-  // Note: Windoze requires binding, even if the port number is 0
-  ipv4AddressBits addr = INADDR_ANY;
+  if (domain == AF_INET) {
+    // Note: Windoze requires binding, even if the port number is 0
+    ipv4AddressBits addr = INADDR_ANY;
 #if defined(__WIN32__) || defined(_WIN32)
 #else
-  if (port.num() != 0 || ReceivingInterfaceAddr != INADDR_ANY) {
+    if (port.num() != 0 || ReceivingInterfaceAddr != INADDR_ANY) {
 #endif
-    if (port.num() == 0) addr = ReceivingInterfaceAddr;
-    MAKE_SOCKADDR_IN(name, addr, port.num());
-    if (bind(newSocket, (struct sockaddr*)&name, sizeof name) != 0) {
-      char tmpBuffer[100];
-      sprintf(tmpBuffer, "bind() error (port number: %d): ",
-	      ntohs(port.num()));
-      socketErr(env, tmpBuffer);
-      closeSocket(newSocket);
-      return -1;
+      if (port.num() == 0) addr = ReceivingInterfaceAddr;
+      MAKE_SOCKADDR_IN(name, addr, port.num());
+      if (bind(newSocket, (struct sockaddr*)&name, sizeof name) != 0) {
+	char tmpBuffer[100];
+	sprintf(tmpBuffer, "IPv4 bind() error (port number: %d): ", ntohs(port.num()));
+	socketErr(env, tmpBuffer);
+	closeSocket(newSocket);
+	return -1;
+      }
+#if defined(__WIN32__) || defined(_WIN32)
+#else
     }
-#if defined(__WIN32__) || defined(_WIN32)
-#else
-  }
 #endif
+  } else { // IPv6
+    if (port.num() != 0) {
+      MAKE_SOCKADDR_IN6(name, port.num());
+      if (bind(newSocket, (struct sockaddr*)&name, sizeof name) != 0) {
+	char tmpBuffer[100];
+	sprintf(tmpBuffer, "IPv6 bind() error (port number: %d): ", ntohs(port.num()));
+	socketErr(env, tmpBuffer);
+	closeSocket(newSocket);
+	return -1;
+      }
+    }
+  }
 
   // Set the sending interface for multicasts, if it's not the default:
   if (SendingInterfaceAddr != INADDR_ANY) {
     struct in_addr addr;
     addr.s_addr = SendingInterfaceAddr;
 
-    if (setsockopt(newSocket, IPPROTO_IP, IP_MULTICAST_IF,
+    if (setsockopt(newSocket,
+		   domain == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+		   domain == AF_INET ? IP_MULTICAST_IF : IPV6_MULTICAST_IF,
 		   (const char*)&addr, sizeof addr) < 0) {
       socketErr(env, "error setting outgoing multicast interface: ");
       closeSocket(newSocket);
@@ -301,24 +319,36 @@ int setupStreamSocket(UsageEnvironment& env, Port port, int domain,
 #endif
 #endif
 
-  // Note: Windoze requires binding, even if the port number is 0
+  if (domain == AF_INET) {
+    // Note: Windoze requires binding, even if the port number is 0
 #if defined(__WIN32__) || defined(_WIN32)
 #else
-  if (port.num() != 0 || ReceivingInterfaceAddr != INADDR_ANY) {
+    if (port.num() != 0 || ReceivingInterfaceAddr != INADDR_ANY) {
 #endif
-    MAKE_SOCKADDR_IN(name, ReceivingInterfaceAddr, port.num());
-    if (bind(newSocket, (struct sockaddr*)&name, sizeof name) != 0) {
-      char tmpBuffer[100];
-      sprintf(tmpBuffer, "bind() error (port number: %d): ",
-	      ntohs(port.num()));
-      socketErr(env, tmpBuffer);
-      closeSocket(newSocket);
-      return -1;
+      MAKE_SOCKADDR_IN(name, ReceivingInterfaceAddr, port.num());
+      if (bind(newSocket, (struct sockaddr*)&name, sizeof name) != 0) {
+	char tmpBuffer[100];
+	sprintf(tmpBuffer, "IPv4 bind() error (port number: %d): ", ntohs(port.num()));
+	socketErr(env, tmpBuffer);
+	closeSocket(newSocket);
+	return -1;
+      }
+#if defined(__WIN32__) || defined(_WIN32)
+#else
     }
-#if defined(__WIN32__) || defined(_WIN32)
-#else
-  }
 #endif
+  } else { // IPv6
+    if (port.num() != 0) {
+      MAKE_SOCKADDR_IN6(name, port.num());
+      if (bind(newSocket, (struct sockaddr*)&name, sizeof name) != 0) {
+	char tmpBuffer[100];
+	sprintf(tmpBuffer, "IPv6 bind() error (port number: %d): ", ntohs(port.num()));
+	socketErr(env, tmpBuffer);
+	closeSocket(newSocket);
+	return -1;
+      }
+    }
+  }
 
   if (makeNonBlocking) {
     if (!makeSocketNonBlocking(newSocket)) {
@@ -390,19 +420,21 @@ Boolean writeSocket(UsageEnvironment& env,
 		    int socket, struct sockaddr_storage const& addressAndPort,
 		    u_int8_t ttlArg,
 		    unsigned char* buffer, unsigned bufferSize) {
-  // Before sending, set the socket's TTL:
+  // Before sending, set the socket's TTL (IPv4 only):
+  if (addressAndPort.ss_family == AF_INET) {
 #if defined(__WIN32__) || defined(_WIN32)
 #define TTL_TYPE int
 #else
 #define TTL_TYPE u_int8_t
 #endif
-  TTL_TYPE ttl = (TTL_TYPE)ttlArg;
-  if (setsockopt(socket, IPPROTO_IP, IP_MULTICAST_TTL,
-		 (const char*)&ttl, sizeof ttl) < 0) {
-    socketErr(env, "setsockopt(IP_MULTICAST_TTL) error: ");
-    return False;
+    TTL_TYPE ttl = (TTL_TYPE)ttlArg;
+    if (setsockopt(socket, IPPROTO_IP, IP_MULTICAST_TTL,
+		   (const char*)&ttl, sizeof ttl) < 0) {
+      socketErr(env, "setsockopt(IP_MULTICAST_TTL) error: ");
+      return False;
+    }
   }
-
+  
   return writeSocket(env, socket, addressAndPort, buffer, bufferSize);
 }
 
@@ -502,13 +534,16 @@ unsigned increaseReceiveBufferTo(UsageEnvironment& env,
   return increaseBufferTo(env, SO_RCVBUF, socket, requestedSize);
 }
 
-static void clearMulticastAllSocketOption(int socket) {
+static void clearMulticastAllSocketOption(int socket, int domain) {
 #ifdef IP_MULTICAST_ALL
   // This option is defined in modern versions of Linux to overcome a bug in the Linux kernel's default behavior.
   // When set to 0, it ensures that we receive only packets that were sent to the specified IP multicast address,
   // even if some other process on the same system has joined a different multicast group with the same port number.
   int multicastAll = 0;
-  (void)setsockopt(socket, IPPROTO_IP, IP_MULTICAST_ALL, (void*)&multicastAll, sizeof multicastAll);
+  (void)setsockopt(socket,
+		   domain == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+		   IP_MULTICAST_ALL, // is this the same for IPv6?
+		   (void*)&multicastAll, sizeof multicastAll);
   // Ignore the call's result.  Should it fail, we'll still receive packets (just perhaps more than intended)
 #endif
 }
@@ -516,13 +551,39 @@ static void clearMulticastAllSocketOption(int socket) {
 Boolean socketJoinGroup(UsageEnvironment& env, int socket,
 			struct sockaddr_storage const& groupAddress){
   if (!IsMulticastAddress(groupAddress)) return True; // ignore this case
-  if (groupAddress.ss_family != AF_INET) return False; // later, support IPv6
 
-  struct ip_mreq imr;
-  imr.imr_multiaddr.s_addr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
-  imr.imr_interface.s_addr = ReceivingInterfaceAddr;
-  if (setsockopt(socket, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-		 (const char*)&imr, sizeof (struct ip_mreq)) < 0) {
+  int level, option_name;
+  void const* option_value;
+  SOCKLEN_T option_len;
+  struct ip_mreq imr4;
+  struct ipv6_mreq imr6;
+
+  switch (groupAddress.ss_family) {
+    case AF_INET: {
+      imr4.imr_multiaddr.s_addr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
+      imr4.imr_interface.s_addr = ReceivingInterfaceAddr;
+
+      level = IPPROTO_IP;
+      option_name = IP_ADD_MEMBERSHIP;
+      option_value = &imr4;
+      option_len = sizeof imr4;
+      break;
+    }
+    case AF_INET6: {
+      imr6.ipv6mr_multiaddr = ((struct sockaddr_in6&)groupAddress).sin6_addr;
+      imr6.ipv6mr_interface = 0; // ???
+
+      level = IPPROTO_IPV6;
+      option_name = IPV6_JOIN_GROUP;
+      option_value = &imr6;
+      option_len = sizeof imr6;
+      break;
+    }
+    default: {
+      return False;
+    }
+  }
+  if (setsockopt(socket, level, option_name, option_value, option_len) < 0) {
 #if defined(__WIN32__) || defined(_WIN32)
     if (env.getErrno() != 0) {
       // That piece-of-shit toy operating system (Windows) sometimes lies
@@ -535,7 +596,7 @@ Boolean socketJoinGroup(UsageEnvironment& env, int socket,
 #endif
   }
 
-  clearMulticastAllSocketOption(socket);
+  clearMulticastAllSocketOption(socket, groupAddress.ss_family);
 
   return True;
 }
@@ -543,13 +604,39 @@ Boolean socketJoinGroup(UsageEnvironment& env, int socket,
 Boolean socketLeaveGroup(UsageEnvironment&, int socket,
 			 struct sockaddr_storage const& groupAddress) {
   if (!IsMulticastAddress(groupAddress)) return True; // ignore this case
-  if (groupAddress.ss_family != AF_INET) return False; // later, support IPv6
 
-  struct ip_mreq imr;
-  imr.imr_multiaddr.s_addr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
-  imr.imr_interface.s_addr = ReceivingInterfaceAddr;
-  if (setsockopt(socket, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-		 (const char*)&imr, sizeof (struct ip_mreq)) < 0) {
+  int level, option_name;
+  void const* option_value;
+  SOCKLEN_T option_len;
+  struct ip_mreq imr4;
+  struct ipv6_mreq imr6;
+
+  switch (groupAddress.ss_family) {
+    case AF_INET: {
+      imr4.imr_multiaddr.s_addr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
+      imr4.imr_interface.s_addr = ReceivingInterfaceAddr;
+
+      level = IPPROTO_IP;
+      option_name = IP_DROP_MEMBERSHIP;
+      option_value = &imr4;
+      option_len = sizeof imr4;
+      break;
+    }
+    case AF_INET6: {
+      imr6.ipv6mr_multiaddr = ((struct sockaddr_in6&)groupAddress).sin6_addr;
+      imr6.ipv6mr_interface = 0; // ???
+
+      level = IPPROTO_IPV6;
+      option_name = IPV6_LEAVE_GROUP;
+      option_value = &imr6;
+      option_len = sizeof imr6;
+      break;
+    }
+    default: {
+      return False;
+    }
+  }
+  if (setsockopt(socket, level, option_name, option_value, option_len) < 0) {
     return False;
   }
 
@@ -601,7 +688,7 @@ Boolean socketJoinGroupSSM(UsageEnvironment& env, int socket,
     return False;
   }
 
-  clearMulticastAllSocketOption(socket);
+  clearMulticastAllSocketOption(socket, groupAddress.ss_family);
 
   return True;
 }

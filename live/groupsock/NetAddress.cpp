@@ -149,6 +149,7 @@ void copyAddress(struct sockaddr_storage& to, NetAddress const* from) {
     for (unsigned i = 0; i < 16; ++i) {
       ((sockaddr_in6&)to).sin6_addr.s6_addr[i] = (from->data())[i];
     }
+    ((sockaddr_in6&)to).sin6_scope_id = 0; // instead, somehow look this up from the address?
   }
 }
 
