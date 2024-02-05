@@ -141,8 +141,9 @@ protected:
       // - this time after normal digest authentication has already taken place (and would otherwise allow access).
       // (This test can only be used to further restrict access, not to grant additional access.)
 
-private: // redefined virtual functions
+public: // redefined virtual functions
   virtual Boolean isRTSPServer() const;
+  virtual void addServerMediaSession(ServerMediaSession* serverMediaSession);
 
 public: // should be protected, but some old compilers complain otherwise
   // The state of a TCP connection used by a RTSP client:

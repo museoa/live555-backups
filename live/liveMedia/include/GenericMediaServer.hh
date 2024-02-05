@@ -43,7 +43,7 @@ typedef void lookupServerMediaSessionCompletionFunc(void* clientData,
 
 class GenericMediaServer: public Medium {
 public:
-  void addServerMediaSession(ServerMediaSession* serverMediaSession);
+  virtual void addServerMediaSession(ServerMediaSession* serverMediaSession);
 
   virtual void lookupServerMediaSession(char const* streamName,
 					lookupServerMediaSessionCompletionFunc* completionFunc,

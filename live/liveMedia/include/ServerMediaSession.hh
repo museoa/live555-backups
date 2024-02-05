@@ -73,6 +73,8 @@ public:
     //   you must first close any client connections that use it,
     //   by calling "RTSPServer::closeAllClientSessionsForServerMediaSession()".
 
+  Boolean streamingIsEncrypted; // by default, False
+
 protected:
   ServerMediaSession(UsageEnvironment& env, char const* streamName,
 		     char const* info, char const* description,

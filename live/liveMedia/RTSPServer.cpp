@@ -220,6 +220,11 @@ Boolean RTSPServer::isRTSPServer() const {
   return True;
 }
 
+void RTSPServer::addServerMediaSession(ServerMediaSession* serverMediaSession) {
+  GenericMediaServer::addServerMediaSession(serverMediaSession);
+  if (serverMediaSession != NULL) serverMediaSession->streamingIsEncrypted = fWeServeSRTP;
+}
+
 void RTSPServer::incomingConnectionHandlerHTTPIPv4(void* instance, int /*mask*/) {
   RTSPServer* server = (RTSPServer*)instance;
   server->incomingConnectionHandlerHTTPIPv4();
@@ -1564,10 +1569,11 @@ void RTSPServer::RTSPClientSession
 		     "RTSP/1.0 200 OK\r\n"
 		     "CSeq: %s\r\n"
 		     "%s"
-		     "Transport: RTP/AVP;multicast;destination=%s;source=%s;port=%d-%d;ttl=%d\r\n"
+		     "Transport: RTP/%s;multicast;destination=%s;source=%s;port=%d-%d;ttl=%d\r\n"
 		     "Session: %08X%s\r\n\r\n",
 		     fOurClientConnection->fCurrentCSeq,
 		     dateHeader(),
+		     fOurRTSPServer.fWeServeSRTP ? "SAVP" : "AVP",
 		     destAddrStr.val(), sourceAddrStr.val(), ntohs(serverRTPPort.num()), ntohs(serverRTCPPort.num()), destinationTTL,
 		     fOurSessionId, timeoutParameterString);
 	    break;
@@ -1598,10 +1604,11 @@ void RTSPServer::RTSPClientSession
 		     "RTSP/1.0 200 OK\r\n"
 		     "CSeq: %s\r\n"
 		     "%s"
-		     "Transport: RTP/AVP;unicast;destination=%s;source=%s;client_port=%d-%d;server_port=%d-%d\r\n"
+		     "Transport: RTP/%s;unicast;destination=%s;source=%s;client_port=%d-%d;server_port=%d-%d\r\n"
 		     "Session: %08X%s\r\n\r\n",
 		     fOurClientConnection->fCurrentCSeq,
 		     dateHeader(),
+		     fOurRTSPServer.fWeServeSRTP ? "SAVP" : "AVP",
 		     destAddrStr.val(), sourceAddrStr.val(), ntohs(clientRTPPort.num()), ntohs(clientRTCPPort.num()), ntohs(serverRTPPort.num()), ntohs(serverRTCPPort.num()),
 		     fOurSessionId, timeoutParameterString);
 	    break;
