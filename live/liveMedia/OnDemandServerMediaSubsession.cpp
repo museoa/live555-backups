@@ -384,6 +384,13 @@ Groupsock* OnDemandServerMediaSubsession
   return new Groupsock(envir(), addr, port, 255);
 }
 
+RTCPInstance* OnDemandServerMediaSubsession
+::createRTCP(Groupsock* RTCPgs, unsigned totSessionBW, /* in kbps */
+	     unsigned char const* cname, RTPSink* sink) {
+  // Default implementation:
+  return RTCPInstance::createNew(envir(), RTCPgs, totSessionBW, cname, sink, NULL/*we're a server*/);
+}
+
 void OnDemandServerMediaSubsession
 ::setRTCPAppPacketHandler(RTCPAppHandlerFunc* handler, void* clientData) {
   fAppHandlerTask = handler;
@@ -490,10 +497,7 @@ void StreamState
 
   if (fRTCPInstance == NULL && fRTPSink != NULL) {
     // Create (and start) a 'RTCP instance' for this RTP sink:
-    fRTCPInstance
-      = RTCPInstance::createNew(fRTPSink->envir(), fRTCPgs,
-				fTotalBW, (unsigned char*)fMaster.fCNAME,
-				fRTPSink, NULL /* we're a server */);
+    fRTCPInstance = fMaster.createRTCP(fRTCPgs, fTotalBW, (unsigned char*)fMaster.fCNAME, fRTPSink);
         // Note: This starts RTCP running automatically
     fRTCPInstance->setAppHandler(fMaster.fAppHandlerTask, fMaster.fAppHandlerClientData);
   }

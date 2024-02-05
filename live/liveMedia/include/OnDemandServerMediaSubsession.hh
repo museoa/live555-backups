@@ -98,8 +98,10 @@ protected: // new virtual functions, defined by all subclasses
 				    unsigned char rtpPayloadTypeIfDynamic,
 				    FramedSource* inputSource) = 0;
 
-protected: // new virtual function, may be redefined by a subclass:
+protected: // new virtual functions, may be redefined by a subclass:
   virtual Groupsock* createGroupsock(struct in_addr const& addr, Port port);
+  virtual RTCPInstance* createRTCP(Groupsock* RTCPgs, unsigned totSessionBW, /* in kbps */
+				   unsigned char const* cname, RTPSink* sink);
 
 public:
   void multiplexRTCPWithRTP() { fMultiplexRTCPWithRTP = True; }

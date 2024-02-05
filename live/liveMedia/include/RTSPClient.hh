@@ -268,7 +268,7 @@ private:
   void resetTCPSockets();
   void resetResponseBuffer();
   int openConnection(); // -1: failure; 0: pending; 1: success
-  virtual int connectToServer(int socketNum, portNumBits remotePortNum); // used to implement "openConnection()"; result values are the same
+  int connectToServer(int socketNum, portNumBits remotePortNum); // used to implement "openConnection()"; result values are the same
   char* createAuthenticatorString(char const* cmd, char const* url);
   char* createBlocksizeString(Boolean streamUsingTCP);
   void handleRequestError(RequestRecord* request);
@@ -287,7 +287,7 @@ private:
                              char const* scaleParamsStr, const char* speedParamsStr,
 			     char const* rangeParamsStr, char const* rtpInfoParamsStr);
   Boolean handleTEARDOWNResponse(MediaSession& session, MediaSubsession& subsession);
-  Boolean handleGET_PARAMETERResponse(char const* parameterName, char*& resultValueString);
+  Boolean handleGET_PARAMETERResponse(char const* parameterName, char*& resultValueString, char* resultValueStringEnd);
   Boolean handleAuthenticationFailure(char const* wwwAuthenticateParamsStr);
   Boolean resendCommand(RequestRecord* request);
   char const* sessionURL(MediaSession const& session) const;
