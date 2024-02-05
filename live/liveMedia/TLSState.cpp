@@ -24,7 +24,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 TLSState::TLSState(RTSPClient& client)
   : isNeeded(False)
 #ifndef NO_OPENSSL
-  , fClient(client), fHasBeenSetup(False)
+  , fClient(client), fHasBeenSetup(False), fCtx(NULL), fCon(NULL)
 #endif
 {
 }
