@@ -22,6 +22,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "RTSPCommon.hh"
 #include "RTSPRegisterSender.hh"
 #include "ProxyServerMediaSession.hh"
+#include "GroupsockHelper.hh"
 
 ////////// Implementation of "RTSPServer::registerStream()": //////////
 
@@ -60,7 +61,10 @@ public:
       struct sockaddr_in remoteAddress;
 
       grabConnection(sock, remoteAddress);
-      if (sock >= 0) (void)fOurServer.createNewClientConnection(sock, remoteAddress);
+      if (sock >= 0) {
+	increaseSendBufferTo(envir(), sock, 50*1024); // in anticipation of streaming over it
+	(void)fOurServer.createNewClientConnection(sock, remoteAddress);
+      }
     }
 
     if (fResponseHandler != NULL) {
