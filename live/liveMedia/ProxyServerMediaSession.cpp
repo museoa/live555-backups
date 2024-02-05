@@ -322,9 +322,12 @@ void ProxyRTSPClient::continueAfterLivenessCommand(int resultCode, Boolean serve
 
 void ProxyRTSPClient::continueAfterSETUP(int resultCode) {
   if (resultCode != 0) {
-    // The "SETUP" command failed, so reset the connection with the 'back-end' server and start over,
-    // just as if a periodic 'liveness' check with the 'back-end' server had failed:
-    continueAfterLivenessCommand(resultCode, fServerSupportsGetParameter);
+    // The "SETUP" command failed, so reset the connection with the 'back-end' server.
+    // (We don't do a full 'reset' (including deleting the "ProxyServerMediaSubsession") here,
+    //  because "SETUP" commands can be sent during "ProxyServerMediaSubsession::createNewStreamSource().
+    //  The subsequent "PLAY" command will probably fail as well, but we'll do a full 'reset' to
+    //  recover from that.)
+    RTSPClient::reset();
     return;
   }
 
