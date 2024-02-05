@@ -132,7 +132,7 @@ Boolean RawVideoRTPSource
   // Make sure that we have enough bytes for all of the line lengths promised:
   if (totalLength > packetSize) {
     fNumLines = 0;
-    delete[] fLineHeaders;
+    delete[] fLineHeaders; fLineHeaders = NULL;
     return False;
   }
 
