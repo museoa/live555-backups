@@ -31,18 +31,28 @@ char* username = NULL;
 char* password = NULL;
 Authenticator* ourAuthenticator = NULL;
 Boolean streamUsingTCP = False;
-char const* inputRTSPURL;
+portNumBits tunnelOverHTTPPortNum = 0;
 char const* hlsPrefix;
 MediaSession* session;
 MediaSubsession* subsession;
 double duration = 0.0;
+Boolean createHandlerServerForREGISTERCommand = False;
+portNumBits handlerServerForREGISTERCommandPortNum = 0;
+HandlerServerForREGISTERCommand* handlerServerForREGISTERCommand;
+char* usernameForREGISTER = NULL;
+char* passwordForREGISTER = NULL;
+UserAuthenticationDatabase* authDBForREGISTER = NULL;
 
 void usage() {
-  *env << "usage: " << programName << " [-u <username> <password>] [-t] <input-RTSP-url> <HLS-prefix>\n";
+  *env << "usage:\t" << programName << " [-u <username> <password>] [-t|-T <http-port>] <input-RTSP-url> <HLS-prefix>\n";
+  *env << "   or:\t" << programName << " -R [<port-num>] [-U <username-for-REGISTER> <password-for-REGISTER>] <HLS-prefix>\n";
   exit(1);
 }
 
-void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultString); // forward
+// Forward function definitions:
+void continueAfterClientCreation0(RTSPClient* rtspClient, Boolean requestStreamingOverTCP);
+void continueAfterClientCreation1(RTSPClient* rtspClient);
+void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultString);
 
 int main(int argc, char** argv) {
   // Begin by setting up our usage environment:
@@ -54,7 +64,7 @@ int main(int argc, char** argv) {
   while (argc > 1) {
     char* const opt = argv[1];
     if (opt[0] != '-') {
-      if (argc == 3) break; // only the URL + prefix is left
+      if (argc <= 3) break; // only the URL + prefix is left
       usage();
     }
 
@@ -73,6 +83,45 @@ int main(int argc, char** argv) {
 	break;
       }
 
+      case 'T': {
+	if (argc > 3 && argv[2][0] != '-') {
+	  // The next argument is the HTTP server port number:
+	  if (sscanf(argv[2], "%hu", &tunnelOverHTTPPortNum) == 1
+	      && tunnelOverHTTPPortNum > 0) {
+	    ++argv; --argc;
+	    break;
+	  }
+	}
+
+	// If we get here, the option was specified incorrectly:
+	usage();
+	break;
+      }
+
+      case 'R': {
+	// set up a handler server for incoming "REGISTER" commands
+	createHandlerServerForREGISTERCommand = True;
+	if (argc > 2 && argv[2][0] != '-') {
+	  // The next argument is the REGISTER handler server port number:
+	  if (sscanf(argv[2], "%hu", &handlerServerForREGISTERCommandPortNum) == 1 && handlerServerForREGISTERCommandPortNum > 0) {
+	    ++argv; --argc;
+	    break;
+	  }
+	}
+	break;
+      }
+
+      case 'U': { // specify a username and password to be used to authentication an incoming "REGISTER" command (for use with -R)
+	if (argc < 4) usage(); // there's no argv[3] (for the "password")
+	usernameForREGISTER = argv[2];	
+	passwordForREGISTER = argv[3];
+	argv+=2; argc-=2;
+
+	if (authDBForREGISTER == NULL) authDBForREGISTER = new UserAuthenticationDatabase;
+	authDBForREGISTER->addUserRecord(usernameForREGISTER, passwordForREGISTER);
+	break;
+      }
+
       default: {
 	*env << "Invalid option: " << opt << "\n";
 	usage();
@@ -83,23 +132,60 @@ int main(int argc, char** argv) {
     ++argv; --argc;
   }
 	  
-  if (argc != 3) usage();
-  inputRTSPURL = argv[1];
-  hlsPrefix = argv[2];
+  // Create (or arrange to create) our RTSP client object:
+  if (createHandlerServerForREGISTERCommand) {
+    if (argc != 2) usage();
+    hlsPrefix = argv[1];
 
-  // Begin by creating a "RTSPClient" object, and sending a RTSP "DESCRIBE" command for the URL:
-  RTSPClient* rtspClient
-    = RTSPClient::createNew(*env, inputRTSPURL, RTSP_CLIENT_VERBOSITY_LEVEL, programName);
-  if (rtspClient == NULL) {
-    *env << "Failed to create a RTSP client for URL \"" << inputRTSPURL << "\": " << env->getResultMsg() << "\n";
-    exit(1);
+    handlerServerForREGISTERCommand
+      = HandlerServerForREGISTERCommand::createNew(*env, continueAfterClientCreation0,
+						   handlerServerForREGISTERCommandPortNum, authDBForREGISTER,
+						   RTSP_CLIENT_VERBOSITY_LEVEL, programName);
+    if (handlerServerForREGISTERCommand == NULL) {
+      *env << "Failed to create a server for handling incoming \"REGISTER\" commands: " << env->getResultMsg() << "\n";
+      exit(1);
+    } else {
+      *env << "Awaiting an incoming \"REGISTER\" command on port " << handlerServerForREGISTERCommand->serverPortNum() << "\n";
+    }
+  } else { // Normal case
+    if (argc != 3) usage();
+    if (usernameForREGISTER != NULL) {
+      *env << "The '-U <username-for-REGISTER> <password-for-REGISTER>' option can be used only with -R\n";
+      usage();
+    }
+    char const* rtspURL = argv[1];
+    hlsPrefix = argv[2];
+
+    RTSPClient* rtspClient
+      = RTSPClient::createNew(*env, rtspURL, RTSP_CLIENT_VERBOSITY_LEVEL, programName, tunnelOverHTTPPortNum);
+    if (rtspClient == NULL) {
+      *env << "Failed to create a RTSP client for URL \"" << rtspURL << "\": " << env->getResultMsg() << "\n";
+      exit(1);
+    }
+
+    continueAfterClientCreation1(rtspClient);
   }
-  rtspClient->sendDescribeCommand(continueAfterDESCRIBE, ourAuthenticator);
 
   // All further processing will be done from within the event loop:
   env->taskScheduler().doEventLoop(); // does not return
 
   return 0; // only to prevent compiler warning
+}
+
+void continueAfterClientCreation0(RTSPClient* newRTSPClient, Boolean requestStreamingOverTCP) {
+  if (newRTSPClient == NULL) return;
+
+  streamUsingTCP = requestStreamingOverTCP;
+
+  // Having handled one "REGISTER" command (giving us a "rtsp://" URL to stream from), we don't handle any more:
+  Medium::close(handlerServerForREGISTERCommand); handlerServerForREGISTERCommand = NULL;
+
+  continueAfterClientCreation1(newRTSPClient);
+}
+
+void continueAfterClientCreation1(RTSPClient* rtspClient) {
+  // Having created a "RTSPClient" object, send a RTSP "DESCRIBE" command for the URL:
+  rtspClient->sendDescribeCommand(continueAfterDESCRIBE, ourAuthenticator);
 }
 
 // A function that outputs a string that identifies each stream (for debugging output).
