@@ -41,6 +41,8 @@ public:
       // (If "segmentationDuration" is 0 (the default value), then PAT and PMT packets are output
       // at a preset frequency.)
       // The optional function "onEndOfSegmentFunc" is called after each segment is output.
+  double currentSegmentDuration() const { return fCurrentSegmentDuration; }
+      // Valid only if "setTimedSegmentation()" was previously called with "segmentationDuration" > 0
 
   Boolean canDeliverNewFrameImmediately() const { return fInputBufferBytesUsed < fInputBufferSize; }
       // Can be used by a downstream reader to test whether the next call to "doGetNextFrame()"
@@ -65,6 +67,7 @@ protected:
 
 private:
   // Redefined virtual functions:
+  virtual Boolean isMPEG2TransportStreamMultiplexor() const;
   virtual void doGetNextFrame();
 
 private:

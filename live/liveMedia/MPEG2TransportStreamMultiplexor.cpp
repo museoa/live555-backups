@@ -57,6 +57,10 @@ MPEG2TransportStreamMultiplexor
 MPEG2TransportStreamMultiplexor::~MPEG2TransportStreamMultiplexor() {
 }
 
+Boolean MPEG2TransportStreamMultiplexor::isMPEG2TransportStreamMultiplexor() const {
+  return True;
+}
+
 void MPEG2TransportStreamMultiplexor::doGetNextFrame() {
   if (fInputBufferBytesUsed >= fInputBufferSize) {
     // No more bytes are available from the current buffer.

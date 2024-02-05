@@ -298,6 +298,9 @@ Boolean MPEG2TransportStreamParser
     case STREAM: {
       return processStreamPacket((PIDState_STREAM*)pidState, pusi, numDataBytes);
     }
+    default: { // Never reached, but eliminates a possible error with dumb compilers
+      return False;
+    }
   }  
 }
 
