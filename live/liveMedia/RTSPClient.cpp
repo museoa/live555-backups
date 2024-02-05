@@ -407,6 +407,9 @@ RTSPClient::~RTSPClient() {
 void RTSPClient::reset() {
   resetTCPSockets();
   resetResponseBuffer();
+  fRequestsAwaitingConnection.reset();
+  fRequestsAwaitingHTTPTunneling.reset();
+  fRequestsAwaitingResponse.reset();
   fServerAddress = 0;
 
   setBaseURL(NULL);
@@ -1923,7 +1926,7 @@ RTSPClient::RequestQueue::RequestQueue(RequestQueue& origQueue)
 }
 
 RTSPClient::RequestQueue::~RequestQueue() {
-  delete fHead;
+  reset();
 }
 
 void RTSPClient::RequestQueue::enqueue(RequestRecord* request) {
@@ -1961,6 +1964,11 @@ RTSPClient::RequestRecord* RTSPClient::RequestQueue::findByCSeq(unsigned cseq) {
     if (request->cseq() == cseq) return request;
   }
   return NULL;
+}
+
+void RTSPClient::RequestQueue::reset() {
+  delete fHead;
+  fHead = fTail = NULL;
 }
 
 

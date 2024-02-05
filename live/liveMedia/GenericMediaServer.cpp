@@ -229,7 +229,7 @@ GenericMediaServer::ClientConnection::~ClientConnection() {
 void GenericMediaServer::ClientConnection::closeSockets() {
   // Turn off background handling on our socket:
   envir().taskScheduler().disableBackgroundHandling(fOurSocket);
-  ::closeSocket(fOurSocket);
+  if (fOurSocket>= 0) ::closeSocket(fOurSocket);
 
   fOurSocket = -1;
 }
