@@ -27,7 +27,9 @@ extern "C" int initializeWinsockIfNecessary();
 #include <stdarg.h>
 #include <time.h>
 #include <sys/time.h>
+#if !defined(_WIN32)
 #include <netinet/tcp.h>
+#endif
 #include <fcntl.h>
 #define initializeWinsockIfNecessary() 1
 #endif
