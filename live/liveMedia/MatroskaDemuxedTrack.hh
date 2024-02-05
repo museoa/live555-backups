@@ -52,13 +52,14 @@ private: // We are accessed only by MatroskaDemux and by MatroskaFileParser (a f
 
   struct timeval& prevPresentationTime() { return fPrevPresentationTime; }
   int& durationImbalance() { return fDurationImbalance; }
+  void reset();
 
 private:
   unsigned fOurTrackNumber;
   MatroskaDemux& fOurSourceDemux;
   struct timeval fPrevPresentationTime;
   int fDurationImbalance;
-  unsigned fOpusTrackNumber; // hack for Opus audio
+  unsigned fOpusFrameNumber; // hack for Opus audio
 };
 
 #endif

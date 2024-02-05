@@ -200,6 +200,8 @@ private:
   static void handleEndOfFile(void* clientData);
   void handleEndOfFile();
 
+  void resetStateAfterSeeking();
+
 private:
   MatroskaFile& fOurFile;
   class MatroskaFileParser* fOurParser;

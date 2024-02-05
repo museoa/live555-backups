@@ -1097,18 +1097,18 @@ Boolean MatroskaFileParser::deliverFrameWithinBlock() {
     u_int8_t const* specialFrameSource = NULL;
     u_int8_t const opusCommentHeader[16]
       = {'O','p','u','s','T','a','g','s', 0, 0, 0, 0, 0, 0, 0, 0};
-    if (track->codecIsOpus && demuxedTrack->fOpusTrackNumber < 2) {
+    if (track->codecIsOpus && demuxedTrack->fOpusFrameNumber < 2) {
       // Special case for Opus audio.  The first frame (the 'configuration' header) comes from
       // the 'private data'.  The second frame (the 'comment' header) comes is synthesized by
       // us here:
-      if (demuxedTrack->fOpusTrackNumber == 0) {
+      if (demuxedTrack->fOpusFrameNumber == 0) {
 	specialFrameSource = track->codecPrivate;
 	frameSize = track->codecPrivateSize;
-      } else { // demuxedTrack->fOpusTrackNumber == 1
+      } else { // demuxedTrack->fOpusFrameNumber == 1
 	specialFrameSource = opusCommentHeader;
 	frameSize = sizeof opusCommentHeader;
       }
-      ++demuxedTrack->fOpusTrackNumber;
+      ++demuxedTrack->fOpusFrameNumber;
     } else {
       frameSize = fFrameSizesWithinBlock[fNextFrameNumberToDeliver];
       if (track->haveSubframes()) {
@@ -1505,6 +1505,12 @@ void MatroskaFileParser::seekToEndOfFile() {
 }
 
 void MatroskaFileParser::resetStateAfterSeeking() {
+  if (fOurDemux != NULL) fOurDemux->resetStateAfterSeeking();
+
+  // Presentation times aren't affected by the seek; they continue advancing as normal.
+  // Therefore, ensure that they continue to be aligned with 'wall clock' time:
+  fPresentationTimeOffset = 0.0;
+
   // Because we're resuming parsing after seeking to a new position in the file, reset the parser state:
   fCurOffsetInFile = fSavedCurOffsetInFile = 0;
   fCurOffsetWithinFrame = fSavedCurOffsetWithinFrame = 0;

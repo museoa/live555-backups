@@ -937,6 +937,18 @@ void MatroskaDemux::handleEndOfFile() {
   delete[] tracks;
 }
 
+void MatroskaDemux::resetStateAfterSeeking() {
+  // Iterate through all of our 'demuxed tracks', calling 'reset()' on each one.
+  HashTable::Iterator* iter = HashTable::Iterator::create(*fDemuxedTracksTable);
+  MatroskaDemuxedTrack* demuxedTrack;
+  char const* trackNumber;
+
+  while ((demuxedTrack = (MatroskaDemuxedTrack*)iter->next(trackNumber)) != NULL) {
+    demuxedTrack->reset();
+  }
+  delete iter;
+}
+
 
 ////////// CuePoint implementation //////////
 
