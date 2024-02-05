@@ -703,7 +703,7 @@ Boolean MatroskaFileParser::parseTrack() {
         if (track != NULL) {
             switch (primaries) {
                   case 1: //ITU-R BT.709
-                    track->colorimetry = "BT709-2";
+		    )                    track->colorimetry = "BT709-2";
                     break;
                   case 7: //SMPTE 240M
                     track->colorimetry = "SMPTE240M";
