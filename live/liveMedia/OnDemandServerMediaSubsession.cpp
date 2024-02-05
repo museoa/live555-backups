@@ -96,8 +96,8 @@ void OnDemandServerMediaSubsession
 		      Port& serverRTPPort,
 		      Port& serverRTCPPort,
 		      void*& streamToken) {
-  struct in_addr& destinationAddr4 = ((struct sockaddr_in&)destinationAddress).sin_addr;
-  if (destinationAddress.ss_family == AF_INET && destinationAddr4.s_addr == 0) {
+  if (destinationAddress.ss_family == AF_INET &&
+      ((struct sockaddr_in&)destinationAddress).sin_addr.s_addr == 0) {
     // normal case - use the client address as the destination address:
     destinationAddress = clientAddress;
   }
@@ -199,7 +199,7 @@ void OnDemandServerMediaSubsession
   // Record these destinations as being for this client session id:
   Destinations* destinations;
   if (tcpSocketNum < 0) { // UDP
-    destinations = new Destinations(destinationAddr4, clientRTPPort, clientRTCPPort);
+    destinations = new Destinations(destinationAddress, clientRTPPort, clientRTCPPort);
   } else { // TCP
     destinations = new Destinations(tcpSocketNum, rtpChannelId, rtcpChannelId);
   }
@@ -530,18 +530,24 @@ void StreamState
     }
     if (fRTCPInstance != NULL) {
       fRTCPInstance->addStreamSocket(dests->tcpSocketNum, dests->rtcpChannelId);
-      fRTCPInstance->setSpecificRRHandler(dests->tcpSocketNum, dests->rtcpChannelId,
+
+      struct sockaddr_storage tcpSocketNumAsAddress; // hack
+      tcpSocketNumAsAddress.ss_family = AF_INET;
+      ((sockaddr_in&)tcpSocketNumAsAddress).sin_addr.s_addr = dests->tcpSocketNum;
+      fRTCPInstance->setSpecificRRHandler(tcpSocketNumAsAddress, dests->rtcpChannelId,
 					  rtcpRRHandler, rtcpRRHandlerClientData);
     }
   } else {
     // Tell the RTP and RTCP 'groupsocks' about this destination
     // (in case they don't already have it):
-    if (fRTPgs != NULL) fRTPgs->addDestination(dests->addr, dests->rtpPort, clientSessionId);
+    if (fRTPgs != NULL) fRTPgs->addDestination(((struct sockaddr_in const&)dests->addr).sin_addr, dests->rtpPort, clientSessionId);
+        // Hack; later fix for IPv6
     if (fRTCPgs != NULL && !(fRTCPgs == fRTPgs && dests->rtcpPort.num() == dests->rtpPort.num())) {
-      fRTCPgs->addDestination(dests->addr, dests->rtcpPort, clientSessionId);
+      fRTCPgs->addDestination(((struct sockaddr_in const&)dests->addr).sin_addr, dests->rtcpPort, clientSessionId);
+        // Hack; later fix for IPv6
     }
     if (fRTCPInstance != NULL) {
-      fRTCPInstance->setSpecificRRHandler(dests->addr.s_addr, dests->rtcpPort,
+      fRTCPInstance->setSpecificRRHandler(dests->addr, dests->rtcpPort,
 					  rtcpRRHandler, rtcpRRHandlerClientData);
     }
   }
@@ -593,14 +599,18 @@ void StreamState::endPlaying(Destinations* dests, unsigned clientSessionId) {
     }
     if (fRTCPInstance != NULL) {
       fRTCPInstance->removeStreamSocket(dests->tcpSocketNum, dests->rtcpChannelId);
-      fRTCPInstance->unsetSpecificRRHandler(dests->tcpSocketNum, dests->rtcpChannelId);
+
+      struct sockaddr_storage tcpSocketNumAsAddress; // hack
+      tcpSocketNumAsAddress.ss_family = AF_INET;
+      ((sockaddr_in&)tcpSocketNumAsAddress).sin_addr.s_addr = dests->tcpSocketNum;
+      fRTCPInstance->unsetSpecificRRHandler(tcpSocketNumAsAddress, dests->rtcpChannelId);
     }
   } else {
     // Tell the RTP and RTCP 'groupsocks' to stop using these destinations:
     if (fRTPgs != NULL) fRTPgs->removeDestination(clientSessionId);
     if (fRTCPgs != NULL && fRTCPgs != fRTPgs) fRTCPgs->removeDestination(clientSessionId);
     if (fRTCPInstance != NULL) {
-      fRTCPInstance->unsetSpecificRRHandler(dests->addr.s_addr, dests->rtcpPort);
+      fRTCPInstance->unsetSpecificRRHandler(dests->addr, dests->rtcpPort);
     }
   }
 }

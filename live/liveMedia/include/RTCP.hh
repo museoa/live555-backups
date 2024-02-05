@@ -91,12 +91,12 @@ public:
       // (respectively) arrives.  Unlike "setByeHandler()", the handler will
       // be called once for each incoming "SR" or "RR".  (To turn off handling,
       // call the function again with "handlerTask" (and "clientData") as NULL.)
-  void setSpecificRRHandler(netAddressBits fromAddress, Port fromPort,
+  void setSpecificRRHandler(struct sockaddr_storage const& fromAddress, Port fromPort,
 			    TaskFunc* handlerTask, void* clientData);
       // Like "setRRHandler()", but applies only to "RR" packets that come from
       // a specific source address and port.  (Note that if both a specific
       // and a general "RR" handler function is set, then both will be called.)
-  void unsetSpecificRRHandler(netAddressBits fromAddress, Port fromPort); // equivalent to setSpecificRRHandler(..., NULL, NULL);
+  void unsetSpecificRRHandler(struct sockaddr_storage const& fromAddress, Port fromPort); // equivalent to setSpecificRRHandler(..., NULL, NULL);
   void setAppHandler(RTCPAppHandlerFunc* handlerTask, void* clientData);
       // Assigns a handler routine to be called whenever an "APP" packet arrives.  (To turn off
       // handling, call the function again with "handlerTask" (and "clientData") as NULL.)

@@ -39,11 +39,11 @@ PassiveServerMediaSubsession
 
 class RTCPSourceRecord {
 public:
-  RTCPSourceRecord(netAddressBits addr, Port const& port)
+  RTCPSourceRecord(struct sockaddr_storage const& addr, Port const& port)
     : addr(addr), port(port) {
   }
 
-  netAddressBits addr;
+  struct sockaddr_storage addr;
   Port port;
 };
 
@@ -166,9 +166,7 @@ void PassiveServerMediaSubsession
   streamToken = NULL; // not used
 
   // Make a record of this client's source - for RTCP RR handling:
-  RTCPSourceRecord* source
-    = new RTCPSourceRecord(((struct sockaddr_in&)clientAddress).sin_addr.s_addr, clientRTCPPort);
-      // later, fix to allow for IPv6 addresses
+  RTCPSourceRecord* source = new RTCPSourceRecord(clientAddress, clientRTCPPort);
   fClientRTCPSourceRecords->Add((char const*)clientSessionId, source);
 }
 
