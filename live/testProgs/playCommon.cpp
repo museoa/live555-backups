@@ -1525,7 +1525,6 @@ void checkInterPacketGaps(void* /*clientData*/) {
 }
 
 void checkSessionTimeoutBrokenServer(void* /*clientData*/) {
-  sessionTimeoutBrokenServerTask = NULL;
   if (!sendKeepAlivesToBrokenServers) return; // we're not checking
 
   // Send an "OPTIONS" request, starting with the second call
