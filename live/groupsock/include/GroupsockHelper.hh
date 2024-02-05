@@ -139,7 +139,6 @@ extern int gettimeofday(struct timeval*, int*);
 #endif
 
 // The following are implemented in inet.c:
-extern "C" netAddressBits our_inet_addr(char const*);
 extern "C" void our_srandom(int x);
 extern "C" long our_random();
 extern "C" u_int32_t our_random32(); // because "our_random()" returns a 31-bit number

@@ -674,7 +674,8 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
       loopbackWorks = 0; // until we learn otherwise
 
 #ifndef DISABLE_LOOPBACK_IP_ADDRESS_CHECK
-      testAddr.s_addr = our_inet_addr("228.67.43.91"); // arbitrary
+      if (inet_pton(AF_INET, "228.67.43.91", &testAddr.s_addr) != 1) break;
+          // The multicast address here was arbitrary
       Port testPort(15947); // ditto
 
       sock = setupDatagramSocket(env, testPort);

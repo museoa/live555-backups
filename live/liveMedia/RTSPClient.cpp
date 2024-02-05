@@ -304,11 +304,20 @@ Boolean RTSPClient::parseRTSPURL(char const* url,
 
     // Next, parse <server-address-or-name>
     char* to = &parseBuffer[0];
+    Boolean isInSquareBrackets = False; //  by default
+    if (*from == '[') {
+      ++from;
+      isInSquareBrackets = True;
+    }
     unsigned i;
     for (i = 0; i < parseBufferSize; ++i) {
-      if (*from == '\0' || *from == ':' || *from == '/') {
+      if (*from == '\0' ||
+	  (*from == ':' && !isInSquareBrackets) ||
+	  *from == '/' ||
+	  (*from == ']' && isInSquareBrackets)) {
 	// We've completed parsing the address
 	*to = '\0';
+	if (*from == ']' && isInSquareBrackets) ++from;
 	break;
       }
       *to++ = *from++;

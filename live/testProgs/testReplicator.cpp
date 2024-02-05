@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
     = "239.255.42.42";
 #endif
   struct in_addr inputAddress;
-  inputAddress.s_addr = our_inet_addr(inputAddressStr);
+  (void)inet_pton(AF_INET, inputAddressStr, &inputAddress.s_addr);
 
   Port const inputPort(8888);
   unsigned char const inputTTL = 0; // we're only reading from this mcast group
@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
   char* sourceAddressStr = "aaa.bbb.ccc.ddd";
                            // replace this with the real source address
   struct in_addr sourceFilterAddress;
-  sourceFilterAddress.s_addr = our_inet_addr(sourceAddressStr);
+  (void)inet_pton(AF_INET, sourceAddressStr, &sourceFilterAddress.s_addr);
 
   Groupsock inputGroupsock(*env, inputAddress, sourceFilterAddress, inputPort);
 #else
@@ -87,7 +87,7 @@ void startReplicaUDPSink(StreamReplicator* replicator, char const* outputAddress
 
   // Create a 'groupsock' for the destination address and port:
   struct in_addr outputAddress;
-  outputAddress.s_addr = our_inet_addr(outputAddressStr);
+  (void)inet_pton(AF_INET, outputAddressStr, &outputAddress.s_addr);
 
   Port const outputPort(outputPortNum);
   unsigned char const outputTTL = 255;

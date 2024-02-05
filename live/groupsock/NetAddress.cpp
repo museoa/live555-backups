@@ -85,15 +85,25 @@ void NetAddress::clean() {
 
 NetAddressList::NetAddressList(char const* hostname)
   : fNumAddresses(0), fAddressArray(NULL) {
-  // First, check whether "hostname" is an IP address string:
-  netAddressBits addr = our_inet_addr((char*)hostname);
-  if (addr != INADDR_NONE) {
-    // Yes, it was an IP address string.  Return a 1-element list with this address:
+  // First, check whether "hostname" is an IP address string (check IPv4, then IPv6).
+  // If so, return a 1-element list with this address:
+  ipv4AddressBits addr4;
+  if (inet_pton(AF_INET, hostname, (u_int8_t*)&addr4) == 1) {
     fNumAddresses = 1;
     fAddressArray = new NetAddress*[fNumAddresses];
     if (fAddressArray == NULL) return;
 
-    fAddressArray[0] = new NetAddress((u_int8_t*)&addr, sizeof (netAddressBits));
+    fAddressArray[0] = new NetAddress((u_int8_t*)&addr4, sizeof addr4);
+    return;
+  }
+
+  ipv6AddressBits addr6;
+  if (inet_pton(AF_INET6, hostname, (u_int8_t*)&addr6) == 1) {
+    fNumAddresses = 1;
+    fAddressArray = new NetAddress*[fNumAddresses];
+    if (fAddressArray == NULL) return;
+
+    fAddressArray[0] = new NetAddress((u_int8_t*)&addr6, sizeof addr6);
     return;
   }
     

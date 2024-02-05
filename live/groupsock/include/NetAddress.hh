@@ -38,10 +38,13 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 // to allow for IPv6.
 typedef u_int32_t netAddressBits;
 
+typedef u_int32_t ipv4AddressBits;
+typedef u_int8_t ipv6AddressBits[16]; // 128 bits
+
 class NetAddress {
 public:
   NetAddress(u_int8_t const* data,
-	     unsigned length = 4 /* default: 32 bits */);
+	     unsigned length = 4 /* default: 32 bits (for IPv4); use 16 (128 bits) for IPv6 */);
   NetAddress(unsigned length = 4); // sets address data to all-zeros
   NetAddress(NetAddress const& orig);
   NetAddress& operator=(NetAddress const& rightSide);
@@ -81,7 +84,7 @@ public:
   };
   
 private:
-  void assign(netAddressBits numAddresses, NetAddress** addressArray);
+  void assign(unsigned numAddresses, NetAddress** addressArray);
   void clean();
   
   friend class Iterator;
