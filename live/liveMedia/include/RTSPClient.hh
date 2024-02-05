@@ -30,6 +30,9 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #ifndef _DIGEST_AUTHENTICATION_HH
 #include "DigestAuthentication.hh"
 #endif
+#ifndef _TLS_STATE_HH
+#include "TLSState.hh"
+#endif
 #ifndef OMIT_REGISTER_HANDLING
 #ifndef _RTSP_SERVER_HH
 #include "RTSPServer.hh" // For the optional "HandlerForREGISTERCommand" mini-server
@@ -171,8 +174,8 @@ public:
 			      char const* sourceName,
 			      RTSPClient*& resultClient);
 
-  static Boolean parseRTSPURL(UsageEnvironment& env, char const* url,
-			      char*& username, char*& password, NetAddress& address, portNumBits& portNum, char const** urlSuffix = NULL);
+  Boolean parseRTSPURL(char const* url,
+		       char*& username, char*& password, NetAddress& address, portNumBits& portNum, char const** urlSuffix = NULL);
       // Parses "url" as "rtsp://[<username>[:<password>]@]<server-address-or-name>[:<port>][/<stream-name>]"
       // (Note that the returned "username" and "password" are either NULL, or heap-allocated strings that the caller must later delete[].)
 
@@ -186,6 +189,8 @@ public:
   unsigned sessionTimeoutParameter() const { return fSessionTimeoutParameter; }
 
   char const* url() const { return fBaseURL; }
+
+  void useTLS() { fTLS.isNeeded = True; }
 
   static unsigned responseBufferSize;
 
@@ -316,6 +321,10 @@ private:
   void incomingDataHandler1();
   void handleResponseBytes(int newBytesRead);
 
+  // Writing/reading data over a (already set-up) connection:
+  int write(const u_int8_t* data, unsigned count);
+  int read(u_int8_t* buffer, unsigned bufferSize);
+
 public:
   u_int16_t desiredMaxIncomingPacketSize;
     // If set to a value >0, then a "Blocksize:" header with this value (minus an allowance for
@@ -345,6 +354,10 @@ private:
   char fSessionCookie[33];
   unsigned fSessionCookieCounter;
   Boolean fHTTPTunnelingConnectionIsPending;
+
+  // Optional support for TLS:
+  TLSState fTLS;
+  friend class TLSState;
 };
 
 
