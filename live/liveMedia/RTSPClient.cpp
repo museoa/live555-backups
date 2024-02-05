@@ -1646,9 +1646,11 @@ void RTSPClient::connectionHandler1() {
     // The connection succeeded.  If the connection came about from an attempt to set up RTSP-over-HTTP, finish this now:
     if (fHTTPTunnelingConnectionIsPending && !setupHTTPTunneling2()) break;
 
-    if (fInputTLS->isNeeded) {
+    // Note: Normally "fOutputTLS" == "fInputTLS" here, except when we're connecting
+    // to the second (i.e., "POST") connection when doing RTSP-over-HTTP:
+    if (fOutputTLS->isNeeded) {
       // We need to complete an additional TLS connection:
-      int tlsConnectResult = fInputTLS->connect(fInputSocketNum);
+      int tlsConnectResult = fOutputTLS->connect(fOutputSocketNum);
       if (tlsConnectResult < 0) break; // error in TLS connection
       if (tlsConnectResult > 0 && fVerbosityLevel >= 1) envir() << "...TLS connection completed\n";
       if (tlsConnectResult == 0) {
