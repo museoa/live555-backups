@@ -460,7 +460,7 @@ void segmentationCallback(void* /*clientData*/,
     ++firstSegmentCounter;
   }
 
-  // Then, rewrite our ".h3u8" file with the new list of segments:
+  // Then, rewrite our ".m3u8" file with the new list of segments:
   if (ourM3U8FileName == NULL) {
     ourM3U8FileName = new char[strlen(hlsPrefix) + 5/*strlen(".m3u8")*/ + 1];
     if (ourM3U8FileName == NULL) exit(1);

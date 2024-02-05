@@ -39,12 +39,12 @@ public:
 	   portNumBits portNum);
       // used for a 'source-specific multicast' group
 
-  struct in_addr const& groupAddress() const { return fGroupAddress; }
-  struct in_addr const& sourceFilterAddress() const { return fSourceFilterAddress; }
+  struct in_addr const& groupAddress() const;
+  struct in_addr const& sourceFilterAddress() const;
 
   Boolean isSSM() const;
 
-  portNumBits portNum() const { return fPortNum; }
+  portNumBits portNum() const;
 
   u_int8_t ttl() const { return fTTL; }
 
@@ -55,9 +55,8 @@ private:
 	    u_int8_t ttl);
 
 private:
-  struct in_addr fGroupAddress;
-  struct in_addr fSourceFilterAddress;
-  portNumBits fPortNum; // in network byte order
+  struct sockaddr_storage fGroupAddress; // also includes port number (in network byte order)
+  struct sockaddr_storage fSourceFilterAddress;
   u_int8_t fTTL;
 };
 

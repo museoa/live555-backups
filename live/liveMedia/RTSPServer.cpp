@@ -1422,7 +1422,7 @@ void RTSPServer::RTSPClientSession
       // Note: This potentially allows the server to be used in denial-of-service
       // attacks, so don't enable this code unless you're sure that clients are
       // trusted.
-      destinationAddress = our_inet_addr(clientsDestinationAddressStr);
+      (void)inet_pton(AF_INET, clientsDestinationAddressStr, &destinationAddress);
     }
     // Also use the client-provided TTL.
     destinationTTL = clientsDestinationTTL;
@@ -1432,18 +1432,14 @@ void RTSPServer::RTSPClientSession
     Port serverRTCPPort(0);
     
     // Make sure that we transmit on the same interface that's used by the client (in case we're a multi-homed server):
-    struct sockaddr_in sourceAddr; SOCKLEN_T namelen = sizeof sourceAddr;
+    struct sockaddr_storage sourceAddr; SOCKLEN_T namelen = sizeof sourceAddr;
     getsockname(ourClientConnection->fClientInputSocket, (struct sockaddr*)&sourceAddr, &namelen);
     netAddressBits origSendingInterfaceAddr = SendingInterfaceAddr;
     netAddressBits origReceivingInterfaceAddr = ReceivingInterfaceAddr;
-    // NOTE: The following might not work properly, so we ifdef it out for now:
-#ifdef HACK_FOR_MULTIHOMED_SERVERS
-    ReceivingInterfaceAddr = SendingInterfaceAddr = sourceAddr.sin_addr.s_addr;
-#endif
     
     ipv4AddressBits clientAddrBits = ourClientConnection->fClientAddr.ss_family == AF_INET
       ? ((sockaddr_in*)&ourClientConnection->fClientAddr)->sin_addr.s_addr
-      : 0; // later, fix for IPv4
+      : 0; // later, fix for IPv6
     subsession->getStreamParameters(fOurSessionId, clientAddrBits,
 				    clientRTPPort, clientRTCPPort,
 				    fStreamStates[trackNum].tcpSocketNum, rtpChannelId, rtcpChannelId,
