@@ -290,7 +290,10 @@ void MPEG1or2Demux::getNextFrame(u_int8_t streamIdTag,
 void MPEG1or2Demux::stopGettingFrames(u_int8_t streamIdTag) {
     struct OutputDescriptor& out = fOutput[streamIdTag];
 
-    if (out.isCurrentlyAwaitingData && fNumPendingReads > 0) --fNumPendingReads;
+    if (out.isCurrentlyAwaitingData && fNumPendingReads > 0) {
+      --fNumPendingReads;
+      if (fNumPendingReads == 0 && fInputSource != NULL) fInputSource->stopGettingFrames();
+    }
 
     out.isCurrentlyActive = out.isCurrentlyAwaitingData = False;
 }
