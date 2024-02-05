@@ -37,10 +37,36 @@ void GenericMediaServer::addServerMediaSession(ServerMediaSession* serverMediaSe
   fServerMediaSessions->Add(sessionName, (void*)serverMediaSession);
 }
 
-ServerMediaSession* GenericMediaServer
-::lookupServerMediaSession(char const* streamName, Boolean /*isFirstLookupInSession*/) {
-  // Default implementation:
-  return (ServerMediaSession*)(fServerMediaSessions->Lookup(streamName));
+void GenericMediaServer
+::lookupServerMediaSession(char const* streamName,
+			   lookupServerMediaSessionCompletionFunc* completionFunc,
+			   void* completionClientData,
+			   Boolean /*isFirstLookupInSession*/) {
+  // Default implementation: Do a synchronous lookup, and call the completion function:
+  if (completionFunc != NULL) {
+    (*completionFunc)(completionClientData, getServerMediaSession(streamName));
+  }
+}
+
+struct lsmsMemberFunctionRecord {
+  GenericMediaServer* fServer;
+  void (GenericMediaServer::*fMemberFunc)(ServerMediaSession*);
+};
+
+static void lsmsMemberFunctionCompletionFunc(void* clientData, ServerMediaSession* sessionLookedUp) {
+  lsmsMemberFunctionRecord* memberFunctionRecord = (lsmsMemberFunctionRecord*)clientData;
+  (memberFunctionRecord->fServer->*(memberFunctionRecord->fMemberFunc))(sessionLookedUp);
+  delete memberFunctionRecord;
+}
+
+void GenericMediaServer
+::lookupServerMediaSession(char const* streamName,
+			   void (GenericMediaServer::*memberFunc)(ServerMediaSession*)) {
+  struct lsmsMemberFunctionRecord* memberFunctionRecord = new struct lsmsMemberFunctionRecord;
+  memberFunctionRecord->fServer = this;
+  memberFunctionRecord->fMemberFunc = memberFunc;
+  
+  lookupServerMediaSession(streamName, lsmsMemberFunctionCompletionFunc, memberFunctionRecord);
 }
 
 void GenericMediaServer::removeServerMediaSession(ServerMediaSession* serverMediaSession) {
@@ -55,7 +81,7 @@ void GenericMediaServer::removeServerMediaSession(ServerMediaSession* serverMedi
 }
 
 void GenericMediaServer::removeServerMediaSession(char const* streamName) {
-  removeServerMediaSession(GenericMediaServer::lookupServerMediaSession(streamName));
+  lookupServerMediaSession(streamName, &GenericMediaServer::removeServerMediaSession);
 }
 
 void GenericMediaServer::closeAllClientSessionsForServerMediaSession(ServerMediaSession* serverMediaSession) {
@@ -73,7 +99,8 @@ void GenericMediaServer::closeAllClientSessionsForServerMediaSession(ServerMedia
 }
 
 void GenericMediaServer::closeAllClientSessionsForServerMediaSession(char const* streamName) {
-  closeAllClientSessionsForServerMediaSession(lookupServerMediaSession(streamName));
+  lookupServerMediaSession(streamName,
+			   &GenericMediaServer::closeAllClientSessionsForServerMediaSession);
 }
 
 void GenericMediaServer::deleteServerMediaSession(ServerMediaSession* serverMediaSession) {
@@ -84,7 +111,7 @@ void GenericMediaServer::deleteServerMediaSession(ServerMediaSession* serverMedi
 }
 
 void GenericMediaServer::deleteServerMediaSession(char const* streamName) {
-  deleteServerMediaSession(lookupServerMediaSession(streamName));
+  lookupServerMediaSession(streamName, &GenericMediaServer::deleteServerMediaSession);
 }
 
 GenericMediaServer
@@ -346,6 +373,10 @@ GenericMediaServer::lookupClientSession(u_int32_t sessionId) {
 GenericMediaServer::ClientSession*
 GenericMediaServer::lookupClientSession(char const* sessionIdStr) {
   return (GenericMediaServer::ClientSession*)fClientSessions->Lookup(sessionIdStr);
+}
+
+ServerMediaSession* GenericMediaServer::getServerMediaSession(char const* streamName) {
+  return (ServerMediaSession*)(fServerMediaSessions->Lookup(streamName));
 }
 
 

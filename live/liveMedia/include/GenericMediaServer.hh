@@ -36,12 +36,24 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #define RESPONSE_BUFFER_SIZE 20000
 #endif
 
+// Typedef for a handler function that gets called when "lookupServerMediaSession()"
+// (defined below) completes:
+typedef void lookupServerMediaSessionCompletionFunc(void* clientData,
+						    ServerMediaSession* sessionLookedUp);
+
 class GenericMediaServer: public Medium {
 public:
   void addServerMediaSession(ServerMediaSession* serverMediaSession);
 
-  virtual ServerMediaSession*
-  lookupServerMediaSession(char const* streamName, Boolean isFirstLookupInSession = True);
+  virtual void lookupServerMediaSession(char const* streamName,
+					lookupServerMediaSessionCompletionFunc* completionFunc,
+					void* completionClientData,
+					Boolean isFirstLookupInSession = True);
+      // Note: This is a virtual function, so can be reimplemented by subclasses.
+  void lookupServerMediaSession(char const* streamName,
+				void (GenericMediaServer::*memberFunc)(ServerMediaSession*));
+      // Special case of "lookupServerMediaSession()" where the 'completion function' is a
+      // member function of "GenericMediaServer" (and the 'completion client data' is "this".)
 
   void removeServerMediaSession(ServerMediaSession* serverMediaSession);
       // Removes the "ServerMediaSession" object from our lookup table, so it will no longer be accessible by new clients.
@@ -151,6 +163,9 @@ protected:
     HashTable::Iterator* fOurIterator;
   };
 
+  // The basic, synchronous "ServerMediaSession" lookup operation; only for subclasses:
+  ServerMediaSession* getServerMediaSession(char const* streamName);
+  
 protected:
   friend class ClientConnection;
   friend class ClientSession;	

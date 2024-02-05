@@ -368,7 +368,7 @@ Boolean RTSPServerWithREGISTERProxying
 		      char const* proxyURLSuffix, char*& responseStr) {
   // First, check whether we have already proxied a stream as "proxyURLSuffix":
   if (proxyURLSuffix != NULL) {
-    ServerMediaSession* sms = lookupServerMediaSession(proxyURLSuffix);
+    ServerMediaSession* sms = getServerMediaSession(proxyURLSuffix);
     if ((strcmp(cmd, "REGISTER") == 0 && sms != NULL) ||
 	(strcmp(cmd, "DEREGISTER") == 0 && sms == NULL)) {
       responseStr = strDup("451 Invalid parameter");
@@ -420,7 +420,8 @@ void RTSPServerWithREGISTERProxying
     envir() << "\tPlay this stream using the URL: " << proxyStreamURL << "\n";
     delete[] proxyStreamURL;
   } else { // "DEREGISTER"
-    deleteServerMediaSession(lookupServerMediaSession(proxyStreamName));
+    //    deleteServerMediaSession(lookupServerMediaSession(proxyStreamName));
+    lookupServerMediaSession(proxyStreamName, &GenericMediaServer::deleteServerMediaSession);
   }
 }
 
