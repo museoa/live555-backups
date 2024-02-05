@@ -182,53 +182,49 @@ destRecord* Groupsock
 }
 
 void
-Groupsock::changeDestinationParameters(struct in_addr const& newDestAddr,
+Groupsock::changeDestinationParameters(struct sockaddr_storage const& newDestAddr,
 				       Port newDestPort, int newDestTTL, unsigned sessionId) {
   destRecord* dest;
   for (dest = fDests; dest != NULL && dest->fSessionId != sessionId; dest = dest->fNext) {}
 
   if (dest == NULL) { // There's no existing 'destRecord' for this "sessionId"; add a new one:
-    struct sockaddr_storage newDestAddrTmp; // hack; later fix to support IPv6
-    newDestAddrTmp.ss_family = AF_INET;
-    ((struct sockaddr_in&)newDestAddrTmp).sin_addr = newDestAddr;
-    fDests = createNewDestRecord(newDestAddrTmp, newDestPort, newDestTTL, sessionId, fDests);
+    fDests = createNewDestRecord(newDestAddr, newDestPort, newDestTTL, sessionId, fDests);
     return;
   }
 
   // "dest" is an existing 'destRecord' for this "sessionId"; change its values to the new ones:
-  struct in_addr destAddr = ((struct sockaddr_in&)(dest->fGroupEId.groupAddress())).sin_addr;
-      // Fix later for IPv6
-  if (newDestAddr.s_addr != 0) {
-    if (newDestAddr.s_addr != destAddr.s_addr
-	&& IsMulticastAddress(newDestAddr.s_addr)) {
+  struct sockaddr_storage destAddr = dest->fGroupEId.groupAddress();
+  if (!(newDestAddr.ss_family == AF_INET && ((struct sockaddr_in&)newDestAddr).sin_addr.s_addr == 0)) {
+    // Replace "destAddr" with "newDestAddr"
+    if (!(newDestAddr == destAddr) && IsMulticastAddress(newDestAddr)) {
       // If the new destination is a multicast address, then we assume that
       // we want to join it also.  (If this is not in fact the case, then
       // call "multicastSendOnly()" afterwards.)
-      socketLeaveGroup(env(), socketNum(), destAddr.s_addr);
-      socketJoinGroup(env(), socketNum(), newDestAddr.s_addr);
+      socketLeaveGroup(env(), socketNum(), ((struct sockaddr_in&)destAddr).sin_addr.s_addr); // later fix for IPv6
+      socketJoinGroup(env(), socketNum(), ((struct sockaddr_in&)newDestAddr).sin_addr.s_addr); // later fix for IPv6
     }
-    destAddr.s_addr = newDestAddr.s_addr;
+    destAddr = newDestAddr;
   }
 
   portNumBits destPortNum = dest->fGroupEId.portNum();
   if (newDestPort.num() != 0) {
-    if (newDestPort.num() != destPortNum
-	&& IsMulticastAddress(destAddr.s_addr)) {
+    // Replace "destPort" with "newDestPort"
+    if (newDestPort.num() != destPortNum && IsMulticastAddress(destAddr)) {
       // Also bind to the new port number:
       changePort(newDestPort);
       // And rejoin the multicast group:
-      socketJoinGroup(env(), socketNum(), destAddr.s_addr);
+      socketJoinGroup(env(), socketNum(), ((struct sockaddr_in&)destAddr).sin_addr.s_addr); // later, fix for IPv6
     }
     destPortNum = newDestPort.num();
   }
 
   u_int8_t destTTL = ttl();
-  if (newDestTTL != ~0) destTTL = (u_int8_t)newDestTTL;
+  if (newDestTTL != ~0) {
+    // Replace "destTTL" with "newDestTTL"
+    destTTL = (u_int8_t)newDestTTL;
+  }
 
-  struct sockaddr_storage destAddrTmp; // hack; later fix to support IPv6
-  destAddrTmp.ss_family = AF_INET;
-  ((struct sockaddr_in&)destAddrTmp).sin_addr = destAddr;
-  dest->fGroupEId = GroupEId(destAddrTmp, destPortNum, destTTL);
+  dest->fGroupEId = GroupEId(destAddr, destPortNum, destTTL);
 
   // Finally, remove any other 'destRecord's that might also have this "sessionId":
   removeDestinationFrom(dest->fNext, sessionId);
@@ -242,22 +238,19 @@ unsigned Groupsock
   return dest->fSessionId;
 }
 
-void Groupsock::addDestination(struct in_addr const& addr, Port const& port, unsigned sessionId) {
+void Groupsock::addDestination(struct sockaddr_storage const& addr, Port const& port,
+			       unsigned sessionId) {
   // Default implementation:
   // If there's no existing 'destRecord' with the same "addr", "port", and "sessionId", add a new one:
   for (destRecord* dest = fDests; dest != NULL; dest = dest->fNext) {
-    if (sessionId == dest->fSessionId
-	&& addr.s_addr == ((struct sockaddr_in const&)(dest->fGroupEId.groupAddress())).sin_addr.s_addr
-            // Hack; fix later for IPv6
-	&& port.num() == dest->fGroupEId.portNum()) {
+    if (dest->fSessionId == sessionId &&
+	dest->fGroupEId.groupAddress() == addr &&
+	dest->fGroupEId.portNum() == ((struct sockaddr_in const&)addr).sin_port/*same posn for IPv6*/) {
       return;
     }
   }
   
-  struct sockaddr_storage addrTmp; // hack; later fix to support IPv6
-  addrTmp.ss_family = AF_INET;
-  ((struct sockaddr_in&)addrTmp).sin_addr = addr;
-  fDests = createNewDestRecord(addrTmp, port, 255, sessionId, fDests);
+  fDests = createNewDestRecord(addr, port, 255, sessionId, fDests);
 }
 
 void Groupsock::removeDestination(unsigned sessionId) {
@@ -345,6 +338,9 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
 
   // If we're a SSM group, make sure the source address matches:
   if (isSSM()
+      // When "sourceFilterAddress()" is changed to return a "struct sockaddr_storage const&"
+      // (to allow IPv6), then change the following to:
+      // && fromAddressAndPort == sourceFilterAddress() {
       && fromAddressAndPort.ss_family == AF_INET
       && ((struct sockaddr_in&)fromAddressAndPort).sin_addr.s_addr != sourceFilterAddress().s_addr) {
     return True;
@@ -364,6 +360,7 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
 			       buffer, bytesRead,
 			       fromAddressAndPort.ss_family == AF_INET
 			       ? ((struct sockaddr_in&)fromAddressAndPort).sin_addr.s_addr
+			           // later fix to support IPv6
 			       : 0);
     if (numMembers > 0) {
       statsRelayedIncoming.countPacket(numBytes);
@@ -402,21 +399,11 @@ Boolean Groupsock::wasLoopedBackFromUs(UsageEnvironment& env,
 }
 
 destRecord* Groupsock
-::lookupDestRecordFromDestination(struct sockaddr_storage const& destAddrAndPort) const {
+::lookupDestRecordFromDestination(struct sockaddr_storage const& targetAddrAndPort) const {
   for (destRecord* dest = fDests; dest != NULL; dest = dest->fNext) {
-    struct sockaddr_storage const& destRecordAddrAndPort = dest->fGroupEId.groupAddress(); // alias
-    if (destRecordAddrAndPort.ss_family != destAddrAndPort.ss_family) continue;
-
-    if (destRecordAddrAndPort.ss_family == AF_INET) {
-      if (((struct sockaddr_in const&)destRecordAddrAndPort).sin_addr.s_addr ==
-	  ((struct sockaddr_in const&)destAddrAndPort).sin_addr.s_addr &&
-	  ((struct sockaddr_in const&)destRecordAddrAndPort).sin_port ==
-	  ((struct sockaddr_in const&)destAddrAndPort).sin_port) return dest;
-    } else { // assume AF_INET6
-      if (((struct sockaddr_in6 const&)destRecordAddrAndPort).sin6_addr.s6_addr ==
-	  ((struct sockaddr_in6 const&)destAddrAndPort).sin6_addr.s6_addr &&
-	  ((struct sockaddr_in6 const&)destRecordAddrAndPort).sin6_port ==
-	  ((struct sockaddr_in6 const&)destAddrAndPort).sin6_port) return dest;
+    if (dest->fGroupEId.groupAddress() == targetAddrAndPort &&
+	dest->fGroupEId.portNum() == ((struct sockaddr_in const&)targetAddrAndPort).sin_port/*same posn in IPv6*/) {
+      return dest;
     }
   }
 

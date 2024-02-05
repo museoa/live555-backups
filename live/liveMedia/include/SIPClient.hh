@@ -42,7 +42,7 @@ public:
 			      int verbosityLevel = 0,
 			      char const* applicationName = NULL);
 
-  void setProxyServer(ipv4AddressBits proxyServerAddress,
+  void setProxyServer(struct sockaddr_storage const& proxyServerAddress,
 		      portNumBits proxyServerPortNum);
 
   void setClientStartPortNum(portNumBits clientStartPortNum) {

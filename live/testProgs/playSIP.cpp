@@ -68,9 +68,9 @@ void getSDPDescription(RTSPClient::responseHandler* afterFunc) {
     if (addresses.numAddresses() == 0) {
       ourSIPClient->envir() << "Failed to find network address for \"" << proxyServerName << "\"\n";
     } else {
-      NetAddress address = *(addresses.firstAddress());
-      unsigned proxyServerAddress // later, allow for IPv6 #####
-	= *(unsigned*)(address.data());
+      struct sockaddr_storage proxyServerAddress;
+      copyAddress(proxyServerAddress, *(addresses.firstAddress()));
+
       extern unsigned short proxyServerPortNum;
       if (proxyServerPortNum == 0) proxyServerPortNum = 5060; // default
 

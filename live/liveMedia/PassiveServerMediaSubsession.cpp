@@ -151,11 +151,10 @@ void PassiveServerMediaSubsession
     destinationAddress.ss_family = AF_INET; // later, update to support IPv6
     destinationAddr4 = gs.groupAddress(); // later, update to support IPv6
   } else { // use the client-specified destination address instead:
-    gs.changeDestinationParameters(destinationAddr4, 0, destinationTTL);
-        // later, update to support IPv6
+    gs.changeDestinationParameters(destinationAddress, 0, destinationTTL);
     if (fRTCPInstance != NULL) {
       Groupsock* rtcpGS = fRTCPInstance->RTCPgs();
-      rtcpGS->changeDestinationParameters(destinationAddr4, 0, destinationTTL);
+      rtcpGS->changeDestinationParameters(destinationAddress, 0, destinationTTL);
         // later, update to support IPv6
     }
   }

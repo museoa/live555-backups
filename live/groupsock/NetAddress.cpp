@@ -92,6 +92,23 @@ void copyAddress(struct sockaddr_storage& to, NetAddress const& from) {
   }
 }
 
+Boolean operator==(struct sockaddr_storage const& left, struct sockaddr_storage const& right) {
+  if (left.ss_family != right.ss_family) return False;
+
+  switch (left.ss_family) {
+    case AF_INET: {
+      return ((struct sockaddr_in const&)left).sin_addr.s_addr == ((struct sockaddr_in const&)right).sin_addr.s_addr;
+    }
+    case AF_INET6: {
+      return ((struct sockaddr_in6 const&)left).sin6_addr.s6_addr == ((struct sockaddr_in6 const&)right).sin6_addr.s6_addr;
+    }
+    default: {
+      return False;
+    }
+  }
+}
+
+
 ////////// NetAddressList //////////
 
 NetAddressList::NetAddressList(char const* hostname)
@@ -339,10 +356,23 @@ void* AddressPortLookupTable::Iterator::next() {
 Boolean IsMulticastAddress(netAddressBits address) {
   // Note: We return False for addresses in the range 224.0.0.0
   // through 224.0.0.255, because these are non-routable
-  // Note: IPv4-specific #####
   netAddressBits addressInNetworkOrder = htonl(address);
   return addressInNetworkOrder >  0xE00000FF &&
          addressInNetworkOrder <= 0xEFFFFFFF;
+}
+Boolean IsMulticastAddress(struct sockaddr_storage const& address) {
+  switch (address.ss_family) {
+    case AF_INET: {
+      return IsMulticastAddress(((sockaddr_in const&)address).sin_addr.s_addr);
+    }
+    case AF_INET6: {
+      // An IPv6 address is multicast if the top two bits are 1:
+      return (((sockaddr_in6 const&)address).sin6_addr.s6_addr[0] & 0xC0) == 0xC0;
+    }
+    default: {
+      return False;
+    }
+  }
 }
 
 

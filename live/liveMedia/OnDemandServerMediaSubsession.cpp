@@ -540,11 +540,9 @@ void StreamState
   } else {
     // Tell the RTP and RTCP 'groupsocks' about this destination
     // (in case they don't already have it):
-    if (fRTPgs != NULL) fRTPgs->addDestination(((struct sockaddr_in const&)dests->addr).sin_addr, dests->rtpPort, clientSessionId);
-        // Hack; later fix for IPv6
+    if (fRTPgs != NULL) fRTPgs->addDestination(dests->addr, dests->rtpPort, clientSessionId);
     if (fRTCPgs != NULL && !(fRTCPgs == fRTPgs && dests->rtcpPort.num() == dests->rtpPort.num())) {
-      fRTCPgs->addDestination(((struct sockaddr_in const&)dests->addr).sin_addr, dests->rtcpPort, clientSessionId);
-        // Hack; later fix for IPv6
+      fRTCPgs->addDestination(dests->addr, dests->rtcpPort, clientSessionId);
     }
     if (fRTCPInstance != NULL) {
       fRTCPInstance->setSpecificRRHandler(dests->addr, dests->rtcpPort,

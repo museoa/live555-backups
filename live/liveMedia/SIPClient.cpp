@@ -151,18 +151,15 @@ void SIPClient::reset() {
   delete[] (char*)fURL; fURL = NULL; fURLSize = 0;
 }
 
-void SIPClient::setProxyServer(ipv4AddressBits proxyServerAddress,
+void SIPClient::setProxyServer(struct sockaddr_storage const& proxyServerAddress,
 			       portNumBits proxyServerPortNum) {
-  struct sockaddr_in& serverAddress4 = (struct sockaddr_in&)fServerAddress;
-      // Later, fix to allow for IPv6
-  serverAddress4.sin_addr.s_addr = proxyServerAddress;
+  fServerAddress = proxyServerAddress;
   fServerAddressIsSet = True;
 
   fServerPortNum = proxyServerPortNum;
 
   if (fOurSocket != NULL) {
-    fOurSocket->changeDestinationParameters(serverAddress4.sin_addr,
-					    fServerPortNum, 255);
+    fOurSocket->changeDestinationParameters(fServerAddress, fServerPortNum, 255);
   }
 }
 
@@ -747,9 +744,7 @@ Boolean SIPClient::processURL(char const* url) {
       fServerAddressIsSet = True;
 
       if (fOurSocket != NULL) {
-	fOurSocket->changeDestinationParameters(((struct sockaddr_in&)fServerAddress).sin_addr,
-						    // Later, fix for IPv6
-						fServerPortNum, 255);
+	fOurSocket->changeDestinationParameters(fServerAddress, fServerPortNum, 255);
       }
     }
 

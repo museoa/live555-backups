@@ -89,7 +89,7 @@ public:
   virtual destRecord* createNewDestRecord(struct sockaddr_storage const& addr, Port const& port, u_int8_t ttl, unsigned sessionId, destRecord* next);
       // Can be redefined by subclasses that also subclass "destRecord"
 
-  void changeDestinationParameters(struct in_addr const& newDestAddr,
+  void changeDestinationParameters(struct sockaddr_storage const& newDestAddr,
 				   Port newDestPort, int newDestTTL,
 				   unsigned sessionId = 0);
       // By default, the destination address, port and ttl for
@@ -104,7 +104,8 @@ public:
 
   // As a special case, we also allow multiple destinations (addresses & ports)
   // (This can be used to implement multi-unicast.)
-  virtual void addDestination(struct in_addr const& addr, Port const& port, unsigned sessionId);
+  virtual void addDestination(struct sockaddr_storage const& addr, Port const& port,
+			      unsigned sessionId);
   virtual void removeDestination(unsigned sessionId);
   void removeAllDestinations();
   Boolean hasMultipleDestinations() const { return fDests != NULL && fDests->fNext != NULL; }
@@ -149,7 +150,7 @@ public: // redefined virtual functions
 			     struct sockaddr_storage& fromAddressAndPort);
 
 protected:
-  destRecord* lookupDestRecordFromDestination(struct sockaddr_storage const& destAddrAndPort) const;
+  destRecord* lookupDestRecordFromDestination(struct sockaddr_storage const& targetAddrAndPort) const;
 
 private:
   void removeDestinationFrom(destRecord*& dests, unsigned sessionId);
