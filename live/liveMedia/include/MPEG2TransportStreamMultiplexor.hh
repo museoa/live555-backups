@@ -29,7 +29,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "MPEG1or2Demux.hh" // for SCR
 #endif
 
-#define PID_TABLE_SIZE 256
+#define PID_TABLE_SIZE 0x2000 // 2^13
 
 class MPEG2TransportStreamMultiplexor: public FramedSource {
 public:
@@ -71,7 +71,7 @@ private:
   virtual void doGetNextFrame();
 
 private:
-  void deliverDataToClient(u_int8_t pid, unsigned char* buffer, unsigned bufferSize,
+  void deliverDataToClient(u_int16_t pid, unsigned char* buffer, unsigned bufferSize,
 			   unsigned& startPositionInBuffer);
 
   void deliverPATPacket();
@@ -91,8 +91,7 @@ private:
     unsigned counter;
     u_int8_t streamType; // for use in Program Maps
   } fPIDState[PID_TABLE_SIZE];
-  u_int8_t fPCR_PID, fCurrentPID;
-      // Note: We map 8-bit stream_ids directly to PIDs
+  u_int16_t fPCR_PID, fCurrentPID; // only the low 13 bits are used
   MPEG1or2Demux::SCR fPCR;
   unsigned char* fInputBuffer;
   unsigned fInputBufferSize, fInputBufferBytesUsed;

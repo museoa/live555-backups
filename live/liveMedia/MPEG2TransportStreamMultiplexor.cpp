@@ -26,8 +26,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #define PAT_PERIOD_IF_UNTIMED 100 // # of packets between Program Association Tables (if not timed)
 #define PMT_PERIOD_IF_UNTIMED 500 // # of packets between Program Map Tables (if not timed)
 
-#define PID_TABLE_SIZE 256
-
 void MPEG2TransportStreamMultiplexor
 ::setTimedSegmentation(unsigned segmentationDuration,
 		       onEndOfSegmentFunc* onEndOfSegmentFunc,
@@ -41,8 +39,8 @@ MPEG2TransportStreamMultiplexor
 ::MPEG2TransportStreamMultiplexor(UsageEnvironment& env)
   : FramedSource(env),
     fHaveVideoStreams(True/*by default*/),
-    fOutgoingPacketCounter(0), fProgramMapVersion(0),
-    fPreviousInputProgramMapVersion(0xFF), fCurrentInputProgramMapVersion(0xFF),
+    fOutgoingPacketCounter(0), fProgramMapVersion(0xFF),
+    fPreviousInputProgramMapVersion(0xFF), fCurrentInputProgramMapVersion(0),
     fPCR_PID(0), fCurrentPID(0),
     fInputBuffer(NULL), fInputBufferSize(0), fInputBufferBytesUsed(0),
     fIsFirstAdaptationField(True), fSegmentationDuration(0), fSegmentationIndication(1),
@@ -81,13 +79,11 @@ void MPEG2TransportStreamMultiplexor::doGetNextFrame() {
     ++fOutgoingPacketCounter;
 
     // Periodically (or when we see a new PID) return a Program Map Table instead:
-    Boolean programMapHasChanged = fPIDState[fCurrentPID].counter == 0
-      || fCurrentInputProgramMapVersion != fPreviousInputProgramMapVersion;
+    Boolean programMapHasChanged = fCurrentInputProgramMapVersion != fPreviousInputProgramMapVersion;
     if (programMapHasChanged
 	|| (segmentationIsTimed() && fSegmentationIndication == 2)
 	|| (!segmentationIsTimed() && fOutgoingPacketCounter % PMT_PERIOD_IF_UNTIMED == 0)) {
       if (programMapHasChanged) { // reset values for next time:
-	fPIDState[fCurrentPID].counter = 1;
 	fPreviousInputProgramMapVersion = fCurrentInputProgramMapVersion;
       }
       deliverPMTPacket(programMapHasChanged);
@@ -131,7 +127,7 @@ void MPEG2TransportStreamMultiplexor
     if (PID == -1)
       fCurrentPID = stream_id;
     else
-      fCurrentPID = (u_int8_t)PID;
+      fCurrentPID = PID;
 
     // Set the stream's type:
     u_int8_t& streamType = fPIDState[fCurrentPID].streamType; // alias
@@ -168,7 +164,7 @@ void MPEG2TransportStreamMultiplexor
 }
 
 void MPEG2TransportStreamMultiplexor
-::deliverDataToClient(u_int8_t pid, unsigned char* buffer, unsigned bufferSize,
+::deliverDataToClient(u_int16_t pid, unsigned char* buffer, unsigned bufferSize,
 		      unsigned& startPositionInBuffer) {
   // Construct a new Transport packet, and deliver it to the client:
   if (fMaxSize < TRANSPORT_PACKET_SIZE) {
@@ -215,7 +211,7 @@ void MPEG2TransportStreamMultiplexor
     // Fill in the header of the Transport Stream packet:
     unsigned char* header = fTo;
     *header++ = 0x47; // sync_byte
-    *header++ = (startPositionInBuffer == 0) ? 0x40 : 0x00;
+    *header++ = ((startPositionInBuffer == 0) ? 0x40 : 0x00)|(pid>>8);
       // transport_error_indicator, payload_unit_start_indicator, transport_priority,
       // first 5 bits of PID
     *header++ = pid;
@@ -288,7 +284,7 @@ void MPEG2TransportStreamMultiplexor
 #ifndef OUR_PROGRAM_NUMBER
 #define OUR_PROGRAM_NUMBER 1
 #endif
-#define OUR_PROGRAM_MAP_PID 0x30
+#define OUR_PROGRAM_MAP_PID 0x1000
 
 void MPEG2TransportStreamMultiplexor::deliverPATPacket() {
   // First, create a new buffer for the PAT packet:
@@ -302,12 +298,12 @@ void MPEG2TransportStreamMultiplexor::deliverPATPacket() {
   *pat++ = 0xB0; // section_syntax_indicator; 0; reserved, section_length (high)
   *pat++ = 13; // section_length (low)
   *pat++ = 0; *pat++ = 1; // transport_stream_id
-  *pat++ = 0xC3; // reserved; version_number; current_next_indicator
+  *pat++ = 0xC1; // reserved; version_number; current_next_indicator
   *pat++ = 0; // section_number
   *pat++ = 0; // last_section_number
   *pat++ = OUR_PROGRAM_NUMBER>>8; *pat++ = OUR_PROGRAM_NUMBER; // program_number
   *pat++ = 0xE0|(OUR_PROGRAM_MAP_PID>>8); // reserved; program_map_PID (high)
-  *pat++ = OUR_PROGRAM_MAP_PID; // program_map_PID (low)
+  *pat++ = OUR_PROGRAM_MAP_PID&0xFF; // program_map_PID (low)
 
   // Compute the CRC from the bytes we currently have (not including "pointer_field"):
   u_int32_t crc = calculateCRC(patBuffer+1, pat - (patBuffer+1));
@@ -342,7 +338,7 @@ void MPEG2TransportStreamMultiplexor::deliverPMTPacket(Boolean hasChanged) {
   *pmt++ = 0xC1|((fProgramMapVersion&0x1F)<<1); // reserved; version_number; current_next_indicator
   *pmt++ = 0; // section_number
   *pmt++ = 0; // last_section_number
-  *pmt++ = 0xE0; // reserved; PCR_PID (high)
+  *pmt++ = 0xE0|(fPCR_PID>>8); // reserved; PCR_PID (high)
   *pmt++ = fPCR_PID; // PCR_PID (low)
   *pmt++ = 0xF0; // reserved; program_info_length (high)
   *pmt++ = 0; // program_info_length (low)
@@ -350,7 +346,7 @@ void MPEG2TransportStreamMultiplexor::deliverPMTPacket(Boolean hasChanged) {
     if (fPIDState[pid].streamType != 0) {
       // This PID gets recorded in the table
       *pmt++ = fPIDState[pid].streamType;
-      *pmt++ = 0xE0; // reserved; elementary_pid (high)
+      *pmt++ = 0xE0|(pid>>8); // reserved; elementary_pid (high)
       *pmt++ = pid; // elementary_pid (low)
       *pmt++ = 0xF0; // reserved; ES_info_length (high)
       *pmt++ = 0; // ES_info_length (low)
