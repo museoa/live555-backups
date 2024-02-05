@@ -55,7 +55,7 @@ void GenericMediaServer::removeServerMediaSession(ServerMediaSession* serverMedi
 }
 
 void GenericMediaServer::removeServerMediaSession(char const* streamName) {
-  removeServerMediaSession((ServerMediaSession*)(fServerMediaSessions->Lookup(streamName)));
+  removeServerMediaSession(lookupServerMediaSession(streamName));
 }
 
 void GenericMediaServer::closeAllClientSessionsForServerMediaSession(ServerMediaSession* serverMediaSession) {
@@ -73,7 +73,7 @@ void GenericMediaServer::closeAllClientSessionsForServerMediaSession(ServerMedia
 }
 
 void GenericMediaServer::closeAllClientSessionsForServerMediaSession(char const* streamName) {
-  closeAllClientSessionsForServerMediaSession((ServerMediaSession*)(fServerMediaSessions->Lookup(streamName)));
+  closeAllClientSessionsForServerMediaSession(lookupServerMediaSession(streamName));
 }
 
 void GenericMediaServer::deleteServerMediaSession(ServerMediaSession* serverMediaSession) {
@@ -84,7 +84,7 @@ void GenericMediaServer::deleteServerMediaSession(ServerMediaSession* serverMedi
 }
 
 void GenericMediaServer::deleteServerMediaSession(char const* streamName) {
-  deleteServerMediaSession((ServerMediaSession*)(fServerMediaSessions->Lookup(streamName)));
+  deleteServerMediaSession(lookupServerMediaSession(streamName));
 }
 
 GenericMediaServer
