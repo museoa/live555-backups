@@ -41,12 +41,8 @@ public:
   OutputSocket(UsageEnvironment& env);
   virtual ~OutputSocket();
 
-  virtual Boolean write(netAddressBits address, portNumBits portNum/*in network order*/, u_int8_t ttl,
+  virtual Boolean write(struct sockaddr_storage const& addressAndPort, u_int8_t ttl,
 			unsigned char* buffer, unsigned bufferSize);
-  Boolean write(struct sockaddr_in& addressAndPort, u_int8_t ttl,
-		unsigned char* buffer, unsigned bufferSize) {
-    return write(addressAndPort.sin_addr.s_addr, addressAndPort.sin_port, ttl, buffer, bufferSize);
-  }
 
 protected:
   OutputSocket(UsageEnvironment& env, Port port);

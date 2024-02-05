@@ -384,7 +384,7 @@ int readSocket(UsageEnvironment& env,
 }
 
 Boolean writeSocket(UsageEnvironment& env,
-		    int socket, struct in_addr address, portNumBits portNum,
+		    int socket, struct sockaddr_storage const& addressAndPort,
 		    u_int8_t ttlArg,
 		    unsigned char* buffer, unsigned bufferSize) {
   // Before sending, set the socket's TTL:
@@ -400,16 +400,17 @@ Boolean writeSocket(UsageEnvironment& env,
     return False;
   }
 
-  return writeSocket(env, socket, address, portNum, buffer, bufferSize);
+  return writeSocket(env, socket, addressAndPort, buffer, bufferSize);
 }
 
 Boolean writeSocket(UsageEnvironment& env,
-		    int socket, struct in_addr address, portNumBits portNum,
+		    int socket, struct sockaddr_storage const& addressAndPort,
 		    unsigned char* buffer, unsigned bufferSize) {
   do {
-    MAKE_SOCKADDR_IN(dest, address.s_addr, portNum);
+    socklen_t dest_len
+      = addressAndPort.ss_family == AF_INET ? sizeof (sockaddr_in) : AF_INET6;
     int bytesSent = sendto(socket, (char*)buffer, bufferSize, 0,
-			   (struct sockaddr*)&dest, sizeof dest);
+			   (struct sockaddr const*)&addressAndPort, dest_len);
     if (bytesSent != (int)bufferSize) {
       char tmpBuf[100];
       sprintf(tmpBuf, "writeSocket(%d), sendTo() error: wrote %d bytes instead of %u: ", socket, bytesSent, bufferSize);
@@ -712,7 +713,8 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
       unsigned char testString[] = "hostIdTest";
       unsigned testStringLength = sizeof testString;
 
-      if (!writeSocket(env, sock, testAddr, testPort.num(), 0,
+      MAKE_SOCKADDR_IN(testAddressAndPort, testAddr.s_addr, testPort.num());
+      if (!writeSocket(env, sock, (struct sockaddr_storage const&)testAddressAndPort, 0,
 		       testString, testStringLength)) break;
 
       // Block until the socket is readable (with a 5-second timeout):

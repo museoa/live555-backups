@@ -42,14 +42,13 @@ OutputSocket::OutputSocket(UsageEnvironment& env, Port port)
 OutputSocket::~OutputSocket() {
 }
 
-Boolean OutputSocket::write(netAddressBits address, portNumBits portNum, u_int8_t ttl,
+Boolean OutputSocket::write(struct sockaddr_storage const& addressAndPort, u_int8_t ttl,
 			    unsigned char* buffer, unsigned bufferSize) {
-  struct in_addr destAddr; destAddr.s_addr = address;
   if ((unsigned)ttl == fLastSentTTL) {
     // Optimization: Don't do a 'set TTL' system call again
-    if (!writeSocket(env(), socketNum(), destAddr, portNum, buffer, bufferSize)) return False;
+    if (!writeSocket(env(), socketNum(), addressAndPort, buffer, bufferSize)) return False;
   } else {
-    if (!writeSocket(env(), socketNum(), destAddr, portNum, ttl, buffer, bufferSize)) return False;
+    if (!writeSocket(env(), socketNum(), addressAndPort, ttl, buffer, bufferSize)) return False;
     fLastSentTTL = (unsigned)ttl;
   }
 
@@ -265,7 +264,8 @@ Boolean Groupsock::output(UsageEnvironment& env, unsigned char* buffer, unsigned
     // First, do the datagram send, to each destination:
     Boolean writeSuccess = True;
     for (destRecord* dests = fDests; dests != NULL; dests = dests->fNext) {
-      if (!write(dests->fGroupEId.groupAddress().s_addr, dests->fGroupEId.portNum(), dests->fGroupEId.ttl(),
+      MAKE_SOCKADDR_IN(destAddressAndPort, dests->fGroupEId.groupAddress().s_addr, dests->fGroupEId.portNum()); // later update for IPv6
+      if (!write((struct sockaddr_storage const&)destAddressAndPort, dests->fGroupEId.ttl(),
 		 buffer, bufferSize)) {
 	writeSuccess = False;
 	break;

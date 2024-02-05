@@ -591,7 +591,7 @@ unsigned SIPClient::getResponseCode() {
         while (numExtraBytesNeeded > 0) {
           char* ptr = &readBuf[bytesRead];
 	  unsigned bytesRead2;
-	  struct sockaddr_in fromAddr;
+	  struct sockaddr_storage fromAddr;
 	  Boolean readSuccess
 	    = fOurSocket->handleRead((unsigned char*)ptr,
 				     numExtraBytesNeeded,
