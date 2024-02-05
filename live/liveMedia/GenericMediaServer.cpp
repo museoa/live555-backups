@@ -94,7 +94,9 @@ GenericMediaServer
     fServerSocket(ourSocket), fServerPort(ourPort), fReclamationSeconds(reclamationSeconds),
     fServerMediaSessions(HashTable::create(STRING_HASH_KEYS)),
     fClientConnections(HashTable::create(ONE_WORD_HASH_KEYS)),
-    fClientSessions(HashTable::create(STRING_HASH_KEYS)) {
+    fClientSessions(HashTable::create(STRING_HASH_KEYS)),
+    fPreviousClientSessionId(0)
+{
   ignoreSigPipeOnSocket(fServerSocket); // so that clients on the same host that are killed don't also kill us
   
   // Arrange to handle connections from others:
@@ -317,11 +319,14 @@ GenericMediaServer::ClientSession* GenericMediaServer::createNewClientSessionWit
 
   // Choose a random (unused) 32-bit integer for the session id
   // (it will be encoded as a 8-digit hex number).  (We avoid choosing session id 0,
-  // because that has a special use by some servers.)
+  // because that has a special use by some servers.  Similarly, we avoid choosing the same
+  // session id twice in a row.)
   do {
     sessionId = (u_int32_t)our_random32();
     snprintf(sessionIdStr, sizeof sessionIdStr, "%08X", sessionId);
-  } while (sessionId == 0 || lookupClientSession(sessionIdStr) != NULL);
+  } while (sessionId == 0 || sessionId == fPreviousClientSessionId
+	   || lookupClientSession(sessionIdStr) != NULL);
+  fPreviousClientSessionId = sessionId;
 
   ClientSession* clientSession = createNewClientSession(sessionId);
   if (clientSession != NULL) fClientSessions->Add(sessionIdStr, clientSession);

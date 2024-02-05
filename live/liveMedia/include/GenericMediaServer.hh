@@ -163,6 +163,7 @@ private:
   HashTable* fServerMediaSessions; // maps 'stream name' strings to "ServerMediaSession" objects
   HashTable* fClientConnections; // the "ClientConnection" objects that we're using
   HashTable* fClientSessions; // maps 'session id' strings to "ClientSession" objects
+  u_int32_t fPreviousClientSessionId;
 };
 
 // A data structure used for optional user/password authentication:

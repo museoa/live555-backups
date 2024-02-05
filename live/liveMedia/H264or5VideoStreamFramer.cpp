@@ -923,7 +923,7 @@ void H264or5VideoStreamParser
       if (fHNumber == 264) {
 	// Need to get field_pic_flag from slice_header to set this properly! #####
       } else { // H.265
-	DeltaTfiDivisor = 1;
+	DeltaTfiDivisor = 1.0;
       }
     }
     // If "DeltaTfiDivisor" has changed, and we've already computed the frame rate, then
