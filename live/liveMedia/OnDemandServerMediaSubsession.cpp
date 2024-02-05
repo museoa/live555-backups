@@ -66,9 +66,7 @@ OnDemandServerMediaSubsession::sdpLines() {
     FramedSource* inputSource = createNewStreamSource(0, estBitrate);
     if (inputSource == NULL) return NULL; // file not found
 
-    struct in_addr dummyAddr;
-    dummyAddr.s_addr = 0;
-    Groupsock* dummyGroupsock = createGroupsock(dummyAddr, 0);
+    Groupsock* dummyGroupsock = createGroupsock(AddressPortLookupTable::dummyAddress(), 0);
     unsigned char rtpPayloadType = 96 + trackNumber()-1; // if dynamic
     RTPSink* dummyRTPSink = createNewRTPSink(dummyGroupsock, rtpPayloadType, inputSource);
     if (dummyRTPSink != NULL && dummyRTPSink->estimatedBitrate() > 0) estBitrate = dummyRTPSink->estimatedBitrate();
@@ -129,10 +127,8 @@ void OnDemandServerMediaSubsession
 	// We're streaming raw UDP (not RTP). Create a single groupsock:
 	NoReuse dummy(envir()); // ensures that we skip over ports that are already in use
 	for (serverPortNum = fInitialPortNum; ; ++serverPortNum) {
-	  struct in_addr dummyAddr; dummyAddr.s_addr = 0;
-	  
 	  serverRTPPort = serverPortNum;
-	  rtpGroupsock = createGroupsock(dummyAddr, serverRTPPort);
+	  rtpGroupsock = createGroupsock(AddressPortLookupTable::dummyAddress(), serverRTPPort);
 	  if (rtpGroupsock->socketNum() >= 0) break; // success
 	}
 
@@ -143,10 +139,8 @@ void OnDemandServerMediaSubsession
 	// (If we're multiplexing RTCP and RTP over the same port number, it can be odd or even.)
 	NoReuse dummy(envir()); // ensures that we skip over ports that are already in use
 	for (portNumBits serverPortNum = fInitialPortNum; ; ++serverPortNum) {
-	  struct in_addr dummyAddr; dummyAddr.s_addr = 0;
-
 	  serverRTPPort = serverPortNum;
-	  rtpGroupsock = createGroupsock(dummyAddr, serverRTPPort);
+	  rtpGroupsock = createGroupsock(AddressPortLookupTable::dummyAddress(), serverRTPPort);
 	  if (rtpGroupsock->socketNum() < 0) {
 	    delete rtpGroupsock;
 	    continue; // try again
@@ -159,7 +153,7 @@ void OnDemandServerMediaSubsession
 	  } else {
 	    // Create a separate 'groupsock' object (with the next (odd) port number) for RTCP:
 	    serverRTCPPort = ++serverPortNum;
-	    rtcpGroupsock = createGroupsock(dummyAddr, serverRTCPPort);
+	    rtcpGroupsock = createGroupsock(AddressPortLookupTable::dummyAddress(), serverRTCPPort);
 	    if (rtcpGroupsock->socketNum() < 0) {
 	      delete rtpGroupsock;
 	      delete rtcpGroupsock;
@@ -396,7 +390,7 @@ void OnDemandServerMediaSubsession::closeStreamSource(FramedSource *inputSource)
 }
 
 Groupsock* OnDemandServerMediaSubsession
-::createGroupsock(struct in_addr const& addr, Port port) {
+::createGroupsock(struct sockaddr_storage const& addr, Port port) {
   // Default implementation; may be redefined by subclasses:
   return new Groupsock(envir(), addr, port, 255);
 }

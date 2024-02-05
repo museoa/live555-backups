@@ -146,7 +146,7 @@ protected:
 
   // Subclasses may redefine the following functions, if they want "ProxyServerSubsession"s
   // to create subclassed "Groupsock" and/or "RTCPInstance" objects:
-  virtual Groupsock* createGroupsock(struct in_addr const& addr, Port port);
+  virtual Groupsock* createGroupsock(struct sockaddr_storage const& addr, Port port);
   virtual RTCPInstance* createRTCP(Groupsock* RTCPgs, unsigned totSessionBW, /* in kbps */
 				   unsigned char const* cname, RTPSink* sink);
 

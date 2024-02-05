@@ -77,6 +77,15 @@ public:
 
 class Groupsock: public OutputSocket {
 public:
+  Groupsock(UsageEnvironment& env, struct sockaddr_storage const& groupAddr,
+	    Port port, u_int8_t ttl);
+      // used for a 'source-independent multicast' group
+  Groupsock(UsageEnvironment& env, struct sockaddr_storage const& groupAddr,
+	    struct sockaddr_storage const& sourceFilterAddr,
+	    Port port);
+      // used for a 'source-specific multicast' group
+
+// deprecated constructors; to be removed when we fully support IPv6:
   Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
 	    Port port, u_int8_t ttl);
       // used for a 'source-independent multicast' group
@@ -84,6 +93,7 @@ public:
 	    struct in_addr const& sourceFilterAddr,
 	    Port port);
       // used for a 'source-specific multicast' group
+
   virtual ~Groupsock();
 
   virtual destRecord* createNewDestRecord(struct sockaddr_storage const& addr, Port const& port, u_int8_t ttl, unsigned sessionId, destRecord* next);
@@ -110,11 +120,11 @@ public:
   void removeAllDestinations();
   Boolean hasMultipleDestinations() const { return fDests != NULL && fDests->fNext != NULL; }
 
-  struct in_addr const& groupAddress() const {
-    return ((struct sockaddr_in const&)(fIncomingGroupEId.groupAddress())).sin_addr;
+  struct sockaddr_storage const& groupAddress() const {
+    return fIncomingGroupEId.groupAddress();
   }
-  struct in_addr const& sourceFilterAddress() const {
-    return ((struct sockaddr_in const&)(fIncomingGroupEId.sourceFilterAddress())).sin_addr;
+  struct sockaddr_storage const& sourceFilterAddress() const {
+    return fIncomingGroupEId.sourceFilterAddress();
   }
 
   Boolean isSSM() const {

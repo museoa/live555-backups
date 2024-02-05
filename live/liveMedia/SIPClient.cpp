@@ -72,8 +72,9 @@ SIPClient::SIPClient(UsageEnvironment& env,
   fApplicationName = strDup(applicationName);
   fApplicationNameSize = strlen(fApplicationName);
 
-  struct in_addr ourAddress;
-  ourAddress.s_addr = ourIPAddress(env); // hack
+  struct sockaddr_storage ourAddress;
+  ourAddress.ss_family = AF_INET; // Later, fix to support IPv6
+  ((struct sockaddr_in&)ourAddress).sin_addr.s_addr = ourIPAddress(env);
   fOurAddressStr = strDup(AddressString(ourAddress).val());
   fOurAddressStrSize = strlen(fOurAddressStr);
 

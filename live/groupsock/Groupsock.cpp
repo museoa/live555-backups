@@ -92,6 +92,60 @@ NetInterfaceTrafficStats Groupsock::statsIncoming;
 NetInterfaceTrafficStats Groupsock::statsOutgoing;
 
 // Constructor for a source-independent multicast group
+Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& groupAddr,
+		     Port port, u_int8_t ttl)
+  : OutputSocket(env, port),
+    fDests(new destRecord(groupAddr, port, ttl, 0, NULL)),
+    fIncomingGroupEId(groupAddr, port.num(), ttl) {
+  if (!socketJoinGroup(env, socketNum(), ((struct sockaddr_in const&)groupAddr).sin_addr.s_addr)) {
+    // Later, update to support IPv6
+    if (DebugLevel >= 1) {
+      env << *this << ": failed to join group: "
+	  << env.getResultMsg() << "\n";
+    }
+  }
+
+  // Make sure we can get our source address:
+  if (ourIPAddress(env) == 0) {
+    if (DebugLevel >= 0) { // this is a fatal error
+      env << "Unable to determine our source address: "
+	  << env.getResultMsg() << "\n";
+    }
+  }
+
+  if (DebugLevel >= 2) env << *this << ": created\n";
+}
+
+// Constructor for a source-specific multicast group
+Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& groupAddr,
+		     struct sockaddr_storage const& sourceFilterAddr,
+		     Port port)
+  : OutputSocket(env, port),
+    fDests(new destRecord(groupAddr, port, 255, 0, NULL)),
+    fIncomingGroupEId(groupAddr, sourceFilterAddr, port.num()) {
+  // First try a SSM join.  If that fails, try a regular join:
+  if (!socketJoinGroupSSM(env, socketNum(), ((struct sockaddr_in const&)groupAddr).sin_addr.s_addr,
+			  ((struct sockaddr_in const&)sourceFilterAddr).sin_addr.s_addr)) {
+    // Later, update to support IPv6
+    if (DebugLevel >= 3) {
+      env << *this << ": SSM join failed: "
+	  << env.getResultMsg();
+      env << " - trying regular join instead\n";
+    }
+    if (!socketJoinGroup(env, socketNum(), ((struct sockaddr_in const&)groupAddr).sin_addr.s_addr)) {
+    // Later, update to support IPv6
+      if (DebugLevel >= 1) {
+	env << *this << ": failed to join group: "
+	     << env.getResultMsg() << "\n";
+      }
+    }
+  }
+
+  if (DebugLevel >= 2) env << *this << ": created\n";
+}
+
+// deprecated constructors; to be removed when we fully support IPv6:
+// Constructor for a source-independent multicast group
 Groupsock::Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
 		     Port port, u_int8_t ttl)
   : OutputSocket(env, port) {
@@ -155,12 +209,15 @@ Groupsock::Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
 
 Groupsock::~Groupsock() {
   if (isSSM()) {
-    if (!socketLeaveGroupSSM(env(), socketNum(), groupAddress().s_addr,
-			     sourceFilterAddress().s_addr)) {
-      socketLeaveGroup(env(), socketNum(), groupAddress().s_addr);
+    if (!socketLeaveGroupSSM(env(), socketNum(),
+			     ((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr,
+			     ((struct sockaddr_in const&)sourceFilterAddress()).sin_addr.s_addr)) {
+      socketLeaveGroup(env(), socketNum(), ((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr);
+        // later fix to support IPv6
     }
   } else {
-    socketLeaveGroup(env(), socketNum(), groupAddress().s_addr);
+    socketLeaveGroup(env(), socketNum(), ((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr);
+        // later fix to support IPv6
   }
 
   delete fDests;
@@ -260,10 +317,11 @@ void Groupsock::multicastSendOnly() {
   // We disable this code for now, because - on some systems - leaving the multicast group seems to cause sent packets
   // to not be received by other applications (at least, on the same host).
 #if 0
-  socketLeaveGroup(env(), socketNum(), fIncomingGroupEId.groupAddress().s_addr);
+  socketLeaveGroup(env(), socketNum(), ((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr);
   for (destRecord* dests = fDests; dests != NULL; dests = dests->fNext) {
-    socketLeaveGroup(env(), socketNum(), dests->fGroupEId.groupAddress().s_addr);
+    socketLeaveGroup(env(), socketNum(), dests->fGroupEId.((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr);
   }
+      // later fix to suppor IPv6
 #endif
 }
 
@@ -312,14 +370,7 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
   }
 
   // If we're a SSM group, make sure the source address matches:
-  if (isSSM()
-      // When "sourceFilterAddress()" is changed to return a "struct sockaddr_storage const&"
-      // (to allow IPv6), then change the following to:
-      // && fromAddressAndPort == sourceFilterAddress() {
-      && fromAddressAndPort.ss_family == AF_INET
-      && ((struct sockaddr_in&)fromAddressAndPort).sin_addr.s_addr != sourceFilterAddress().s_addr) {
-    return True;
-  }
+  if (isSSM() && !(fromAddressAndPort == sourceFilterAddress())) return True;
 
   // We'll handle this data.
   bytesRead = numBytes;
@@ -534,16 +585,7 @@ Groupsock* GroupsockLookupTable::Lookup(UsageEnvironment& env, int sock) {
 Boolean GroupsockLookupTable::Remove(Groupsock const* groupsock) {
   unsetGroupsockBySocket(groupsock);
 
-  sockaddr_storage address1;
-  address1.ss_family = AF_INET;
-  ((sockaddr_in&)address1).sin_addr = groupsock->groupAddress(); // later fix for IPv6
-
-  sockaddr_storage address2;
-  address2.ss_family = AF_INET;
-  ((sockaddr_in&)address2).sin_addr = groupsock->sourceFilterAddress(); // later fix for IPv6
-  return fTable.Remove(address1,
-		       address2,
-		       groupsock->port());
+  return fTable.Remove(groupsock->groupAddress(), groupsock->sourceFilterAddress(), groupsock->port());
 }
 
 Groupsock* GroupsockLookupTable::AddNew(UsageEnvironment& env,
@@ -552,17 +594,12 @@ Groupsock* GroupsockLookupTable::AddNew(UsageEnvironment& env,
 					Port port, u_int8_t ttl) {
   Groupsock* groupsock;
   do {
-    struct in_addr groupAddr; groupAddr = ((sockaddr_in const&)groupAddress).sin_addr;
-        // later fix for IPv6
     if (AddressPortLookupTable::addressIsDummy(sourceFilterAddress)) {
       // regular, ISM groupsock
-      groupsock = new Groupsock(env, groupAddr, port, ttl);
+      groupsock = new Groupsock(env, groupAddress, port, ttl);
     } else {
       // SSM groupsock
-      struct in_addr sourceFilterAddr;
-      sourceFilterAddr = ((sockaddr_in const&)sourceFilterAddress).sin_addr;
-        // later fix for IPv6
-      groupsock = new Groupsock(env, groupAddr, sourceFilterAddr, port);
+      groupsock = new Groupsock(env, groupAddress, sourceFilterAddress, port);
     }
 
     if (groupsock == NULL || groupsock->socketNum() < 0) break;

@@ -145,11 +145,10 @@ void PassiveServerMediaSubsession
   Groupsock& gs = fRTPSink.groupsockBeingUsed();
   if (destinationTTL == 255) destinationTTL = gs.ttl();
 
-  struct in_addr& destinationAddr4 = ((struct sockaddr_in&)destinationAddress).sin_addr;
-  if (destinationAddress.ss_family == AF_INET && destinationAddr4.s_addr == 0) {
+  if (destinationAddress.ss_family == AF_INET &&
+      ((struct sockaddr_in&)destinationAddress).sin_addr.s_addr == 0) {
     // normal case - use the sink's existing destination address:
-    destinationAddress.ss_family = AF_INET; // later, update to support IPv6
-    destinationAddr4 = gs.groupAddress(); // later, update to support IPv6
+    destinationAddress = gs.groupAddress();
   } else { // use the client-specified destination address instead:
     gs.changeDestinationParameters(destinationAddress, 0, destinationTTL);
     if (fRTCPInstance != NULL) {

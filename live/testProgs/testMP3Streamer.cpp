@@ -81,8 +81,9 @@ int main(int argc, char** argv) {
   const unsigned short rtcpPortNum = rtpPortNum+1;
   const unsigned char ttl = 1; // low, in case routers don't admin scope
 
-  struct in_addr destinationAddress;
-  (void)inet_pton(AF_INET, destinationAddressStr, &destinationAddress.s_addr);
+  NetAddressList destinationAddresses(destinationAddressStr);
+  struct sockaddr_storage destinationAddress;
+  copyAddress(destinationAddress, *destinationAddresses.firstAddress());
   const Port rtpPort(rtpPortNum);
   const Port rtcpPort(rtcpPortNum);
 

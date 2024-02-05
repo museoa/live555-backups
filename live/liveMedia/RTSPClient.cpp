@@ -897,7 +897,7 @@ int RTSPClient::openConnection() {
     if (fInputSocketNum < 0) break;
     ignoreSigPipeOnSocket(fInputSocketNum); // so that servers on the same host that get killed don't also kill us
     if (fOutputSocketNum < 0) fOutputSocketNum = fInputSocketNum;
-    envir() << "Created new TCP socket " << fInputSocketNum << " for connection\n";
+    if (fVerbosityLevel >= 1) envir() << "Created new TCP socket " << fInputSocketNum << " for connection\n";
       
     // Connect to the remote endpoint:
     copyAddress(fServerAddress, destAddress);
