@@ -737,10 +737,10 @@ void RTSPServer::RTSPClientConnection::handleAlternativeRequestByte1(u_int8_t re
 }
 
 // A special version of "parseTransportHeader()", used just for parsing the "Transport:" header in an incoming "REGISTER" command:
-static void parseTransportHeaderForREGISTER(char const* buf,
-					    Boolean &reuseConnection,
-					    Boolean& deliverViaTCP,
-					    char*& proxyURLSuffix) {
+void parseTransportHeaderForREGISTER(char const* buf,
+				     Boolean &reuseConnection,
+				     Boolean& deliverViaTCP,
+				     char*& proxyURLSuffix) {
   // Initialize the result parameters to default values:
   reuseConnection = False;
   deliverViaTCP = False;
