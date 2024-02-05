@@ -253,11 +253,19 @@ void GenericMediaServer::incomingConnectionHandlerOnSocket(int serverSocket) {
 ////////// GenericMediaServer::ClientConnection implementation //////////
 
 GenericMediaServer::ClientConnection
-::ClientConnection(GenericMediaServer& ourServer, int clientSocket, struct sockaddr_storage const& clientAddr)
-  : fOurServer(ourServer), fOurSocket(clientSocket), fClientAddr(clientAddr) {
+::ClientConnection(GenericMediaServer& ourServer,
+		   int clientSocket, struct sockaddr_storage const& clientAddr,
+		   Boolean useTLS)
+  : fOurServer(ourServer), fOurSocket(clientSocket), fClientAddr(clientAddr), fTLS(envir()) {
   // Add ourself to our 'client connections' table:
   fOurServer.fClientConnections->Add((char const*)this, this);
   
+  if (useTLS) {
+    // Perform extra processing to handle a TLS connection:
+    fTLS.isNeeded = True;
+    if (fTLS.accept(fOurSocket) != 1) return; // TLS connection failed; we can't do any more
+  }
+
   // Arrange to handle incoming requests:
   resetRequestBuffer();
   envir().taskScheduler()

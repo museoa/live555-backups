@@ -159,7 +159,11 @@ RTSPServer::RTSPServer(UsageEnvironment& env,
     fClientConnectionsForHTTPTunneling(NULL), // will get created if needed
     fTCPStreamingDatabase(HashTable::create(ONE_WORD_HASH_KEYS)),
     fPendingRegisterOrDeregisterRequests(HashTable::create(ONE_WORD_HASH_KEYS)),
-    fRegisterOrDeregisterRequestCounter(0), fAuthDB(authDatabase), fAllowStreamingRTPOverTCP(True) {
+    fRegisterOrDeregisterRequestCounter(0), fAuthDB(authDatabase),
+    fAllowStreamingRTPOverTCP(True), fOurConnectionsUseTLS(False) {
+  portNumBits serverPortNumHostOrder = ntohs(fServerPort.num());
+  //  NOT YET WORKING - TEMPORARILY DISABLE: #####
+  //  if (serverPortNumHostOrder == 322/*rtsps*/) fOurConnectionsUseTLS = True;
 }
 
 // A data structure that is used to implement "fTCPStreamingDatabase"
@@ -294,8 +298,10 @@ void RTSPServer::stopTCPStreamingOnSocket(int socketNum) {
 ////////// RTSPServer::RTSPClientConnection implementation //////////
 
 RTSPServer::RTSPClientConnection
-::RTSPClientConnection(RTSPServer& ourServer, int clientSocket, struct sockaddr_storage const& clientAddr)
-  : GenericMediaServer::ClientConnection(ourServer, clientSocket, clientAddr),
+::RTSPClientConnection(RTSPServer& ourServer,
+		       int clientSocket, struct sockaddr_storage const& clientAddr,
+		       Boolean useTLS)
+  : GenericMediaServer::ClientConnection(ourServer, clientSocket, clientAddr, useTLS),
     fOurRTSPServer(ourServer), fClientInputSocket(fOurSocket), fClientOutputSocket(fOurSocket),
     fAddressFamily(clientAddr.ss_family),
     fIsActive(True), fRecursionCount(0), fOurSessionCookie(NULL), fScheduledDelayedTask(0) {
@@ -1944,7 +1950,7 @@ void RTSPServer::RTSPClientSession
 
 GenericMediaServer::ClientConnection*
 RTSPServer::createNewClientConnection(int clientSocket, struct sockaddr_storage const& clientAddr) {
-  return new RTSPClientConnection(*this, clientSocket, clientAddr);
+  return new RTSPClientConnection(*this, clientSocket, clientAddr, fOurConnectionsUseTLS);
 }
 
 GenericMediaServer::ClientSession*

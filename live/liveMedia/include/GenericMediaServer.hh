@@ -100,7 +100,9 @@ public: // should be protected, but some old compilers complain otherwise
   // The state of a TCP connection used by a client:
   class ClientConnection {
   protected:
-    ClientConnection(GenericMediaServer& ourServer, int clientSocket, struct sockaddr_storage const& clientAddr);
+    ClientConnection(GenericMediaServer& ourServer,
+		     int clientSocket, struct sockaddr_storage const& clientAddr,
+		     Boolean useTLS);
     virtual ~ClientConnection();
 
     UsageEnvironment& envir() { return fOurServer.envir(); }
@@ -121,6 +123,9 @@ public: // should be protected, but some old compilers complain otherwise
     unsigned char fRequestBuffer[REQUEST_BUFFER_SIZE];
     unsigned char fResponseBuffer[RESPONSE_BUFFER_SIZE];
     unsigned fRequestBytesAlreadySeen, fRequestBufferBytesLeft;
+
+    // Optional support for TLS:
+    ServerTLSState fTLS;
   };
 
   // The state of an individual client session (using one or more sequential TCP connections) handled by a server:

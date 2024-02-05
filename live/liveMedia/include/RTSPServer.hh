@@ -166,7 +166,9 @@ public: // should be protected, but some old compilers complain otherwise
     virtual void handleRequestBytes(int newBytesRead);
 
   protected:
-    RTSPClientConnection(RTSPServer& ourServer, int clientSocket, struct sockaddr_storage const& clientAddr);
+    RTSPClientConnection(RTSPServer& ourServer,
+			 int clientSocket, struct sockaddr_storage const& clientAddr,
+			 Boolean useTLS = False);
     virtual ~RTSPClientConnection();
 
     friend class RTSPServer;
@@ -324,6 +326,7 @@ private:
   unsigned fRegisterOrDeregisterRequestCounter;
   UserAuthenticationDatabase* fAuthDB;
   Boolean fAllowStreamingRTPOverTCP; // by default, True
+  Boolean fOurConnectionsUseTLS; // by default, False
 };
 
 

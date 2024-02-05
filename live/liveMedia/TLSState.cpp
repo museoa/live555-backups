@@ -32,7 +32,9 @@ TLSState::TLSState()
 }
 
 TLSState::~TLSState() {
+#ifndef NO_OPENSSL
   reset();
+#endif
 }
 
 int TLSState::write(const char* data, unsigned count) {
@@ -59,14 +61,22 @@ int TLSState::read(u_int8_t* buffer, unsigned bufferSize) {
 #endif
 }
 
-void TLSState::reset() {
 #ifndef NO_OPENSSL
+void TLSState::initLibrary() {
+  static Boolean SSLLibraryHasBeenInitialized = False;
+  if (!SSLLibraryHasBeenInitialized) {
+    (void)SSL_library_init();
+    SSLLibraryHasBeenInitialized = True;
+  }
+}
+
+void TLSState::reset() {
   if (fHasBeenSetup) SSL_shutdown(fCon);
 
   if (fCon != NULL) { SSL_free(fCon); fCon = NULL; }
   if (fCtx != NULL) { SSL_CTX_free(fCtx); fCtx = NULL; }
-#endif
 }
+#endif
 
 
 ////////// ClientTLSState implementation //////////
@@ -110,10 +120,10 @@ int ClientTLSState::connect(int socketNum) {
 #endif
 }
 
-Boolean ClientTLSState::setup(int socketNum) {
 #ifndef NO_OPENSSL
+Boolean ClientTLSState::setup(int socketNum) {
   do {
-    (void)SSL_library_init();
+    initLibrary();
 
     SSL_METHOD const* meth = SSLv23_client_method();
     if (meth == NULL) break;
@@ -132,9 +142,56 @@ Boolean ClientTLSState::setup(int socketNum) {
     fHasBeenSetup = True;
     return True;
   } while (0);
-#endif
 
   // An error occurred:
   reset();
   return False;
 }
+#endif
+
+
+////////// ServerTLSState implementation //////////
+
+ServerTLSState::ServerTLSState(UsageEnvironment& env)
+#ifndef NO_OPENSSL
+  : fEnv(env)
+#endif
+{
+}
+
+ServerTLSState::~ServerTLSState() {
+}
+
+int ServerTLSState::accept(int socketNum) {
+#ifndef NO_OPENSSL
+  if (!fHasBeenSetup && !setup(socketNum)) return -1; // error
+  
+  int sslAcceptResult = SSL_accept(fCon);
+  if (sslAcceptResult >0) {
+    return sslAcceptResult; // success
+  } else {
+    int sslGetErrorResult = SSL_get_error(fCon, sslAcceptResult);
+    fEnv.setResultErrMsg("TLS SSL_accept() failed: ", sslGetErrorResult);
+    return -1; // error
+  }
+#else
+  return -1;	   
+#endif
+}
+
+#ifndef NO_OPENSSL
+Boolean ServerTLSState::setup(int socketNum) {
+  do {
+    initLibrary();
+
+    break; // TEMP - TO COMPLETE #####
+
+    fHasBeenSetup = True;
+    return True;
+  } while (0);
+
+  // An error occurred:
+  reset();
+  return False;
+}
+#endif
