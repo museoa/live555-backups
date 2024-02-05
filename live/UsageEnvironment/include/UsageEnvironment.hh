@@ -153,7 +153,9 @@ public:
   virtual void triggerEvent(EventTriggerId eventTriggerId, void* clientData = NULL) = 0;
       // Causes the (previously-registered) handler function for the specified event to be handled (from the event loop).
       // The handler function is called with "clientData" as parameter.
-      // Note: This function (unlike other library functions) may be called from an external thread - to signal an external event.
+      // Note: This function (unlike other library functions) may be called from an external thread
+      // - to signal an external event.  (However, "triggerEvent()" should not be called with the
+      // same 'event trigger id' from different threads.)
 
   // The following two functions are deprecated, and are provided for backwards-compatibility only:
   void turnOnBackgroundReadHandling(int socketNum, BackgroundHandlerProc* handlerProc, void* clientData) {
