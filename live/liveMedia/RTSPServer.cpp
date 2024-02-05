@@ -391,12 +391,12 @@ static void lookForHeader(char const* headerName, char const* source, unsigned s
       for (unsigned j = i; j < sourceLen; ++j) {
 	if (source[j] == '\r' || source[j] == '\n') {
 	  // We've found the end of the line.  Copy it to the result (if it will fit):
-	  if (j-i+1 > resultMaxSize) break;
+	  if (j-i+1 > resultMaxSize) return; // it wouldn't fit
 	  char const* resultSource = &source[i];
 	  char const* resultSourceEnd = &source[j];
 	  while (resultSource < resultSourceEnd) *resultStr++ = *resultSource++;
 	  *resultStr = '\0';
-	  break;
+	  return;
 	}
       }
     }
