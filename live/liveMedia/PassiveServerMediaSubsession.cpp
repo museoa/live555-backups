@@ -71,7 +71,12 @@ char const*
 PassiveServerMediaSubsession::sdpLines(int /*addressFamily*/) {
   if (fSDPLines == NULL ) {
     // Construct a set of SDP lines that describe this subsession:
-    // Use the components from "rtpSink":
+    // Use the components from "rtpSink".
+    if (fParentSession->streamingIsEncrypted) { // Hack to set up for SRTP/SRTCP
+      fRTPSink.setupForSRTP();
+      if (fRTCPInstance != NULL) fRTCPInstance->setupForSRTCP();
+    }
+
     Groupsock const& gs = fRTPSink.groupsockBeingUsed();
     AddressString groupAddressStr(gs.groupAddress());
     unsigned short portNum = ntohs(gs.port().num());
@@ -81,7 +86,7 @@ PassiveServerMediaSubsession::sdpLines(int /*addressFamily*/) {
     unsigned estBitrate
       = fRTCPInstance == NULL ? 50 : fRTCPInstance->totSessionBW();
     char* rtpmapLine = fRTPSink.rtpmapLine();
-    char* keyMgmtLine = fRTPSink.keyMgmtLine(fParentSession->streamingIsEncrypted);
+    char* keyMgmtLine = fRTPSink.keyMgmtLine();
     char const* rtcpmuxLine = rtcpIsMuxed() ? "a=rtcp-mux\r\n" : "";
     char const* rangeLine = rangeSDPLine();
     char const* auxSDPLine = fRTPSink.auxSDPLine();
