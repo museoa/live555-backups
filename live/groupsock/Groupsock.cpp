@@ -326,7 +326,7 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
   // If we're a SSM group, make sure the source address matches:
   if (isSSM()
       && fromAddressAndPort.ss_family == AF_INET
-      && ((struct sockaddr_in*)&fromAddressAndPort)->sin_addr.s_addr != sourceFilterAddress().s_addr) {
+      && ((struct sockaddr_in&)fromAddressAndPort).sin_addr.s_addr != sourceFilterAddress().s_addr) {
     return True;
   }
 
@@ -343,7 +343,7 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
       outputToAllMembersExcept(NULL, ttl(),
 			       buffer, bytesRead,
 			       fromAddressAndPort.ss_family == AF_INET
-			       ? ((struct sockaddr_in*)&fromAddressAndPort)->sin_addr.s_addr
+			       ? ((struct sockaddr_in&)fromAddressAndPort).sin_addr.s_addr
 			       : 0);
     if (numMembers > 0) {
       statsRelayedIncoming.countPacket(numBytes);

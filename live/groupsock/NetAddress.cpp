@@ -80,11 +80,24 @@ void NetAddress::clean() {
   fLength = 0;
 }
 
+void copyAddress(struct sockaddr_storage& to, NetAddress const& from) {
+  if (from.length() == sizeof (ipv4AddressBits)) {
+    to.ss_family = AF_INET;
+    ((sockaddr_in&)to).sin_addr.s_addr = *(ipv4AddressBits*)(from.data());
+  } else {
+    to.ss_family = AF_INET6;
+    for (unsigned i = 0; i < 16; ++i) {
+      ((sockaddr_in6&)to).sin6_addr.s6_addr[i] = (from.data())[i];
+    }
+  }
+}
 
 ////////// NetAddressList //////////
 
 NetAddressList::NetAddressList(char const* hostname)
   : fNumAddresses(0), fAddressArray(NULL) {
+  if (hostname == NULL) return;
+
   // First, check whether "hostname" is an IP address string (check IPv4, then IPv6).
   // If so, return a 1-element list with this address:
   ipv4AddressBits addr4;
@@ -322,11 +335,11 @@ AddressString::AddressString(ipv6AddressBits const& addr) {
 AddressString::AddressString(struct sockaddr_storage const& addr) {
   switch (addr.ss_family) {
     case AF_INET: {
-      init(((sockaddr_in*)&addr)->sin_addr.s_addr);
+      init(((sockaddr_in&)addr).sin_addr.s_addr);
       break;
     }
     case AF_INET6: {
-      init(((sockaddr_in6*)&addr)->sin6_addr.s6_addr);
+      init(((sockaddr_in6&)addr).sin6_addr.s6_addr);
       break;
     }
   }

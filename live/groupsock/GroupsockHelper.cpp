@@ -363,11 +363,11 @@ int readSocket(UsageEnvironment& env,
 	|| err == 113 /*EHOSTUNREACH (Linux)*/) { // Why does Linux return this for datagram sock?
       switch (fromAddress.ss_family) {
 	case AF_INET: {
-	  ((sockaddr_in*)&fromAddress)->sin_addr.s_addr = 0;
+	  ((sockaddr_in&)fromAddress).sin_addr.s_addr = 0;
 	  break;
 	}
         case AF_INET6: {
-	  for (unsigned i = 0; i < 16; ++i) ((sockaddr_in6*)&fromAddress)->sin6_addr.s6_addr[i] = 0;
+	  for (unsigned i = 0; i < 16; ++i) ((sockaddr_in6&)fromAddress).sin6_addr.s6_addr[i] = 0;
 	  break;
 	}
       }
@@ -660,7 +660,7 @@ Boolean getSourcePort(UsageEnvironment& env, int socket, Port& port) {
   return True;
 }
 
-static Boolean badAddressForUs(ipv4AddressBits addr) {
+static Boolean badIPv4AddressForUs(ipv4AddressBits addr) {
   // Check for some possible erroneous addresses:
   ipv4AddressBits nAddr = htonl(addr);
   return (nAddr == 0x7F000001 /* 127.0.0.1 */
@@ -668,10 +668,32 @@ static Boolean badAddressForUs(ipv4AddressBits addr) {
 	  || nAddr == (netAddressBits)(~0));
 }
 
+static Boolean badIPv6AddressForUs(ipv6AddressBits addr) {
+  return True; // fix later for IPv6 
+}
+
 static Boolean badAddressForUs(struct sockaddr_storage const& addr) {
-  if (addr.ss_family != AF_INET) return True; // fix later for IPv6
-  
-  return badAddressForUs(((sockaddr_in*)&addr)->sin_addr.s_addr);
+  switch (addr.ss_family) {
+    case AF_INET: {
+      return badIPv4AddressForUs(((sockaddr_in&)addr).sin_addr.s_addr);
+    }
+    case AF_INET6: {
+      return badIPv6AddressForUs(((sockaddr_in6&)addr).sin6_addr.s6_addr);
+    }
+    default: {
+      return True;
+    }
+  }
+}
+
+static Boolean badAddressForUs(NetAddress const& addr) {
+  if (addr.length() == sizeof (ipv4AddressBits)) {
+    return badIPv4AddressForUs(*(ipv4AddressBits*)(addr.data()));
+  } else if (addr.length() == sizeof (ipv6AddressBits)) {
+    return badIPv6AddressForUs(*(ipv6AddressBits*)(addr.data()));
+  } else {
+    return True;
+  }
 }
 
 Boolean loopbackWorks = 1;
@@ -691,7 +713,7 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
     // We need to find our source address
     struct sockaddr_storage fromAddr;
     fromAddr.ss_family = AF_INET;
-    ((sockaddr_in*)&fromAddr)->sin_addr.s_addr = 0;
+    ((sockaddr_in&)fromAddr).sin_addr.s_addr = 0;
 
     // Get our address by sending a (0-TTL) multicast packet,
     // receiving it, and looking at the source address used.
@@ -701,8 +723,10 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
       loopbackWorks = 0; // until we learn otherwise
 
 #ifndef DISABLE_LOOPBACK_IP_ADDRESS_CHECK
-      if (inet_pton(AF_INET, "228.67.43.91", &testAddr.s_addr) != 1) break;
-          // The multicast address here was arbitrary
+      NetAddressList testAddrs("228.67.43.91");
+      if (testAddrs.numAddresses() == 0) break; // shouldn't happen
+      testAddr.s_addr = *(testAddrs.firstAddress()->data());
+
       Port testPort(15947); // ditto
 
       sock = setupDatagramSocket(env, testPort);
@@ -749,7 +773,8 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
 
     if (!loopbackWorks) do {
       // We couldn't find our address using multicast loopback,
-      // so try instead to look it up directly - by first getting our host name, and then resolving this host name
+      // so try instead to look it up directly - by first getting our host name,
+      // and then resolving this host name
       char hostname[100];
       hostname[0] = '\0';
       int result = gethostname(hostname, sizeof hostname);
@@ -761,21 +786,17 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
       // Try to resolve "hostname" to an IP address:
       NetAddressList addresses(hostname);
       NetAddressList::Iterator iter(addresses);
-      NetAddress const* address;
 
       // Take the first address that's not bad:
-      netAddressBits addr = 0;
+      NetAddress const* address;
       while ((address = iter.nextAddress()) != NULL) {
-	netAddressBits a = *(netAddressBits*)(address->data());
-	if (!badAddressForUs(a)) {
-	  addr = a;
-	  break;
-	}
+	if (!badAddressForUs(*address)) break;
       }
+      if (address == NULL) break; // no good address found
 
-      // Assign the address that we found to "fromAddr" (as if the 'loopback' method had worked), to simplify the code below: 
-      fromAddr.ss_family = AF_INET;
-      ((sockaddr_in*)&fromAddr)->sin_addr.s_addr = addr;
+      // Assign the address that we found to "fromAddr" (as if the 'loopback' method had worked),
+      // to simplify the code below: 
+      copyAddress(fromAddr, *address);
     } while (0);
 
     // Make sure we have a good address:
@@ -784,10 +805,10 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
       sprintf(tmp, "This computer has an invalid IP address: %s", AddressString(fromAddr).val());
       env.setResultMsg(tmp);
       fromAddr.ss_family = AF_INET;
-      ((sockaddr_in*)&fromAddr)->sin_addr.s_addr = 0;
+      ((sockaddr_in&)fromAddr).sin_addr.s_addr = 0;
     }
 
-    ourAddress = fromAddr.ss_family == AF_INET ? ((sockaddr_in*)&fromAddr)->sin_addr.s_addr : 0;
+    ourAddress = fromAddr.ss_family == AF_INET ? ((sockaddr_in&)fromAddr).sin_addr.s_addr : 0;
 
     // Use our newly-discovered IP address, and the current time,
     // to initialize the random number generator's seed:

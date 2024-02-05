@@ -57,7 +57,9 @@ FramedSource* MPEG2TransportUDPServerMediaSubsession
     if (fInputAddressStr == NULL) {
       inputAddress.s_addr = 0;
     } else {
-      if (inet_pton(AF_INET, fInputAddressStr, &inputAddress.s_addr) != 1) return NULL;
+      NetAddressList inputAddresses(fInputAddressStr);
+      if (inputAddresses.numAddresses() == 0) return NULL;
+      inputAddress.s_addr = *(inputAddresses.firstAddress()->data());
     }
     fInputGroupsock = new Groupsock(envir(), inputAddress, fInputPort, 255);
   }

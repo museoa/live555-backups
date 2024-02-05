@@ -70,7 +70,7 @@ char* RTSPServer::rtspURLPrefix(int clientSocket) const {
   if (clientSocket < 0) {
     // Use our default IP address in the URL:
     ourAddress.ss_family = AF_INET;
-    ((sockaddr_in*)&ourAddress)->sin_addr.s_addr = ReceivingInterfaceAddr != 0
+    ((sockaddr_in&)ourAddress).sin_addr.s_addr = ReceivingInterfaceAddr != 0
       ? ReceivingInterfaceAddr
       : ourIPAddress(envir()); // hack
   } else {
@@ -1422,7 +1422,10 @@ void RTSPServer::RTSPClientSession
       // Note: This potentially allows the server to be used in denial-of-service
       // attacks, so don't enable this code unless you're sure that clients are
       // trusted.
-      (void)inet_pton(AF_INET, clientsDestinationAddressStr, &destinationAddress);
+      NetAddressList destAddresses(clientsDestinationAddressStr);
+      if (destAddresses.numAddresses() > 0) {
+	destinationAddress = *(destAddresses.firstAddress()->data());
+      }
     }
     // Also use the client-provided TTL.
     destinationTTL = clientsDestinationTTL;
@@ -1438,7 +1441,7 @@ void RTSPServer::RTSPClientSession
     netAddressBits origReceivingInterfaceAddr = ReceivingInterfaceAddr;
     
     ipv4AddressBits clientAddrBits = ourClientConnection->fClientAddr.ss_family == AF_INET
-      ? ((sockaddr_in*)&ourClientConnection->fClientAddr)->sin_addr.s_addr
+      ? ((sockaddr_in&)ourClientConnection->fClientAddr).sin_addr.s_addr
       : 0; // later, fix for IPv6
     subsession->getStreamParameters(fOurSessionId, clientAddrBits,
 				    clientRTPPort, clientRTCPPort,

@@ -62,6 +62,8 @@ private:
   u_int8_t* fData;
 };
 
+void copyAddress(struct sockaddr_storage& to, NetAddress const& from);
+
 class NetAddressList {
 public:
   NetAddressList(char const* hostname);
