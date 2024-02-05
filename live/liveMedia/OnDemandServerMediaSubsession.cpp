@@ -563,6 +563,7 @@ void StreamState
 void StreamState::pause() {
   if (fRTPSink != NULL) fRTPSink->stopPlaying();
   if (fUDPSink != NULL) fUDPSink->stopPlaying();
+  if (fMediaSource != NULL) fMediaSource->stopGettingFrames();
   fAreCurrentlyPlaying = False;
 }
 
