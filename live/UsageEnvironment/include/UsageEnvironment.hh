@@ -113,17 +113,20 @@ public:
 	// reach a scheduling point.
 	// (Does not delay if "microseconds" <= 0)
 	// Returns a token that can be used in a subsequent call to
-	// unscheduleDelayedTask()
+	// unscheduleDelayedTask() or rescheduleDelayedTask()
+        // (but only if the task has not yet occurred).
 
   virtual void unscheduleDelayedTask(TaskToken& prevTask) = 0;
 	// (Has no effect if "prevTask" == NULL)
         // Sets "prevTask" to NULL afterwards.
+        // Note: This MUST NOT be called if the scheduled task has already occurred.
 
   virtual void rescheduleDelayedTask(TaskToken& task,
 				     int64_t microseconds, TaskFunc* proc,
 				     void* clientData);
-  // Combines "unscheduleDelayedTask()" with "scheduleDelayedTask()"
-  // (setting "task" to the new task token).
+        // Combines "unscheduleDelayedTask()" with "scheduleDelayedTask()"
+        // (setting "task" to the new task token).
+        // Note: This MUST NOT be called if the scheduled task has already occurred.
 
   // For handling socket operations in the background (from the event loop):
   typedef void BackgroundHandlerProc(void* clientData, int mask);
