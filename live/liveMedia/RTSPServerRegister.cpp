@@ -76,7 +76,7 @@ public:
     }
 
     // We're completely done with the REGISTER command now, so delete ourself now:
-    delete this;
+    Medium::close(this);
   }
 
 private:
