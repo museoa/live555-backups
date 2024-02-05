@@ -576,6 +576,7 @@ MIKEYPayload::MIKEYPayload(MIKEYState& ourMIKEYState, u_int8_t payloadType,
 }
 
 MIKEYPayload::~MIKEYPayload() {
+  delete[] fData;
   delete fNext;
 }
 
