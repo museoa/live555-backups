@@ -150,6 +150,11 @@ RTCPInstance* ProxyServerMediaSession
   return RTCPInstance::createNew(envir(), RTCPgs, totSessionBW, cname, sink, NULL/*we're a server*/);
 }
 
+Boolean ProxyServerMediaSession::allowProxyingForSubsession(MediaSubsession const& /*mss*/) {
+  // Default implementation
+  return True;
+}
+
 void ProxyServerMediaSession::continueAfterDESCRIBE(char const* sdpDescription) {
   describeCompletedFlag = 1;
 
@@ -161,6 +166,8 @@ void ProxyServerMediaSession::continueAfterDESCRIBE(char const* sdpDescription) 
 
     MediaSubsessionIterator iter(*fClientMediaSession);
     for (MediaSubsession* mss = iter.next(); mss != NULL; mss = iter.next()) {
+      if (!allowProxyingForSubsession(*mss)) continue;
+
       ServerMediaSubsession* smss
 	= new ProxyServerMediaSubsession(*mss, fInitialPortNum, fMultiplexRTCPWithRTP);
       addSubsession(smss);
