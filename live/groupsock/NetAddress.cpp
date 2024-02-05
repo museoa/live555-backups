@@ -80,15 +80,41 @@ void NetAddress::clean() {
   fLength = 0;
 }
 
-static struct sockaddr_storage _nullAddress;
-struct sockaddr_storage const& nullAddress() {
-  _nullAddress.ss_family = AF_INET;
-  ((sockaddr_in&)_nullAddress).sin_addr.s_addr = 0;
+static struct sockaddr_storage _nullIPv4Address, _nullIPv6Address;
+struct sockaddr_storage const& nullAddress(int addressFamily) {
+  switch (addressFamily) {
+    case AF_INET: {
+      _nullIPv4Address.ss_family = AF_INET;
+      ((sockaddr_in&)_nullIPv4Address).sin_addr.s_addr = 0;
 
-  return _nullAddress;
+      return _nullIPv4Address;
+    }
+    default: { // assume AF_INET6
+      _nullIPv6Address.ss_family = AF_INET6;
+      for (unsigned i = 0; i < 16; ++i) {
+	((sockaddr_in6&)_nullIPv6Address).sin6_addr.s6_addr[i] = 0;
+      }
+
+      return _nullIPv6Address;
+    }
+  }
 }
 
 Boolean addressIsNull(sockaddr_storage const& address) {
+  switch (address.ss_family) {
+    case AF_INET: {
+      return ((sockaddr_in const&)address).sin_addr.s_addr == 0;
+    }
+    case AF_INET6: {
+      for (unsigned i = 0; i < 16; ++i) {
+	if (((sockaddr_in6&)_nullIPv6Address).sin6_addr.s6_addr[i] != 0) return False;
+      }
+      return True;
+    }
+    default: {
+      return False;
+    }
+  }
   return address.ss_family == AF_INET && ((sockaddr_in const&)address).sin_addr.s_addr == 0;
 }
 

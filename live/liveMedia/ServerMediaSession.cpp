@@ -348,9 +348,7 @@ void ServerMediaSubsessionIterator::reset() {
 
 ServerMediaSubsession::ServerMediaSubsession(UsageEnvironment& env)
   : Medium(env),
-    fParentSession(NULL), fPortNumForSDP(0),
-    fNext(NULL), fTrackNumber(0), fTrackId(NULL) {
-  fServerAddressForSDP = nullAddress(); // by default
+    fParentSession(NULL), fNext(NULL), fTrackNumber(0), fTrackId(NULL) {
 }
 
 ServerMediaSubsession::~ServerMediaSubsession() {
@@ -419,12 +417,6 @@ float ServerMediaSubsession::duration() const {
 void ServerMediaSubsession::getAbsoluteTimeRange(char*& absStartTime, char*& absEndTime) const {
   // default implementation: We don't support seeking by 'absolute' time, so indicate this by setting both parameters to NULL:
   absStartTime = absEndTime = NULL;
-}
-
-void ServerMediaSubsession
-::setServerAddressAndPortForSDP(struct sockaddr_storage const& address, portNumBits portBits) {
-  fServerAddressForSDP = address;
-  fPortNumForSDP = portBits;
 }
 
 char const*

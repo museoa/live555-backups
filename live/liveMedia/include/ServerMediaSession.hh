@@ -175,11 +175,6 @@ public:
   virtual void getAbsoluteTimeRange(char*& absStartTime, char*& absEndTime) const;
     // Subclasses can reimplement this iff they support seeking by 'absolute' time.
 
-  // The following may be called by (e.g.) SIP servers, for which the
-  // address and port number fields in SDP descriptions need to be non-zero:
-  void setServerAddressAndPortForSDP(struct sockaddr_storage const& address,
-				     portNumBits portBits);
-
 protected: // we're a virtual base class
   ServerMediaSubsession(UsageEnvironment& env);
   virtual ~ServerMediaSubsession();
@@ -188,8 +183,6 @@ protected: // we're a virtual base class
       // returns a string to be delete[]d
 
   ServerMediaSession* fParentSession;
-  struct sockaddr_storage fServerAddressForSDP;
-  portNumBits fPortNumForSDP;
 
 private:
   friend class ServerMediaSession;

@@ -127,7 +127,7 @@ void OnDemandServerMediaSubsession
 	NoReuse dummy(envir()); // ensures that we skip over ports that are already in use
 	for (serverPortNum = fInitialPortNum; ; ++serverPortNum) {
 	  serverRTPPort = serverPortNum;
-	  rtpGroupsock = createGroupsock(nullAddress(), serverRTPPort);
+	  rtpGroupsock = createGroupsock(nullAddress(destinationAddress.ss_family), serverRTPPort);
 	  if (rtpGroupsock->socketNum() >= 0) break; // success
 	}
 
@@ -139,7 +139,7 @@ void OnDemandServerMediaSubsession
 	NoReuse dummy(envir()); // ensures that we skip over ports that are already in use
 	for (portNumBits serverPortNum = fInitialPortNum; ; ++serverPortNum) {
 	  serverRTPPort = serverPortNum;
-	  rtpGroupsock = createGroupsock(nullAddress(), serverRTPPort);
+	  rtpGroupsock = createGroupsock(nullAddress(destinationAddress.ss_family), serverRTPPort);
 	  if (rtpGroupsock->socketNum() < 0) {
 	    delete rtpGroupsock;
 	    continue; // try again
@@ -152,7 +152,7 @@ void OnDemandServerMediaSubsession
 	  } else {
 	    // Create a separate 'groupsock' object (with the next (odd) port number) for RTCP:
 	    serverRTCPPort = ++serverPortNum;
-	    rtcpGroupsock = createGroupsock(nullAddress(), serverRTCPPort);
+	    rtcpGroupsock = createGroupsock(nullAddress(destinationAddress.ss_family), serverRTCPPort);
 	    if (rtcpGroupsock->socketNum() < 0) {
 	      delete rtpGroupsock;
 	      delete rtcpGroupsock;
@@ -422,7 +422,10 @@ void OnDemandServerMediaSubsession
 
   char const* mediaType = rtpSink->sdpMediaType();
   unsigned char rtpPayloadType = rtpSink->rtpPayloadType();
-  AddressString ipAddressStr(fServerAddressForSDP);
+  struct sockaddr_storage const& addressForSDP = rtpSink->groupsockBeingUsed().groupAddress();
+  portNumBits portNumForSDP = ntohs(rtpSink->groupsockBeingUsed().port().num());
+
+  AddressString ipAddressStr(addressForSDP);
   char* rtpmapLine = rtpSink->rtpmapLine();
   char const* rtcpmuxLine = fMultiplexRTCPWithRTP ? "a=rtcp-mux\r\n" : "";
   char const* rangeLine = rangeSDPLine();
@@ -450,9 +453,9 @@ void OnDemandServerMediaSubsession
   char* sdpLines = new char[sdpFmtSize];
   sprintf(sdpLines, sdpFmt,
 	  mediaType, // m= <media>
-	  fPortNumForSDP, // m= <port>
+	  portNumForSDP, // m= <port>
 	  rtpPayloadType, // m= <fmt list>
-	  fServerAddressForSDP.ss_family == AF_INET ? "IP4" : "IP6", ipAddressStr.val(), // c= address
+	  addressForSDP.ss_family == AF_INET ? "IP4" : "IP6", ipAddressStr.val(), // c= address
 	  estBitrate, // b=AS:<bandwidth>
 	  rtpmapLine, // a=rtpmap:... (if present)
 	  rtcpmuxLine, // a=rtcp-mux:... (if present)

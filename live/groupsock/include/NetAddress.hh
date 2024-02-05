@@ -59,7 +59,7 @@ private:
   u_int8_t* fData;
 };
 
-struct sockaddr_storage const& nullAddress();
+struct sockaddr_storage const& nullAddress(int addressFamily = AF_INET);
 Boolean addressIsNull(sockaddr_storage const& address);
 
 SOCKLEN_T addressSize(sockaddr_storage const& address);
