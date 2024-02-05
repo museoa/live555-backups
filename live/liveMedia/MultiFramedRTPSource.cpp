@@ -105,6 +105,10 @@ Boolean MultiFramedRTPSource
 }
 
 void MultiFramedRTPSource::doStopGettingFrames() {
+  if (fPacketReadInProgress != NULL) {
+    fReorderingBuffer->freePacket(fPacketReadInProgress);
+    fPacketReadInProgress = NULL;
+  }
   envir().taskScheduler().unscheduleDelayedTask(nextTask());
   fRTPInterface.stopNetworkReading();
   fReorderingBuffer->reset();
