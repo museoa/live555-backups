@@ -215,8 +215,8 @@ static void continueAfterOPTIONS(RTSPClient* rtspClient, int resultCode, char* r
   if (resultCode == 0) {
     // Note whether the server told us that it supports the "GET_PARAMETER" command:
     serverSupportsGetParameter = RTSPOptionIsSupported("GET_PARAMETER", resultString);
-  }
-  ((ProxyRTSPClient*)rtspClient)->continueAfterLivenessCommand(resultCode, serverSupportsGetParameter);
+  } 
+ ((ProxyRTSPClient*)rtspClient)->continueAfterLivenessCommand(resultCode, serverSupportsGetParameter);
   delete[] resultString;
 }
 
@@ -325,9 +325,8 @@ void ProxyRTSPClient::continueAfterSETUP(int resultCode) {
     // The "SETUP" command failed, so reset the connection with the 'back-end' server.
     // (We don't do a full 'reset' (including deleting the "ProxyServerMediaSubsession") here,
     //  because "SETUP" commands can be sent during "ProxyServerMediaSubsession::createNewStreamSource().
-    //  The subsequent "PLAY" command will probably fail as well, but we'll do a full 'reset' to
-    //  recover from that.)
     RTSPClient::reset();
+    setBaseURL(fOurURL); // because the previous "reset()" call cleared it
     return;
   }
 
@@ -374,9 +373,12 @@ void ProxyRTSPClient::continueAfterSETUP(int resultCode) {
 
 void ProxyRTSPClient::continueAfterPLAY(int resultCode) {
   if (resultCode != 0) {
-    // The "PLAY" command failed, so reset the connection with the 'back-end' server and start over,
-    // just as if a periodic 'liveness' check with the 'back-end' server had failed:
-    continueAfterLivenessCommand(resultCode, fServerSupportsGetParameter);
+    // The "PLAY" command failed, so reset the connection with the 'back-end' server.
+    // (We don't do a full 'reset' (including deleting the "ProxyServerMediaSubsession") here,
+    //  because "PLAY" commands can be sent during "ProxyServerMediaSubsession::createNewStreamSource().
+    RTSPClient::reset();
+    setBaseURL(fOurURL); // because the previous "reset()" call cleared it
+    return;
   }
 }
 
