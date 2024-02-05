@@ -77,7 +77,6 @@ void onMatroskaFileCreation(MatroskaFile* matroskaFile, void* /*clientData*/) {
     
     char const* mimeType = matroskaFile->trackMIMEType(trackNumber);
     if (mimeType == NULL || mimeType[0] == '\0') continue;
-    fprintf(stderr, "#####@@@@@ MatroskaDemuxedTrack for mimeType %s is %p\n", mimeType, trackState[i].source);
 
     // Create the file name from "mimeType" by replacing "/" with "-", and adding the
     // track number at the end:

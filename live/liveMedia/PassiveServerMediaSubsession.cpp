@@ -135,6 +135,7 @@ void PassiveServerMediaSubsession
 		      int /*tcpSocketNum*/,
 		      unsigned char /*rtpChannelId*/,
 		      unsigned char /*rtcpChannelId*/,
+		      TLSState* /*tlsState*/,
 		      struct sockaddr_storage& destinationAddress,
 		      u_int8_t& destinationTTL,
 		      Boolean& isMulticast,

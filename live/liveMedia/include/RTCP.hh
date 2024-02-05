@@ -110,8 +110,8 @@ public:
 
   Groupsock* RTCPgs() const { return fRTCPInterface.gs(); }
 
-  void setStreamSocket(int sockNum, unsigned char streamChannelId, TLSState* tlsState = NULL);
-  void addStreamSocket(int sockNum, unsigned char streamChannelId, TLSState* tlsState = NULL);
+  void setStreamSocket(int sockNum, unsigned char streamChannelId, TLSState* tlsState);
+  void addStreamSocket(int sockNum, unsigned char streamChannelId, TLSState* tlsState);
   void removeStreamSocket(int sockNum, unsigned char streamChannelId) {
     fRTCPInterface.removeStreamSocket(sockNum, streamChannelId);
   }

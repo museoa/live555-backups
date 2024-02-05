@@ -88,6 +88,7 @@ void OnDemandServerMediaSubsession
 		      int tcpSocketNum,
 		      unsigned char rtpChannelId,
 		      unsigned char rtcpChannelId,
+		      TLSState* tlsState,
 		      struct sockaddr_storage& destinationAddress,
 		      u_int8_t& /*destinationTTL*/,
 		      Boolean& isMulticast,
@@ -195,7 +196,7 @@ void OnDemandServerMediaSubsession
   if (tcpSocketNum < 0) { // UDP
     destinations = new Destinations(destinationAddress, clientRTPPort, clientRTCPPort);
   } else { // TCP
-    destinations = new Destinations(tcpSocketNum, rtpChannelId, rtcpChannelId);
+    destinations = new Destinations(tcpSocketNum, rtpChannelId, rtcpChannelId, tlsState);
   }
   fDestinationsHashTable->Add((char const*)clientSessionId, destinations);
 }
@@ -519,14 +520,14 @@ void StreamState
   if (dests->isTCP) {
     // Change RTP and RTCP to use the TCP socket instead of UDP:
     if (fRTPSink != NULL) {
-      fRTPSink->addStreamSocket(dests->tcpSocketNum, dests->rtpChannelId);
+      fRTPSink->addStreamSocket(dests->tcpSocketNum, dests->rtpChannelId, dests->tlsState);
       RTPInterface
 	::setServerRequestAlternativeByteHandler(fRTPSink->envir(), dests->tcpSocketNum,
 						 serverRequestAlternativeByteHandler, serverRequestAlternativeByteHandlerClientData);
         // So that we continue to handle RTSP commands from the client
     }
     if (fRTCPInstance != NULL) {
-      fRTCPInstance->addStreamSocket(dests->tcpSocketNum, dests->rtcpChannelId);
+      fRTCPInstance->addStreamSocket(dests->tcpSocketNum, dests->rtcpChannelId, dests->tlsState);
 
       struct sockaddr_storage tcpSocketNumAsAddress; // hack
       tcpSocketNumAsAddress.ss_family = AF_INET;

@@ -96,6 +96,8 @@ protected:
   void incomingConnectionHandlerIPv6();
   void incomingConnectionHandlerOnSocket(int serverSocket);
 
+  void setTLSFileNames(char const* certFileName, char const* privKeyFileName);
+
 public: // should be protected, but some old compilers complain otherwise
   // The state of a TCP connection used by a client:
   class ClientConnection {
@@ -186,6 +188,9 @@ private:
   HashTable* fClientConnections; // the "ClientConnection" objects that we're using
   HashTable* fClientSessions; // maps 'session id' strings to "ClientSession" objects
   u_int32_t fPreviousClientSessionId;
+
+  char const* fTLSCertificateFileName;
+  char const* fTLSPrivateKeyFileName;
 };
 
 // A data structure used for optional user/password authentication:

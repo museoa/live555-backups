@@ -75,12 +75,10 @@ public:
   void resetPresentationTimes();
 
   // Hacks to allow sending RTP over TCP (RFC 2236, section 10.12):
-  void setStreamSocket(int sockNum, unsigned char streamChannelId,
-		       TLSState* tlsState = NULL) {
+  void setStreamSocket(int sockNum, unsigned char streamChannelId, TLSState* tlsState) {
     fRTPInterface.setStreamSocket(sockNum, streamChannelId, tlsState);
   }
-  void addStreamSocket(int sockNum, unsigned char streamChannelId,
-		       TLSState* tlsState = NULL) {
+  void addStreamSocket(int sockNum, unsigned char streamChannelId, TLSState* tlsState) {
     fRTPInterface.addStreamSocket(sockNum, streamChannelId, tlsState);
   }
   void removeStreamSocket(int sockNum, unsigned char streamChannelId) {

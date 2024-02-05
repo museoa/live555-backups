@@ -109,6 +109,8 @@ public:
       //  and http://images.apple.com/br/quicktime/pdf/QTSS_Modules.pdf
   portNumBits httpServerPortNum() const; // in host byte order.  (Returns 0 if not present.)
 
+  void setTLSState(char const* certFileName, char const* privKeyFileName);
+
 protected:
   RTSPServer(UsageEnvironment& env,
 	     int ourSocketIPv4, int ourSocketIPv6, Port ourPort,

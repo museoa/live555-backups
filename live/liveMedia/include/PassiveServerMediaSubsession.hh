@@ -54,6 +54,7 @@ protected: // redefined virtual functions
 				   int tcpSocketNum,
                                    unsigned char rtpChannelId,
                                    unsigned char rtcpChannelId,
+				   TLSState* tlsSTate,
                                    struct sockaddr_storage& destinationAddress,
 				   u_int8_t& destinationTTL,
                                    Boolean& isMulticast,

@@ -71,8 +71,7 @@ public:
   Boolean& enableRTCPReports() { return fEnableRTCPReports; }
   Boolean const& enableRTCPReports() const { return fEnableRTCPReports; }
 
-  void setStreamSocket(int sockNum, unsigned char streamChannelId,
-		       TLSState* tlsState = NULL) {
+  void setStreamSocket(int sockNum, unsigned char streamChannelId, TLSState* tlsState) {
     // hack to allow sending RTP over TCP (RFC 2236, section 10.12)
     fRTPInterface.setStreamSocket(sockNum, streamChannelId, tlsState);
   }

@@ -61,7 +61,7 @@ public:
   ClientTLSState(class RTSPClient& client);
   virtual ~ClientTLSState();
 
-  int connect(int socketNum); // returns: -1 (unrecoverable error), 0 (pending), >0 (done)
+  int connect(int socketNum); // returns: <0 (error), 0 (pending), >0 (success)
 
 #ifndef NO_OPENSSL
 private:
@@ -77,7 +77,11 @@ public:
   ServerTLSState(UsageEnvironment& env);
   virtual ~ServerTLSState();
 
-  int accept(int socketNum); // returns: >0 (success); <=0 (failure)
+  void setCertificateAndPrivateKeyFileNames(char const* certFileName, char const* privKeyFileName);
+
+  int accept(int socketNum); // returns: <0 (error), 0 (pending), >0 (success)
+
+  Boolean tlsAcceptIsNeeded;
 
 #ifndef NO_OPENSSL
 private:
@@ -85,6 +89,8 @@ private:
 
 private:
   UsageEnvironment& fEnv;
+  char const* fCertificateFileName;
+  char const* fPrivateKeyFileName;
 #endif
 };
 

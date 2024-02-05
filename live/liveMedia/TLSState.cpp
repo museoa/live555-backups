@@ -20,6 +20,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 #include "TLSState.hh"
 #include "RTSPClient.hh"
+#include <openssl/err.h>
 
 ////////// TLSState implementation //////////
 
@@ -153,8 +154,9 @@ Boolean ClientTLSState::setup(int socketNum) {
 ////////// ServerTLSState implementation //////////
 
 ServerTLSState::ServerTLSState(UsageEnvironment& env)
+  : tlsAcceptIsNeeded(False)
 #ifndef NO_OPENSSL
-  : fEnv(env)
+  , fEnv(env), fCertificateFileName(NULL), fPrivateKeyFileName(NULL)
 #endif
 {
 }
@@ -162,16 +164,28 @@ ServerTLSState::ServerTLSState(UsageEnvironment& env)
 ServerTLSState::~ServerTLSState() {
 }
 
+void ServerTLSState
+::setCertificateAndPrivateKeyFileNames(char const* certFileName, char const* privKeyFileName) {
+#ifndef NO_OPENSSL
+  fCertificateFileName = certFileName;
+  fPrivateKeyFileName = privKeyFileName;
+#endif
+}
+
 int ServerTLSState::accept(int socketNum) {
 #ifndef NO_OPENSSL
   if (!fHasBeenSetup && !setup(socketNum)) return -1; // error
   
   int sslAcceptResult = SSL_accept(fCon);
-  if (sslAcceptResult >0) {
+  int sslGetErrorResult = SSL_get_error(fCon, sslAcceptResult);
+
+  if (sslAcceptResult > 0) {
     return sslAcceptResult; // success
+  } else if (sslAcceptResult < 0 && sslGetErrorResult == SSL_ERROR_WANT_READ) {
+    // We need to wait until the socket is readable:
+    return 0; // connection is pending
   } else {
-    int sslGetErrorResult = SSL_get_error(fCon, sslAcceptResult);
-    fEnv.setResultErrMsg("TLS SSL_accept() failed: ", sslGetErrorResult);
+    fEnv.setResultErrMsg("SSL_accept() call failed: ", sslGetErrorResult);
     return -1; // error
   }
 #else
@@ -184,13 +198,30 @@ Boolean ServerTLSState::setup(int socketNum) {
   do {
     initLibrary();
 
-    break; // TEMP - TO COMPLETE #####
+    SSL_METHOD const* meth = SSLv23_server_method();
+    if (meth == NULL) break;
+
+    fCtx = SSL_CTX_new(meth);
+    if (fCtx == NULL) break;
+
+    if (SSL_CTX_set_ecdh_auto(fCtx, 1) != 1) break;
+
+    if (SSL_CTX_use_certificate_file(fCtx, fCertificateFileName, SSL_FILETYPE_PEM) != 1) break;
+
+    if (SSL_CTX_use_PrivateKey_file(fCtx, fPrivateKeyFileName, SSL_FILETYPE_PEM) != 1) break;
+
+    fCon = SSL_new(fCtx);
+    if (fCon == NULL) break;
+
+    BIO* bio = BIO_new_socket(socketNum, BIO_NOCLOSE);
+    SSL_set_bio(fCon, bio, bio);
 
     fHasBeenSetup = True;
     return True;
   } while (0);
 
   // An error occurred:
+  ERR_print_errors_fp(stderr);
   reset();
   return False;
 }

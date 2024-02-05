@@ -129,6 +129,11 @@ portNumBits RTSPServer::httpServerPortNum() const {
   return ntohs(fHTTPServerPort.num());
 }
 
+void RTSPServer::setTLSState(char const* certFileName, char const* privKeyFileName) {
+  setTLSFileNames(certFileName, privKeyFileName);
+  fOurConnectionsUseTLS = True;
+}
+
 char const* RTSPServer::allowedCommandNames() {
   return "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, GET_PARAMETER, SET_PARAMETER";
 }
@@ -162,8 +167,6 @@ RTSPServer::RTSPServer(UsageEnvironment& env,
     fRegisterOrDeregisterRequestCounter(0), fAuthDB(authDatabase),
     fAllowStreamingRTPOverTCP(True), fOurConnectionsUseTLS(False) {
   portNumBits serverPortNumHostOrder = ntohs(fServerPort.num());
-  //  NOT YET WORKING - TEMPORARILY DISABLE: #####
-  //  if (serverPortNumHostOrder == 322/*rtsps*/) fOurConnectionsUseTLS = True;
 }
 
 // A data structure that is used to implement "fTCPStreamingDatabase"
@@ -923,7 +926,12 @@ void RTSPServer::RTSPClientConnection::handleRequestBytes(int newBytesRead) {
 #ifdef DEBUG
     fprintf(stderr, "sending response: %s", fResponseBuffer);
 #endif
-    send(fClientOutputSocket, (char const*)fResponseBuffer, strlen((char*)fResponseBuffer), 0);
+    unsigned const numBytesToWrite = strlen((char*)fResponseBuffer);
+    if (fTLS.isNeeded) {
+        fTLS.write((char const*)fResponseBuffer, numBytesToWrite);
+    } else {
+        send(fClientOutputSocket, (char const*)fResponseBuffer, numBytesToWrite, 0);
+   }
     
     if (playAfterSetup) {
       // The client has asked for streaming to commence now, rather than after a
@@ -1510,6 +1518,7 @@ void RTSPServer::RTSPClientSession
     subsession->getStreamParameters(fOurSessionId, fOurClientConnection->fClientAddr,
 				    clientRTPPort, clientRTCPPort,
 				    fStreamStates[trackNum].tcpSocketNum, rtpChannelId, rtcpChannelId,
+                                    &fOurClientConnection->fTLS,
 				    destinationAddress, destinationTTL, fIsMulticast,
 				    serverRTPPort, serverRTCPPort,
 				    fStreamStates[trackNum].streamToken);
