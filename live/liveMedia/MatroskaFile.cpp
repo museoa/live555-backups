@@ -637,7 +637,7 @@ RTPSink* MatroskaFile
       delete[] identificationHeader; delete[] commentHeader; delete[] setupHeader;
     } else if (strcmp(track->mimeType, "video/RAW") == 0) {
       result = RawVideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic, 
-                                          track->pixelHeight, track->pixelWidth, track->bitDepth, track->colorSampling, track->colorimetry);
+                                          track->pixelWidth, track->pixelHeight, track->bitDepth, track->colorSampling, track->colorimetry);
     } else if (strcmp(track->mimeType, "video/H264") == 0) {
       u_int8_t* sps; unsigned spsSize;
       u_int8_t* pps; unsigned ppsSize;

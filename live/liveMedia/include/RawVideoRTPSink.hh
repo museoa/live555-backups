@@ -33,14 +33,14 @@ class RawVideoRTPSink: public VideoRTPSink {
 public:
   static RawVideoRTPSink*
   createNew(UsageEnvironment& env, Groupsock* RTPgs, u_int8_t rtpPayloadFormat,
-	    unsigned height, unsigned width, unsigned depth, // as defined by RFC 4175, sec 6.1
-	    char const* sampling = "RGB", char const* colorimetry = "BT709-2");
+	    unsigned width, unsigned height, unsigned depth, // as defined by RFC 4175, sec 6.1
+	    char const* sampling, char const* colorimetry);
 
 protected:
   RawVideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
                   u_int8_t rtpPayloadFormat,
-                  unsigned height, unsigned width, unsigned depth,
-                  char const* sampling, char const* colorimetry = "BT709-2");
+                  unsigned width, unsigned height, unsigned depth,
+                  char const* sampling, char const* colorimetry);
   // called only by createNew()
   
   virtual ~RawVideoRTPSink();

@@ -23,7 +23,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 class RawVideoFrameParameters {
 public:
-  RawVideoFrameParameters(unsigned height, unsigned width, unsigned depth, char const* sampling);
+  RawVideoFrameParameters(unsigned width, unsigned height, unsigned depth, char const* sampling);
   virtual ~RawVideoFrameParameters();
 
 public:

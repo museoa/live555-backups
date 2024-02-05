@@ -22,22 +22,22 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 RawVideoRTPSink* RawVideoRTPSink
 ::createNew(UsageEnvironment& env, Groupsock* RTPgs, u_int8_t rtpPayloadFormat,
-	    unsigned height, unsigned width, unsigned depth,
+	    unsigned width, unsigned height, unsigned depth,
 	    char const* sampling, char const* colorimetry) {
   if (sampling == NULL || colorimetry == NULL) return NULL;
   
   return new RawVideoRTPSink(env, RTPgs,
                              rtpPayloadFormat,
-                             height, width, depth,
+                             width, height, depth,
                              sampling, colorimetry);
 }
 
 RawVideoRTPSink
 ::RawVideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs, u_int8_t rtpPayloadFormat,
-                  unsigned height, unsigned width, unsigned depth,
+                  unsigned width, unsigned height, unsigned depth,
                   char const* sampling, char const* colorimetry)
   : VideoRTPSink(env, RTPgs, rtpPayloadFormat, 90000, "RAW"),
-    fLineIndex(0), fP(height, width, depth, sampling)  {
+    fLineIndex(0), fP(width, height, depth, sampling)  {
     
   // Construct our "a=fmtp:" SDP line:
   // ASSERT: sampling != NULL && colorimetry != NULL
@@ -200,7 +200,7 @@ unsigned RawVideoRTPSink::computeOverflowForNewFrame(unsigned newFrameSize) cons
 ///////// RawVideoFrameParameters implementation /////////
 
 RawVideoFrameParameters
-::RawVideoFrameParameters(unsigned height, unsigned width, unsigned depth, char const* sampling) {
+::RawVideoFrameParameters(unsigned width, unsigned height, unsigned depth, char const* sampling) {
   scanLineIterationStep = 1; // by default; different for YCbCr-4:2:0
   numPixelsInPgroup = 1; // by default
   pgroupSize = 2; // use this for unknown (sampling, depth)s 
