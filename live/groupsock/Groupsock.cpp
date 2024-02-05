@@ -174,13 +174,15 @@ destRecord* Groupsock
 void
 Groupsock::changeDestinationParameters(struct in_addr const& newDestAddr,
 				       Port newDestPort, int newDestTTL, unsigned sessionId) {
-  destRecord* dest = fDests;
-  while (dest != NULL && dest->fSessionId != sessionId) dest = dest->fNext;
-  if (dest == NULL) { // no existing "destRecord" for this "sessionId"; add a new one:
+  destRecord* dest;
+  for (dest = fDests; dest != NULL && dest->fSessionId != sessionId; dest = dest->fNext) {}
+
+  if (dest == NULL) { // There's no existing 'destRecord' for this "sessionId"; add a new one:
     fDests = createNewDestRecord(newDestAddr, newDestPort, newDestTTL, sessionId, fDests);
     return;
   }
 
+  // "dest" is an existing 'destRecord' for this "sessionId"; change its values to the new ones:
   struct in_addr destAddr = dest->fGroupEId.groupAddress();
   if (newDestAddr.s_addr != 0) {
     if (newDestAddr.s_addr != destAddr.s_addr
@@ -210,6 +212,9 @@ Groupsock::changeDestinationParameters(struct in_addr const& newDestAddr,
   if (newDestTTL != ~0) destTTL = (u_int8_t)newDestTTL;
 
   dest->fGroupEId = GroupEId(destAddr, destPortNum, destTTL);
+
+  // Finally, remove any other 'destRecord's that might also have this "sessionId":
+  removeDestinationFrom(dest->fNext, sessionId);
 }
 
 unsigned Groupsock
@@ -222,21 +227,21 @@ unsigned Groupsock
 
 void Groupsock::addDestination(struct in_addr const& addr, Port const& port, unsigned sessionId) {
   // Default implementation:
-  changeDestinationParameters(addr, port, 255, sessionId);
-      // Will add a new "destRecord" for "sessionId" if none already exists
-}
-
-void Groupsock::removeDestination(unsigned sessionId) {
-  for (destRecord** destsPtr = &fDests; *destsPtr != NULL; destsPtr = &((*destsPtr)->fNext)) {
-    if (sessionId == (*destsPtr)->fSessionId) {
-      // Remove the record pointed to by *destsPtr :
-      destRecord* next = (*destsPtr)->fNext;
-      (*destsPtr)->fNext = NULL;
-      delete (*destsPtr);
-      *destsPtr = next;
+  // If there's no existing 'destRecord' with the same "addr", "port", and "sessionId", add a new one:
+  for (destRecord* dest = fDests; dest != NULL; dest = dest->fNext) {
+    if (sessionId == dest->fSessionId
+	&& addr.s_addr == dest->fGroupEId.groupAddress().s_addr
+	&& port.num() == dest->fGroupEId.portNum()) {
       return;
     }
   }
+  
+  fDests = createNewDestRecord(addr, port, 255, sessionId, fDests);
+}
+
+void Groupsock::removeDestination(unsigned sessionId) {
+  // Default implementation:
+  removeDestinationFrom(fDests, sessionId);
 }
 
 void Groupsock::removeAllDestinations() {
@@ -379,6 +384,21 @@ destRecord* Groupsock
     }
   }
   return NULL;
+}
+
+void Groupsock::removeDestinationFrom(destRecord*& dests, unsigned sessionId) {
+  destRecord** destsPtr = &dests;
+  while (*destsPtr != NULL) {
+    if (sessionId == (*destsPtr)->fSessionId) {
+      // Remove the record pointed to by *destsPtr :
+      destRecord* next = (*destsPtr)->fNext;
+      (*destsPtr)->fNext = NULL;
+      delete (*destsPtr);
+      *destsPtr = next;
+    } else {
+      destsPtr = &((*destsPtr)->fNext);
+    }
+  }
 }
 
 int Groupsock::outputToAllMembersExcept(DirectedNetInterface* exceptInterface,
