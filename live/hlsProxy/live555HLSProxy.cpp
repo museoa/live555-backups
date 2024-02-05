@@ -305,7 +305,7 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
   exit(1);
 }
 
-// A record that defines a segment that hhas been written.  These records are kept in a list:
+// A record that defines a segment that has been written.  These records are kept in a list:
 class SegmentRecord {
 public:
   SegmentRecord(char const* segmentFileName, double segmentDuration)
