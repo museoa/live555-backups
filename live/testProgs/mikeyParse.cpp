@@ -136,7 +136,7 @@ Boolean parseMikeyKEMAC(u_int8_t const*& ptr, u_int8_t const* endPtr, u_int8_t& 
   }
 
   u_int8_t macAlg = getByte(ptr);
-  fprintf(stderr, "\t\tMAC alg: %d (%s)\n", macAlg,
+  fprintf(stderr, "\tMAC alg: %d (%s)\n", macAlg,
 	  macAlg == 0 ? "NULL" : macAlg == 1 ? "HMAC-SHA-1-160" : "unknown");
   if (macAlg > 1) return False;
   if (macAlg == 1) { // HMAC-SHA-1-160
@@ -191,7 +191,7 @@ Boolean parseMikeyT(u_int8_t const*& ptr, u_int8_t const* endPtr, u_int8_t& next
 #define MAX_SRTP_POLICY_PARAM_TYPE 12
 static char const* SRTPPolicyParamTypeExplanation[] = {
       "Encryption algorithm",
-      "Session Encription key length",
+      "Session Encryption key length",
       "Authentication algorithm",
       "Session Authentication key length",
       "Session Salt key length",
@@ -263,7 +263,7 @@ Boolean parseMikeySP(u_int8_t const*& ptr, u_int8_t const* endPtr, u_int8_t& nex
   fprintf(stderr, "\tPolicy number: %d\n", getByte(ptr));
 
   u_int8_t protocolType = getByte(ptr);
-  fprintf(stderr, "\tProtocol type: %d (%s)", protocolType, protocolType == 0 ? "SRTP" : "unknown");
+  fprintf(stderr, "\tProtocol type: %d (%s)\n", protocolType, protocolType == 0 ? "SRTP" : "unknown");
   if (protocolType != 0) return False;
 
   u_int16_t policyParam_len = get2Bytes(ptr);
@@ -304,7 +304,7 @@ int main(int argc, char** argv) {
   unsigned mikeyDataSize;
   u_int8_t* mikeyData = base64Decode(base64Data, mikeyDataSize);
 
-  fprintf(stderr, "Base64Data \"%s\" produces %d bytes of mikey data:\n", base64Data, mikeyDataSize);
+  fprintf(stderr, "Base64Data \"%s\" produces %d bytes of MIKEY data:\n", base64Data, mikeyDataSize);
   for (unsigned i = 0; i < mikeyDataSize; ++i) fprintf(stderr, ":%02x", mikeyData[i]);
   fprintf(stderr, "\n");
 

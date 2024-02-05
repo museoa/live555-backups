@@ -72,7 +72,12 @@ int TLSState::write(const char* data, unsigned count) {
 
 int TLSState::read(u_int8_t* buffer, unsigned bufferSize) {
 #ifndef NO_OPENSSL
-  return SSL_read(fCon, buffer, bufferSize);
+  int result = SSL_read(fCon, buffer, bufferSize);
+  if (result < 0 && SSL_get_error(fCon, result) == SSL_ERROR_WANT_READ) {
+    // The data can't be delivered yet.  Return 0 (bytes read); we'll try again later
+    return 0;
+  }
+  return result;
 #else
   return 0;
 #endif
