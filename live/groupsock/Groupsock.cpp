@@ -360,8 +360,8 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
 
 Boolean Groupsock::wasLoopedBackFromUs(UsageEnvironment& env,
 				       struct sockaddr_in& fromAddressAndPort) {
-  if (fromAddressAndPort.sin_addr.s_addr
-      == ourIPAddress(env)) {
+  if (fromAddressAndPort.sin_addr.s_addr == ourIPAddress(env) ||
+      fromAddressAndPort.sin_addr.s_addr == 0x7F000001/*127.0.0.1*/) {
     if (fromAddressAndPort.sin_port == sourcePortNum()) {
 #ifdef DEBUG_LOOPBACK_CHECKING
       if (DebugLevel >= 3) {
