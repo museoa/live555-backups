@@ -908,6 +908,10 @@ void MatroskaDemux::seekToTime(double& seekNPT) {
   if (fOurParser != NULL) fOurParser->seekToTime(seekNPT);
 }
 
+void MatroskaDemux::pause() {
+  if (fOurParser != NULL) fOurParser->pause();
+}
+
 void MatroskaDemux::handleEndOfFile(void* clientData) {
   ((MatroskaDemux*)clientData)->handleEndOfFile();
 }
@@ -937,7 +941,7 @@ void MatroskaDemux::handleEndOfFile() {
   delete[] tracks;
 }
 
-void MatroskaDemux::resetStateAfterSeeking() {
+void MatroskaDemux::resetState() {
   // Iterate through all of our 'demuxed tracks', calling 'reset()' on each one.
   HashTable::Iterator* iter = HashTable::Iterator::create(*fDemuxedTracksTable);
   MatroskaDemuxedTrack* demuxedTrack;

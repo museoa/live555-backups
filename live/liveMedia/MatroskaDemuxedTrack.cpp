@@ -40,6 +40,10 @@ void MatroskaDemuxedTrack::doGetNextFrame() {
   fOurSourceDemux.continueReading();
 }
 
+void MatroskaDemuxedTrack::doStopGettingFrames() {
+  fOurSourceDemux.pause();
+}
+
 char const* MatroskaDemuxedTrack::MIMEtype() const {
   MatroskaTrack* track = fOurSourceDemux.fOurFile.lookup(fOurTrackNumber);
   if (track == NULL) return "(unknown)"; // shouldn't happen

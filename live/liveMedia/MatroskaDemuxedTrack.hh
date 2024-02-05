@@ -39,6 +39,7 @@ private: // We are created only by a MatroskaDemux (a friend)
 private:
   // redefined virtual functions:
   virtual void doGetNextFrame();
+  virtual void doStopGettingFrames();
   virtual char const* MIMEtype() const;
 
 private: // We are accessed only by MatroskaDemux and by MatroskaFileParser (a friend)
