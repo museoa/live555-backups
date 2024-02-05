@@ -546,7 +546,7 @@ unsigned RTSPClient::sendRequest(RequestRecord* request) {
       delete[] origCmd;
     }
 
-    if (write((u_int8_t*)cmd, strlen(cmd)) < 0) {
+    if (write(cmd, strlen(cmd)) < 0) {
       char const* errFmt = "%s write() failed: ";
       unsigned const errLength = strlen(errFmt) + strlen(request->commandName());
       char* err = new char[errLength];
@@ -1044,7 +1044,7 @@ void RTSPClient::handleIncomingRequest() {
     char tmpBuf[2*RTSP_PARAM_STRING_MAX];
     snprintf(tmpBuf, sizeof tmpBuf,
              "RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n\r\n", cseq);
-    write((u_int8_t*)tmpBuf, strlen(tmpBuf));
+    write(tmpBuf, strlen(tmpBuf));
   }
 }
 
@@ -1935,11 +1935,11 @@ void RTSPClient::handleResponseBytes(int newBytesRead) {
   } while (numExtraBytesAfterResponse > 0 && responseSuccess);
 }
 
-int RTSPClient::write(const u_int8_t* data, unsigned count) {
+int RTSPClient::write(const char* data, unsigned count) {
       if (fTLS.isNeeded) {
 	return fTLS.write(data, count);
       } else {
-	return send(fOutputSocketNum, data, count, 0);
+	return send(fOutputSocketNum, (const u_int8_t*)data, count, 0);
       }
 }
 

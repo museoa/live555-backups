@@ -62,7 +62,7 @@ int TLSState::connect(int socketNum) {
 #endif
 }
 
-int TLSState::write(const u_int8_t* data, unsigned count) {
+int TLSState::write(const char* data, unsigned count) {
 #ifndef NO_OPENSSL
   return SSL_write(fCon, data, count);
 #else

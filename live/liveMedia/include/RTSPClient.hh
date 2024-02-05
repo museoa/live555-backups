@@ -322,7 +322,7 @@ private:
   void handleResponseBytes(int newBytesRead);
 
   // Writing/reading data over a (already set-up) connection:
-  int write(const u_int8_t* data, unsigned count);
+  int write(const char* data, unsigned count);
   int read(u_int8_t* buffer, unsigned bufferSize);
 
 public:
