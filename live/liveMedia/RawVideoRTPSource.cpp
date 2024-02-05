@@ -65,7 +65,7 @@ RawVideoRTPSource
 		    unsigned char rtpPayloadFormat,
                     unsigned rtpTimestampFrequency)
   : MultiFramedRTPSource(env, RTPgs, rtpPayloadFormat, rtpTimestampFrequency,
-			 new BufferedPacketFactory),
+			 new RawVideoBufferedPacketFactory),
     fNumLines(0), fNextLine(0), fLineHeaders(NULL) {
 }
 
@@ -176,3 +176,7 @@ void RawVideoBufferedPacket::getNextEnclosedFrameParameters(unsigned char*& /*fr
   frameSize = fOurSource->fLineHeaders[fOurSource->fNextLine++].length;
 }
 
+BufferedPacket* RawVideoBufferedPacketFactory
+::createNewPacket(MultiFramedRTPSource* ourSource) {
+  return new RawVideoBufferedPacket((RawVideoRTPSource*)ourSource);
+}
