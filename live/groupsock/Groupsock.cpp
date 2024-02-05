@@ -78,7 +78,7 @@ Boolean OutputSocket
 ///////// destRecord //////////
 
 destRecord
-::destRecord(struct in_addr const& addr, Port const& port, u_int8_t ttl, unsigned sessionId,
+::destRecord(struct sockaddr_storage const& addr, Port const& port, u_int8_t ttl, unsigned sessionId,
 	     destRecord* next)
   : fNext(next), fGroupEId(addr, port.num(), ttl), fSessionId(sessionId) {
 }
@@ -99,9 +99,12 @@ NetInterfaceTrafficStats Groupsock::statsRelayedOutgoing;
 Groupsock::Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
 		     Port port, u_int8_t ttl)
   : OutputSocket(env, port),
-    deleteIfNoMembers(False), isSlave(False),
-    fDests(new destRecord(groupAddr, port, ttl, 0, NULL)),
-    fIncomingGroupEId(groupAddr, port.num(), ttl) {
+    deleteIfNoMembers(False) {
+  struct sockaddr_storage addrTmp; // hack; later fix to support IPv6
+  addrTmp.ss_family = AF_INET;
+  ((struct sockaddr_in&)addrTmp).sin_addr = groupAddr;
+  fDests = new destRecord(addrTmp, port, ttl, 0, NULL); // later move back to initializer
+  fIncomingGroupEId = GroupEId(addrTmp, port.num(), ttl); // later move back to initializer
 
   if (!socketJoinGroup(env, socketNum(), groupAddr.s_addr)) {
     if (DebugLevel >= 1) {
@@ -126,9 +129,17 @@ Groupsock::Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
 		     struct in_addr const& sourceFilterAddr,
 		     Port port)
   : OutputSocket(env, port),
-    deleteIfNoMembers(False), isSlave(False),
-    fDests(new destRecord(groupAddr, port, 255, 0, NULL)),
-    fIncomingGroupEId(groupAddr, sourceFilterAddr, port.num()) {
+    deleteIfNoMembers(False) {
+  struct sockaddr_storage addrTmp; // hack; later fix to support IPv6
+  addrTmp.ss_family = AF_INET;
+  ((struct sockaddr_in&)addrTmp).sin_addr = groupAddr;
+  fDests = new destRecord(addrTmp, port, 255, 0, NULL); // later move back to initializer
+
+  struct sockaddr_storage sourceFilterAddrTmp; // hack; later fix to support IPv6
+  sourceFilterAddrTmp.ss_family = AF_INET;
+  ((struct sockaddr_in&)sourceFilterAddrTmp).sin_addr = sourceFilterAddr;
+  fIncomingGroupEId = GroupEId(addrTmp, sourceFilterAddrTmp, port.num()); // later move back to initializer
+
   // First try a SSM join.  If that fails, try a regular join:
   if (!socketJoinGroupSSM(env, socketNum(), groupAddr.s_addr,
 			  sourceFilterAddr.s_addr)) {
@@ -164,7 +175,7 @@ Groupsock::~Groupsock() {
 }
 
 destRecord* Groupsock
-::createNewDestRecord(struct in_addr const& addr, Port const& port, u_int8_t ttl,
+::createNewDestRecord(struct sockaddr_storage const& addr, Port const& port, u_int8_t ttl,
 		      unsigned sessionId, destRecord* next) {
   // Default implementation:
   return new destRecord(addr, port, ttl, sessionId, next);
@@ -177,12 +188,16 @@ Groupsock::changeDestinationParameters(struct in_addr const& newDestAddr,
   for (dest = fDests; dest != NULL && dest->fSessionId != sessionId; dest = dest->fNext) {}
 
   if (dest == NULL) { // There's no existing 'destRecord' for this "sessionId"; add a new one:
-    fDests = createNewDestRecord(newDestAddr, newDestPort, newDestTTL, sessionId, fDests);
+    struct sockaddr_storage newDestAddrTmp; // hack; later fix to support IPv6
+    newDestAddrTmp.ss_family = AF_INET;
+    ((struct sockaddr_in&)newDestAddrTmp).sin_addr = newDestAddr;
+    fDests = createNewDestRecord(newDestAddrTmp, newDestPort, newDestTTL, sessionId, fDests);
     return;
   }
 
   // "dest" is an existing 'destRecord' for this "sessionId"; change its values to the new ones:
-  struct in_addr destAddr = dest->fGroupEId.groupAddress();
+  struct in_addr destAddr = ((struct sockaddr_in&)(dest->fGroupEId.groupAddress())).sin_addr;
+      // Fix later for IPv6
   if (newDestAddr.s_addr != 0) {
     if (newDestAddr.s_addr != destAddr.s_addr
 	&& IsMulticastAddress(newDestAddr.s_addr)) {
@@ -210,14 +225,17 @@ Groupsock::changeDestinationParameters(struct in_addr const& newDestAddr,
   u_int8_t destTTL = ttl();
   if (newDestTTL != ~0) destTTL = (u_int8_t)newDestTTL;
 
-  dest->fGroupEId = GroupEId(destAddr, destPortNum, destTTL);
+  struct sockaddr_storage destAddrTmp; // hack; later fix to support IPv6
+  destAddrTmp.ss_family = AF_INET;
+  ((struct sockaddr_in&)destAddrTmp).sin_addr = destAddr;
+  dest->fGroupEId = GroupEId(destAddrTmp, destPortNum, destTTL);
 
   // Finally, remove any other 'destRecord's that might also have this "sessionId":
   removeDestinationFrom(dest->fNext, sessionId);
 }
 
 unsigned Groupsock
-::lookupSessionIdFromDestination(struct sockaddr_in const& destAddrAndPort) const {
+::lookupSessionIdFromDestination(struct sockaddr_storage const& destAddrAndPort) const {
   destRecord* dest = lookupDestRecordFromDestination(destAddrAndPort);
   if (dest == NULL) return 0;
 
@@ -229,13 +247,17 @@ void Groupsock::addDestination(struct in_addr const& addr, Port const& port, uns
   // If there's no existing 'destRecord' with the same "addr", "port", and "sessionId", add a new one:
   for (destRecord* dest = fDests; dest != NULL; dest = dest->fNext) {
     if (sessionId == dest->fSessionId
-	&& addr.s_addr == dest->fGroupEId.groupAddress().s_addr
+	&& addr.s_addr == ((struct sockaddr_in const&)(dest->fGroupEId.groupAddress())).sin_addr.s_addr
+            // Hack; fix later for IPv6
 	&& port.num() == dest->fGroupEId.portNum()) {
       return;
     }
   }
   
-  fDests = createNewDestRecord(addr, port, 255, sessionId, fDests);
+  struct sockaddr_storage addrTmp; // hack; later fix to support IPv6
+  addrTmp.ss_family = AF_INET;
+  ((struct sockaddr_in&)addrTmp).sin_addr = addr;
+  fDests = createNewDestRecord(addrTmp, port, 255, sessionId, fDests);
 }
 
 void Groupsock::removeDestination(unsigned sessionId) {
@@ -264,9 +286,7 @@ Boolean Groupsock::output(UsageEnvironment& env, unsigned char* buffer, unsigned
     // First, do the datagram send, to each destination:
     Boolean writeSuccess = True;
     for (destRecord* dests = fDests; dests != NULL; dests = dests->fNext) {
-      MAKE_SOCKADDR_IN(destAddressAndPort, dests->fGroupEId.groupAddress().s_addr, dests->fGroupEId.portNum()); // later update for IPv6
-      if (!write((struct sockaddr_storage const&)destAddressAndPort, dests->fGroupEId.ttl(),
-		 buffer, bufferSize)) {
+      if (!write(dests->fGroupEId.groupAddress(), dests->fGroupEId.ttl(), buffer, bufferSize)) {
 	writeSuccess = False;
 	break;
       }
@@ -382,13 +402,24 @@ Boolean Groupsock::wasLoopedBackFromUs(UsageEnvironment& env,
 }
 
 destRecord* Groupsock
-::lookupDestRecordFromDestination(struct sockaddr_in const& destAddrAndPort) const {
+::lookupDestRecordFromDestination(struct sockaddr_storage const& destAddrAndPort) const {
   for (destRecord* dest = fDests; dest != NULL; dest = dest->fNext) {
-    if (destAddrAndPort.sin_addr.s_addr == dest->fGroupEId.groupAddress().s_addr
-	&& destAddrAndPort.sin_port == dest->fGroupEId.portNum()) {
-      return dest;
+    struct sockaddr_storage const& destRecordAddrAndPort = dest->fGroupEId.groupAddress(); // alias
+    if (destRecordAddrAndPort.ss_family != destAddrAndPort.ss_family) continue;
+
+    if (destRecordAddrAndPort.ss_family == AF_INET) {
+      if (((struct sockaddr_in const&)destRecordAddrAndPort).sin_addr.s_addr ==
+	  ((struct sockaddr_in const&)destAddrAndPort).sin_addr.s_addr &&
+	  ((struct sockaddr_in const&)destRecordAddrAndPort).sin_port ==
+	  ((struct sockaddr_in const&)destAddrAndPort).sin_port) return dest;
+    } else { // assume AF_INET6
+      if (((struct sockaddr_in6 const&)destRecordAddrAndPort).sin6_addr.s6_addr ==
+	  ((struct sockaddr_in6 const&)destAddrAndPort).sin6_addr.s6_addr &&
+	  ((struct sockaddr_in6 const&)destRecordAddrAndPort).sin6_port ==
+	  ((struct sockaddr_in6 const&)destAddrAndPort).sin6_port) return dest;
     }
   }
+
   return NULL;
 }
 
@@ -464,7 +495,7 @@ int Groupsock::outputToAllMembersExcept(DirectedNetInterface* exceptInterface,
       trailer += trailerOffset;
 
       if (fDests != NULL) {
-	trailer->address() = fDests->fGroupEId.groupAddress().s_addr;
+	trailer->address() = ((struct sockaddr_in const&)(fDests->fGroupEId.groupAddress())).sin_addr.s_addr; // assume IPv4
 	Port destPort(ntohs(fDests->fGroupEId.portNum()));
 	trailer->port() = destPort; // structure copy
       }

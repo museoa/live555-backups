@@ -61,7 +61,7 @@ private:
 
 class destRecord {
 public:
-  destRecord(struct in_addr const& addr, Port const& port, u_int8_t ttl, unsigned sessionId,
+  destRecord(struct sockaddr_storage const& addr, Port const& port, u_int8_t ttl, unsigned sessionId,
 	     destRecord* next);
   virtual ~destRecord();
 
@@ -86,7 +86,7 @@ public:
       // used for a 'source-specific multicast' group
   virtual ~Groupsock();
 
-  virtual destRecord* createNewDestRecord(struct in_addr const& addr, Port const& port, u_int8_t ttl, unsigned sessionId, destRecord* next);
+  virtual destRecord* createNewDestRecord(struct sockaddr_storage const& addr, Port const& port, u_int8_t ttl, unsigned sessionId, destRecord* next);
       // Can be redefined by subclasses that also subclass "destRecord"
 
   void changeDestinationParameters(struct in_addr const& newDestAddr,
@@ -99,7 +99,7 @@ public:
       // number, at least, to be different from the source port.
       // (If a parameter is 0 (or ~0 for ttl), then no change is made to that parameter.)
       // (If no existing "destRecord" exists with this "sessionId", then we add a new "destRecord".)
-  unsigned lookupSessionIdFromDestination(struct sockaddr_in const& destAddrAndPort) const;
+  unsigned lookupSessionIdFromDestination(struct sockaddr_storage const& destAddrAndPort) const;
       // returns 0 if not found
 
   // As a special case, we also allow multiple destinations (addresses & ports)
@@ -110,10 +110,10 @@ public:
   Boolean hasMultipleDestinations() const { return fDests != NULL && fDests->fNext != NULL; }
 
   struct in_addr const& groupAddress() const {
-    return fIncomingGroupEId.groupAddress();
+    return ((struct sockaddr_in const&)(fIncomingGroupEId.groupAddress())).sin_addr;
   }
   struct in_addr const& sourceFilterAddress() const {
-    return fIncomingGroupEId.sourceFilterAddress();
+    return ((struct sockaddr_in const&)(fIncomingGroupEId.sourceFilterAddress())).sin_addr;
   }
 
   Boolean isSSM() const {
@@ -130,7 +130,6 @@ public:
   DirectedNetInterfaceSet& members() { return fMembers; }
 
   Boolean deleteIfNoMembers;
-  Boolean isSlave; // for tunneling
 
   static NetInterfaceTrafficStats statsIncoming;
   static NetInterfaceTrafficStats statsOutgoing;
@@ -150,7 +149,7 @@ public: // redefined virtual functions
 			     struct sockaddr_storage& fromAddressAndPort);
 
 protected:
-  destRecord* lookupDestRecordFromDestination(struct sockaddr_in const& destAddrAndPort) const;
+  destRecord* lookupDestRecordFromDestination(struct sockaddr_storage const& destAddrAndPort) const;
 
 private:
   void removeDestinationFrom(destRecord*& dests, unsigned sessionId);
