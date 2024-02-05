@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Media Sources
 // Implementation
 
@@ -47,6 +47,12 @@ Boolean MediaSource::isMPEG1or2VideoStreamFramer() const {
   return False; // default implementation
 }
 Boolean MediaSource::isMPEG4VideoStreamFramer() const {
+  return False; // default implementation
+}
+Boolean MediaSource::isH264VideoStreamFramer() const {
+  return False; // default implementation
+}
+Boolean MediaSource::isDVVideoStreamFramer() const {
   return False; // default implementation
 }
 Boolean MediaSource::isJPEGVideoSource() const {

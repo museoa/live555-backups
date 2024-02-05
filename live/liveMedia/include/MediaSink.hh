@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Media Sinks
 // C++ header
 
@@ -38,6 +38,8 @@ public:
 
   // Test for specific types of sink:
   virtual Boolean isRTPSink() const;
+
+  FramedSource* source() const {return fSource;}
 
 protected:
   MediaSink(UsageEnvironment& env); // abstract base class
@@ -83,11 +85,11 @@ public:
   void increment(unsigned numBytes) {fCurOffset += numBytes;}
 
   void enqueue(unsigned char const* from, unsigned numBytes);
-  void enqueueWord(unsigned word);
+  void enqueueWord(u_int32_t word);
   void insert(unsigned char const* from, unsigned numBytes, unsigned toPosition);
-  void insertWord(unsigned word, unsigned toPosition);
+  void insertWord(u_int32_t word, unsigned toPosition);
   void extract(unsigned char* to, unsigned numBytes, unsigned fromPosition);
-  unsigned extractWord(unsigned fromPosition);
+  u_int32_t extractWord(unsigned fromPosition);
 
   void skipBytes(unsigned numBytes);
 

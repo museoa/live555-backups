@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // RTCP
 // C++ header
 
@@ -54,6 +54,7 @@ public:
                               RTCPInstance*& resultInstance);
 
   unsigned numMembers() const;
+  unsigned totSessionBW() const { return fTotSessionBW; }
 
   void setByeHandler(TaskFunc* handlerTask, void* clientData,
 		     Boolean handleActiveParticipantsOnly = True);
@@ -66,20 +67,25 @@ public:
       // This prevents (for example) the handler for a multicast receiver being
       // called if some other multicast receiver happens to exit.
       // If "handleActiveParticipantsOnly" is False, then the handler is called
-      // for any incoming RTCP "BYE". 
+      // for any incoming RTCP "BYE".
   void setSRHandler(TaskFunc* handlerTask, void* clientData);
   void setRRHandler(TaskFunc* handlerTask, void* clientData);
       // Assigns a handler routine to be called if a "SR" or "RR"
       // (respectively) arrives.  Unlike "setByeHandler()", the handler will
       // be called once for each incoming "SR" or "RR".  (To turn off handling,
       // call the function again with "handlerTask" (and "clientData") as NULL.
+  void setSpecificRRHandler(netAddressBits fromAddress, Port fromPort,
+			    TaskFunc* handlerTask, void* clientData);
+      // Like "setRRHandler()", but applies only to "RR" packets that come from
+      // a specific source address and port.  (Note that if both a specific
+      // and a general "RR" handler function is set, then both will be called.)
 
   Groupsock* RTCPgs() const { return fRTCPInterface.gs(); }
 
   void setStreamSocket(int sockNum, unsigned char streamChannelId);
   void addStreamSocket(int sockNum, unsigned char streamChannelId);
   void removeStreamSocket(int sockNum, unsigned char streamChannelId) {
-    fRTCPInterface.removeStreamSocket(sockNum, streamChannelId);    
+    fRTCPInterface.removeStreamSocket(sockNum, streamChannelId);
   }
     // hacks to allow sending RTP over TCP (RFC 2236, section 10.12)
 
@@ -121,8 +127,11 @@ private:
   void incomingReportHandler1();
   void onReceive(int typeOfPacket, int totPacketSize, u_int32_t ssrc);
 
+  void unsetSpecificRRHandler(netAddressBits fromAddress, Port fromPort);
+
 private:
   unsigned char* fInBuf;
+  unsigned fNumBytesAlreadyRead;
   OutPacketBuffer* fOutBuf;
   RTPInterface fRTCPInterface;
   unsigned fTotSessionBW;
@@ -155,6 +164,7 @@ private:
   void* fSRHandlerClientData;
   TaskFunc* fRRHandlerTask;
   void* fRRHandlerClientData;
+  AddressPortLookupTable* fSpecificRRHandlerTable;
 
 public: // because this stuff is used by an external "C" function
   void schedule(double nextTime);

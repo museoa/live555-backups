@@ -11,9 +11,9 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2000 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Basic Usage Environment: for a simple, non-scripted, console application
 // C++ header
 
@@ -27,7 +27,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 class BasicUsageEnvironment: public BasicUsageEnvironment0 {
 public:
   static BasicUsageEnvironment* createNew(TaskScheduler& taskScheduler);
-  
+
   // redefined virtual functions:
   virtual int getErrno() const;
 
@@ -57,15 +57,15 @@ protected:
   // Redefined virtual functions:
   virtual void SingleStep(unsigned maxDelayTime);
 
-  virtual void turnOnBackgroundReadHandling(int socketNum,
-				    BackgroundHandlerProc* handlerProc,
-				    void* clientData);
-  virtual void turnOffBackgroundReadHandling(int socketNum);
-  
+  virtual void setBackgroundHandling(int socketNum, int conditionSet, BackgroundHandlerProc* handlerProc, void* clientData);
+  virtual void moveSocketHandling(int oldSocketNum, int newSocketNum);
+
 protected:
-  // To implement background reads:
+  // To implement background operations:
   int fMaxNumSockets;
   fd_set fReadSet;
+  fd_set fWriteSet;
+  fd_set fExceptionSet;
 };
 
 #endif

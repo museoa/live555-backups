@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // An object that redirects one or more RTP/RTCP streams - forming a single
 // multimedia session - into a 'Darwin Streaming Server' (for subsequent
 // reflection to potentially arbitrarily many remote RTSP clients).
@@ -48,8 +48,8 @@ To use a "DarwinInjector":
            </Limit>
            require any-user
      Use the "remoteUserName" and "remotePassword" parameters to
-     "setDestination()", as appropriate. 
-  4/ Call "startPlaying" on each RTP sink (from the corresponding 'source'). 
+     "setDestination()", as appropriate.
+  4/ Call "startPlaying" on each RTP sink (from the corresponding 'source').
 */
 
 class SubstreamDescriptor; // forward
@@ -57,7 +57,7 @@ class SubstreamDescriptor; // forward
 class DarwinInjector: public Medium {
 public:
   static DarwinInjector* createNew(UsageEnvironment& env,
-				   char const* applicationName = NULL,
+				   char const* applicationName = "DarwinInjector",
 				   int verbosityLevel = 0);
 
   static Boolean lookupByName(UsageEnvironment& env, char const* name,
@@ -65,7 +65,7 @@ public:
 
   void addStream(RTPSink* rtpSink, RTCPInstance* rtcpInstance);
 
-  Boolean setDestination(char const* remoteRTSPServerNameOrAddress, 
+  Boolean setDestination(char const* remoteRTSPServerNameOrAddress,
 			 char const* remoteFileName,
 			 char const* sessionName = "",
 			 char const* sessionInfo = "",
@@ -73,7 +73,8 @@ public:
 			 char const* remoteUserName = "",
 			 char const* remotePassword = "",
 			 char const* sessionAuthor = "",
-			 char const* sessionCopyright = "");
+			 char const* sessionCopyright = "",
+			 int timeout = -1);
 
 private: // redefined virtual functions
   virtual Boolean isDarwinInjector() const;
@@ -85,6 +86,9 @@ private:
 
   virtual ~DarwinInjector();
 
+  static void genericResponseHandler(RTSPClient* rtspClient, int responseCode, char* responseString);
+  void genericResponseHandler1(int responseCode, char* responseString);
+
 private:
   char const* fApplicationName;
   int fVerbosityLevel;
@@ -92,6 +96,11 @@ private:
   unsigned fSubstreamSDPSizes;
   SubstreamDescriptor* fHeadSubstream;
   SubstreamDescriptor* fTailSubstream;
+  MediaSession* fSession;
+  unsigned fLastTrackId;
+  char fWatchVariable;
+  int fResultCode;
+  char* fResultString;
 };
 
 #endif

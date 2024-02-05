@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A 'ServerMediaSubsession' object that creates new, unicast, "RTPSink"s
 // on demand.
 // C++ header
@@ -31,7 +31,8 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 class OnDemandServerMediaSubsession: public ServerMediaSubsession {
 protected: // we're a virtual base class
-  OnDemandServerMediaSubsession(UsageEnvironment& env, Boolean reuseFirstSource);
+  OnDemandServerMediaSubsession(UsageEnvironment& env, Boolean reuseFirstSource,
+				portNumBits initialPortNum = 6970);
   virtual ~OnDemandServerMediaSubsession();
 
 protected: // redefined virtual functions
@@ -53,17 +54,20 @@ protected: // redefined virtual functions
 			   TaskFunc* rtcpRRHandler,
 			   void* rtcpRRHandlerClientData,
 			   unsigned short& rtpSeqNum,
-                           unsigned& rtpTimestamp);
+                           unsigned& rtpTimestamp,
+			   ServerRequestAlternativeByteHandler* serverRequestAlternativeByteHandler,
+                           void* serverRequestAlternativeByteHandlerClientData);
   virtual void pauseStream(unsigned clientSessionId, void* streamToken);
-  virtual void seekStream(unsigned clientSessionId, void* streamToken, float seekNPT);
+  virtual void seekStream(unsigned clientSessionId, void* streamToken, double seekNPT);
   virtual void setStreamScale(unsigned clientSessionId, void* streamToken, float scale);
   virtual void deleteStream(unsigned clientSessionId, void*& streamToken);
 
 protected: // new virtual functions, possibly redefined by subclasses
   virtual char const* getAuxSDPLine(RTPSink* rtpSink,
 				    FramedSource* inputSource);
-  virtual void seekStreamSource(FramedSource* inputSource, float seekNPT);
+  virtual void seekStreamSource(FramedSource* inputSource, double seekNPT);
   virtual void setStreamSourceScale(FramedSource* inputSource, float scale);
+  virtual void closeStreamSource(FramedSource *inputSource);
 
 protected: // new virtual functions, defined by all subclasses
   virtual FramedSource* createNewStreamSource(unsigned clientSessionId,
@@ -74,15 +78,20 @@ protected: // new virtual functions, defined by all subclasses
 				    FramedSource* inputSource) = 0;
 
 private:
-  void setSDPLinesFromRTPSink(RTPSink* rtpSink, FramedSource* inputSource);
+  void setSDPLinesFromRTPSink(RTPSink* rtpSink, FramedSource* inputSource,
+			      unsigned estBitrate);
       // used to implement "sdpLines()"
+
+protected:
+  char* fSDPLines;
 
 private:
   Boolean fReuseFirstSource;
+  portNumBits fInitialPortNum;
   HashTable* fDestinationsHashTable; // indexed by client session id
   void* fLastStreamToken;
-  char* fSDPLines;
   char fCNAME[100]; // for RTCP
+  friend class StreamState;
 };
 
 #endif

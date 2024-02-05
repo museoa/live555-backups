@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A generic SIP client
 // C++ header
 
@@ -68,8 +68,6 @@ public:
 					     char*& username,
 					     char*& password);
 
-  unsigned inviteStatus() const { return fInviteStatusCode; }
-
 protected:
   virtual ~SIPClient();
 
@@ -88,7 +86,7 @@ private:
   Boolean processURL(char const* url);
   Boolean sendINVITE();
   static void inviteResponseHandler(void* clientData, int mask);
-  void doInviteStateMachine(unsigned responseCode); 
+  void doInviteStateMachine(unsigned responseCode);
   void doInviteStateTerminated(unsigned responseCode);
   TaskToken fTimerA, fTimerB, fTimerD;
   static void timerAHandler(void* clientData);
@@ -126,7 +124,7 @@ private:
   char const* fURL;
       unsigned fURLSize;
   struct in_addr fServerAddress;
-  portNumBits fServerPortNum; // in host order 
+  portNumBits fServerPortNum; // in host order
   portNumBits fClientStartPortNum; // in host order
   unsigned fCallId, fFromTag; // set by us
   char const* fToTagStr; // set by the responder
@@ -141,8 +139,6 @@ private:
   Authenticator* fWorkingAuthenticator;
   inviteClientState fInviteClientState;
   char fEventLoopStopFlag;
-  unsigned fInviteStatusCode;
-  // 0: OK; 1: connection failed; 2: stream unavailable  
 };
 
 #endif

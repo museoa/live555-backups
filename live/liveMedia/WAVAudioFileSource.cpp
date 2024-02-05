@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A WAV audio file source
 // Implementation
 
@@ -69,34 +69,39 @@ void WAVAudioFileSource::seekToPCMByte(unsigned byteNumber) {
   fseek(fFid, byteNumber, SEEK_SET);
 }
 
+unsigned char WAVAudioFileSource::getAudioFormat() {
+  return fAudioFormat;
+}
+
+
 #define nextc fgetc(fid)
-#define ucEOF ((unsigned char)EOF)
 
 static Boolean get4Bytes(FILE* fid, unsigned& result) { // little-endian
-  unsigned char c0, c1, c2, c3;
-  if ((c0 = nextc) == ucEOF || (c1 = nextc) == ucEOF ||
-      (c2 = nextc) == ucEOF || (c3 = nextc) == ucEOF) return False;
+  int c0, c1, c2, c3;
+  if ((c0 = nextc) == EOF || (c1 = nextc) == EOF ||
+      (c2 = nextc) == EOF || (c3 = nextc) == EOF) return False;
   result = (c3<<24)|(c2<<16)|(c1<<8)|c0;
   return True;
 }
 
 static Boolean get2Bytes(FILE* fid, unsigned short& result) {//little-endian
-  unsigned char c0, c1;
-  if ((c0 = nextc) == ucEOF || (c1 = nextc) == ucEOF) return False;
+  int c0, c1;
+  if ((c0 = nextc) == EOF || (c1 = nextc) == EOF) return False;
   result = (c1<<8)|c0;
   return True;
 }
 
 static Boolean skipBytes(FILE* fid, int num) {
   while (num-- > 0) {
-    if (nextc == ucEOF) return False;
+    if (nextc == EOF) return False;
   }
   return True;
 }
 
 WAVAudioFileSource::WAVAudioFileSource(UsageEnvironment& env, FILE* fid)
   : AudioInputDevice(env, 0, 0, 0, 0)/* set the real parameters later */,
-    fFid(fid), fLastPlayTime(0), fWAVHeaderSize(0), fFileSize(0), fScaleFactor(1) {
+    fFid(fid), fLastPlayTime(0), fWAVHeaderSize(0), fFileSize(0), fScaleFactor(1),
+    fAudioFormat(WA_UNKNOWN) {
   // Check the WAV file header for validity.
   // Note: The following web pages contain info about the WAV format:
   // http://www.technology.niagarac.on.ca/courses/comp630/WavFileFormat.html
@@ -119,8 +124,11 @@ WAVAudioFileSource::WAVAudioFileSource(UsageEnvironment& env, FILE* fid)
     if (!get4Bytes(fid, formatLength)) break;
     unsigned short audioFormat;
     if (!get2Bytes(fid, audioFormat)) break;
-    if (audioFormat != 1) { // not PCM - we can't handle this
-      env.setResultMsg("Audio format is not PCM");
+
+    fAudioFormat = (unsigned char)audioFormat;
+    if (fAudioFormat != WA_PCM && fAudioFormat != WA_PCMA && fAudioFormat != WA_PCMU) {
+      // not PCM/PCMU/PCMA - we can't handle this
+      env.setResultMsg("Audio format is not PCM/PCMU/PCMA");
       break;
     }
     unsigned short numChannels;
@@ -148,7 +156,7 @@ WAVAudioFileSource::WAVAudioFileSource(UsageEnvironment& env, FILE* fid)
     if (!skipBytes(fid, formatLength - 16)) break;
 
     // FACT chunk (optional):
-    unsigned char c = nextc;
+    int c = nextc;
     if (c == 'f') {
       if (nextc != 'a' || nextc != 'c' || nextc != 't') break;
       unsigned factLength;
@@ -165,7 +173,7 @@ WAVAudioFileSource::WAVAudioFileSource(UsageEnvironment& env, FILE* fid)
     fWAVHeaderSize = ftell(fid);
     success = True;
   } while (0);
-  
+
   if (!success) {
     env.setResultMsg("Bad WAV file format");
     // Set "fBitsPerSample" to zero, to indicate failure:
@@ -190,6 +198,8 @@ WAVAudioFileSource::~WAVAudioFileSource() {
   CloseInputFile(fFid);
 }
 
+// Note: We should change the following to use asynchronous file reading, #####
+// as we now do with ByteStreamFileSource. #####
 void WAVAudioFileSource::doGetNextFrame() {
   if (feof(fFid) || ferror(fFid)) {
     handleClosure(this);
@@ -208,7 +218,7 @@ void WAVAudioFileSource::doGetNextFrame() {
     fFrameSize = fread(fTo, 1, bytesToRead, fFid);
   } else {
     // We read every 'fScaleFactor'th sample:
-    fFrameSize = 0; 
+    fFrameSize = 0;
     while (bytesToRead > 0) {
       size_t bytesRead = fread(fTo, 1, bytesPerSample, fFid);
       if (bytesRead <= 0) break;

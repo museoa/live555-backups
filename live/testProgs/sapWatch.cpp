@@ -11,9 +11,9 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2001, Live Networks, Inc.  All rights reserved
+// Copyright (c) 1996-2010, Live Networks, Inc.  All rights reserved
 // A program that receives and prints SDP/SAP announcements
 // (on the default SDP/SAP directory: 224.2.127.254/9875)
 
@@ -32,15 +32,15 @@ int main(int argc, char** argv) {
 
 
   // Create a 'groupsock' for the input multicast group,port:
-  char* sessionAddressStr = "224.2.127.254";
+  char const* sessionAddressStr = "224.2.127.254";
   struct in_addr sessionAddress;
   sessionAddress.s_addr = our_inet_addr(sessionAddressStr);
 
   const Port port(9875);
   const unsigned char ttl = 0; // we're only reading from this mcast group
-  
+
   Groupsock inputGroupsock(*env, sessionAddress, port, ttl);
-  
+
   // Start reading and printing incoming packets
   // (Because this is the only thing we do, we can just do this
   // synchronously, in a loop, so we don't need to set up an asynchronous
@@ -57,6 +57,14 @@ int main(int argc, char** argv) {
       *env << "Ignoring short packet from "
 	   << our_inet_ntoa(fromAddress.sin_addr) << "%s!\n";
       continue;
+    }
+
+    // convert "application/sdp\0" -> "application/sdp\0x20"
+    // or all other nonprintable characters to blank, except new line
+    unsigned idx = 8;
+    while (idx < packetSize) {
+      if (packet[idx] < 0x20 && packet[idx] != '\n') packet[idx] = 0x20;
+      idx++;
     }
 
     packet[packetSize] = '\0'; // just in case

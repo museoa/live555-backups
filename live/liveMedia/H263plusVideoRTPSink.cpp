@@ -11,11 +11,11 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
-// RTP sink for H.263+ video (RFC 2429)
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
+// RTP sink for H.263+ video (RFC 4629)
 // Implementation
 
 #include "H263plusVideoRTPSink.hh"
@@ -24,8 +24,7 @@ H263plusVideoRTPSink
 ::H263plusVideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
 		       unsigned char rtpPayloadFormat,
 		       u_int32_t rtpTimestampFrequency)
-  : VideoRTPSink(env, RTPgs, rtpPayloadFormat, rtpTimestampFrequency, "H263-1998"),
-    fAreInFragmentedFrame(False) {
+  : VideoRTPSink(env, RTPgs, rtpPayloadFormat, rtpTimestampFrequency, "H263-1998") {
 }
 
 H263plusVideoRTPSink::~H263plusVideoRTPSink() {
@@ -80,8 +79,6 @@ void H263plusVideoRTPSink
     setMarkerBit();
   }
 
-  fAreInFragmentedFrame = (numRemainingBytes > 0); // for next time
-
   // Also set the RTP timestamp:
   setTimestamp(frameTimestamp);
 }
@@ -91,5 +88,5 @@ unsigned H263plusVideoRTPSink::specialHeaderSize() const {
   // There's a 2-byte special video header.  However, if we're the first
   // (or only) fragment of a frame, then we reuse the first 2 bytes of
   // the payload instead.
-  return fAreInFragmentedFrame ? 2 : 0;
+  return (curFragmentationOffset() == 0) ? 0 : 2;
 }

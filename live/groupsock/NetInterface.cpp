@@ -11,27 +11,20 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "mTunnel" multicast access service
-// Copyright (c) 1996-1998 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Network Interfaces
 // Implementation
 
 #include "NetInterface.hh"
 #include "GroupsockHelper.hh"
 
-#ifndef NO_STRSTREAM
-#if (defined(__WIN32__) || defined(_WIN32)) && !defined(__MINGW32__)
-#include <strstrea.h>
-#else
-#if defined(__GNUC__) && (__GNUC__ > 3 || __GNUC__ == 3 && __GNUC_MINOR__ > 0)
-#include <strstream>
-#else
-#include <strstream.h>
+#ifndef NO_SSTREAM
+#include <sstream>
 #endif
-#endif
-#endif
+#include <stdio.h>
 
 ////////// NetInterface //////////
 
@@ -92,9 +85,9 @@ DirectedNetInterface* DirectedNetInterfaceSet::Iterator::next() {
 
 int Socket::DebugLevel = 1; // default value
 
-Socket::Socket(UsageEnvironment& env, Port port, Boolean setLoopback)
-  : fEnv(DefaultUsageEnvironment != NULL ? *DefaultUsageEnvironment : env), fPort(port), fSetLoopback(setLoopback) {
-  fSocketNum = setupDatagramSocket(fEnv, port, setLoopback);
+Socket::Socket(UsageEnvironment& env, Port port)
+  : fEnv(DefaultUsageEnvironment != NULL ? *DefaultUsageEnvironment : env), fPort(port) {
+  fSocketNum = setupDatagramSocket(fEnv, port);
 }
 
 Socket::~Socket() {
@@ -102,9 +95,18 @@ Socket::~Socket() {
 }
 
 Boolean Socket::changePort(Port newPort) {
+  int oldSocketNum = fSocketNum;
   closeSocket(fSocketNum);
-  fSocketNum = setupDatagramSocket(fEnv, newPort, fSetLoopback);
-  return fSocketNum >= 0;
+  fSocketNum = setupDatagramSocket(fEnv, newPort);
+  if (fSocketNum < 0) {
+    fEnv.taskScheduler().turnOffBackgroundReadHandling(oldSocketNum);
+    return False;
+  }
+
+  if (fSocketNum != oldSocketNum) { // the socket number has changed, so move any event handling for it:
+    fEnv.taskScheduler().moveSocketHandling(oldSocketNum, fSocketNum);
+  }
+  return True;
 }
 
 UsageEnvironment& operator<<(UsageEnvironment& s, const Socket& sock) {
@@ -130,14 +132,14 @@ Socket* SocketLookupTable::Fetch(UsageEnvironment& env, Port port,
     if (sock == NULL) { // we need to create one:
       sock = CreateNew(env, port);
       if (sock == NULL || sock->socketNum() < 0) break;
-      
+
       fTable->Add((char*)(long)(port.num()), (void*)sock);
       isNew = True;
     }
-    
+
     return sock;
   } while (0);
-  
+
   delete sock;
   return NULL;
 }

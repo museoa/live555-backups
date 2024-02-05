@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A simplified version of "MPEG4VideoStreamFramer" that takes only complete,
 // discrete frames (rather than an arbitrary byte stream) as input.
 // This avoids the parsing and data copying overhead of the full
@@ -33,17 +33,17 @@ public:
   static MPEG4VideoStreamDiscreteFramer*
   createNew(UsageEnvironment& env, FramedSource* inputSource);
 
-private:
+protected:
   MPEG4VideoStreamDiscreteFramer(UsageEnvironment& env,
 				 FramedSource* inputSource);
       // called only by createNew()
   virtual ~MPEG4VideoStreamDiscreteFramer();
 
-private:
+protected:
   // redefined virtual functions:
   virtual void doGetNextFrame();
 
-private:
+protected:
   static void afterGettingFrame(void* clientData, unsigned frameSize,
                                 unsigned numTruncatedBytes,
                                 struct timeval presentationTime,
@@ -58,13 +58,15 @@ private:
     // Which are used by:
   void analyzeVOLHeader();
 
-private:
-  unsigned fNumBitsSeenSoFar; // used by the getNextFrameBit*() routines
+protected:
   u_int32_t vop_time_increment_resolution;
   unsigned fNumVTIRBits;
   // # of bits needed to count to "vop_time_increment_resolution"
   struct timeval fLastNonBFramePresentationTime;
   unsigned fLastNonBFrameVop_time_increment;
+
+private:
+  unsigned fNumBitsSeenSoFar; // used by the getNextFrameBit*() routines
 };
 
 #endif

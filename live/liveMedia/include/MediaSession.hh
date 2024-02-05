@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A data structure that represents a session that consists of
 // potentially multiple (audio and/or video) sub-sessions
 // (This data structure is used for media *receivers* - i.e., clients.
@@ -26,9 +26,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef _RTCP_HH
 #include "RTCP.hh"
-#endif
-#ifndef _PRIORITIZED_RTP_STREAM_SELELECTOR_HH
-#include "PrioritizedRTPStreamSelector.hh"
 #endif
 
 class MediaSubsession; // forward
@@ -42,7 +39,8 @@ public:
 			      MediaSession*& resultSession);
 
   Boolean hasSubsessions() const { return fSubsessionsHead != NULL; }
-  float& playEndTime() { return fMaxPlayEndTime; }
+  double& playStartTime() { return fMaxPlayStartTime; }
+  double& playEndTime() { return fMaxPlayEndTime; }
   char* connectionEndpointName() const { return fConnectionEndpointName; }
   char const* CNAME() const { return fCNAME; }
   struct in_addr const& sourceFilterAddr() const { return fSourceFilterAddr; }
@@ -50,30 +48,18 @@ public:
   char* mediaSessionType() const { return fMediaSessionType; }
   char* sessionName() const { return fSessionName; }
   char* sessionDescription() const { return fSessionDescription; }
+  char const* controlPath() const { return fControlPath; }
 
   Boolean initiateByMediaType(char const* mimeType,
 			      MediaSubsession*& resultSubsession,
-		      PrioritizedRTPStreamSelector*& resultMultiSource,
-			      int& resultMultiSourceSessionId,
 			      int useSpecialRTPoffset = -1);
-      // Initiates the first subsession with the specified MIME type (or
-      // perhaps multiple subsessions if MCT SLAP sessions are being used)
+      // Initiates the first subsession with the specified MIME type
       // Returns the resulting subsession, or 'multi source' (not both)
 
-#ifdef SUPPORT_REAL_RTSP
-  // Attributes specific to RealNetworks streams:
-  Boolean isRealNetworksRDT;
-  unsigned fRealFlags;
-  unsigned char* fRealTitle; unsigned fRealTitleSize;
-  unsigned char* fRealAuthor; unsigned fRealAuthorSize;
-  unsigned char* fRealCopyright; unsigned fRealCopyrightSize;
-  unsigned char* fRealAbstract; unsigned fRealAbstractSize;
-#endif
-
-private: // redefined virtual functions
+protected: // redefined virtual functions
   virtual Boolean isMediaSession() const;
 
-private:
+protected:
   MediaSession(UsageEnvironment& env);
       // called only by createNew();
   virtual ~MediaSession();
@@ -84,6 +70,7 @@ private:
   Boolean parseSDPLine_i(char const* sdpLine);
   Boolean parseSDPLine_c(char const* sdpLine);
   Boolean parseSDPAttribute_type(char const* sdpLine);
+  Boolean parseSDPAttribute_control(char const* sdpLine);
   Boolean parseSDPAttribute_range(char const* sdpLine);
   Boolean parseSDPAttribute_source_filter(char const* sdpLine);
 
@@ -93,7 +80,7 @@ private:
   static unsigned guessRTPTimestampFrequency(char const* mediumName,
 					     char const* codecName);
 
-private:
+protected:
   friend class MediaSubsessionIterator;
   char* fCNAME; // used for RTCP
 
@@ -103,12 +90,14 @@ private:
 
   // Fields set from a SDP description:
   char* fConnectionEndpointName;
-  float fMaxPlayEndTime;
+  double fMaxPlayStartTime;
+  double fMaxPlayEndTime;
   struct in_addr fSourceFilterAddr; // used for SSM
   float fScale; // set from a RTSP "Scale:" header
   char* fMediaSessionType; // holds a=type value
   char* fSessionName; // holds s=<session name> value
   char* fSessionDescription; // holds i=<session description> value
+  char* fControlPath; // holds optional a=control: string
 };
 
 
@@ -116,10 +105,10 @@ class MediaSubsessionIterator {
 public:
   MediaSubsessionIterator(MediaSession& session);
   virtual ~MediaSubsessionIterator();
-  
+
   MediaSubsession* next(); // NULL if none
   void reset();
-  
+
 private:
   MediaSession& fOurSession;
   MediaSubsession* fNextPtr;
@@ -140,8 +129,6 @@ public:
   char const* controlPath() const { return fControlPath; }
   Boolean isSSM() const { return fSourceFilterAddr.s_addr != 0; }
 
-  int mctSLAPSessionId() const { return fMCT_SLAP_SessionId; }
-  unsigned mctSLAPStagger() const { return fMCT_SLAP_Stagger; }
   unsigned short videoWidth() const { return fVideoWidth; }
   unsigned short videoHeight() const { return fVideoHeight; }
   unsigned videoFPS() const { return fVideoFPS; }
@@ -155,7 +142,11 @@ public:
     // This is the source that client sinks read from.  It is usually
     // (but not necessarily) the same as "rtpSource()"
 
-  float playEndTime() const;
+  double playStartTime() const;
+  double playEndTime() const;
+  // Used only to set the local fields:
+  double& _playStartTime() { return fPlayStartTime; }
+  double& _playEndTime() { return fPlayEndTime; }
 
   Boolean initiate(int useSpecialRTPoffset = -1);
       // Creates a "RTPSource" for this subsession. (Has no effect if it's
@@ -198,9 +189,9 @@ public:
   char const* fmtp_mode() const { return fMode; }
   char const* fmtp_spropparametersets() const { return fSpropParameterSets; }
 
-  unsigned connectionEndpointAddress() const;
+  netAddressBits connectionEndpointAddress() const;
       // Converts "fConnectionEndpointName" to an address (or 0 if unknown)
-  void setDestinations(unsigned defaultDestAddress);
+  void setDestinations(netAddressBits defaultDestAddress);
       // Uses "fConnectionEndpointName" and "serverPortNum" to set
       // the destination address and port of the RTP and RTCP objects.
       // This is typically called by RTSP clients after doing "SETUP".
@@ -215,22 +206,21 @@ public:
 
   // Parameters set from a RTSP "RTP-Info:" header:
   struct {
-    unsigned trackId;
     u_int16_t seqNum;
     u_int32_t timestamp;
+    Boolean infoIsNew; // not part of the RTSP header; instead, set whenever this struct is filled in
   } rtpInfo;
 
-#ifdef SUPPORT_REAL_RTSP
-  // Attributes specific to RealNetworks streams:
-  unsigned fRealMaxBitRate, fRealAvgBitRate, fRealMaxPacketSize, fRealAvgPacketSize, fRealPreroll;
-  char* fRealStreamName; char* fRealMIMEType;
-  unsigned char* fRealOpaqueData; unsigned fRealOpaqueDataSize;
-  // A pointer into "fRealOpaqueData":
-  unsigned char* fRealTypeSpecificData; unsigned fRealTypeSpecificDataSize;
-  unsigned fRealRuleNumber;
-#endif
+  double getNormalPlayTime(struct timeval const& presentationTime);
+  // Computes the stream's "Normal Play Time" (NPT) from the given "presentationTime".
+  // (For the definition of "Normal Play Time", see RFC 2326, section 3.6.)
+  // This function is useful only if the "rtpInfo" structure was previously filled in
+  // (e.g., by a "RTP-Info:" header in a RTSP response).
+  // Also, for this function to work properly, the RTP stream's presentation times must (eventually) be
+  // synchronized via RTCP.
+  // (Note: If this function returns a negative number, then the result should be ignored by the caller.)
 
-private:
+protected:
   friend class MediaSession;
   friend class MediaSubsessionIterator;
   MediaSubsession(MediaSession& parent);
@@ -240,16 +230,16 @@ private:
   void setNext(MediaSubsession* next) { fNext = next; }
 
   Boolean parseSDPLine_c(char const* sdpLine);
+  Boolean parseSDPLine_b(char const* sdpLine);
   Boolean parseSDPAttribute_rtpmap(char const* sdpLine);
   Boolean parseSDPAttribute_control(char const* sdpLine);
   Boolean parseSDPAttribute_range(char const* sdpLine);
   Boolean parseSDPAttribute_fmtp(char const* sdpLine);
   Boolean parseSDPAttribute_source_filter(char const* sdpLine);
-  Boolean parseSDPAttribute_x_mct_slap(char const* sdpLine);
   Boolean parseSDPAttribute_x_dimensions(char const* sdpLine);
-  Boolean parseSDPAttribute_x_framerate(char const* sdpLine);
+  Boolean parseSDPAttribute_framerate(char const* sdpLine);
 
-private:
+protected:
   // Linkage fields:
   MediaSession& fParent;
   MediaSubsession* fNext;
@@ -264,8 +254,9 @@ private:
   char* fCodecName;
   char* fProtocolName;
   unsigned fRTPTimestampFrequency;
-  char* fControlPath;
+  char* fControlPath; // holds optional a=control: string
   struct in_addr fSourceFilterAddr; // used for SSM
+  unsigned fBandwidth; // in kilobits-per-second, from b= line
 
   // Parameters set by "a=fmtp:" SDP lines:
   unsigned fAuxiliarydatasizelength, fConstantduration, fConstantsize;
@@ -277,16 +268,16 @@ private:
   Boolean fCpresent, fRandomaccessindication;
   char *fConfig, *fMode, *fSpropParameterSets;
 
-  float fPlayEndTime;
-  int fMCT_SLAP_SessionId; // 0 if not part of a MCT SLAP session
-  unsigned fMCT_SLAP_Stagger; // seconds (used only if the above is != 0)
+  double fPlayStartTime;
+  double fPlayEndTime;
   unsigned short fVideoWidth, fVideoHeight;
      // screen dimensions (set by an optional a=x-dimensions: <w>,<h> line)
   unsigned fVideoFPS;
-     // frame rate (set by an optional a=x-framerate: <fps> line)
+     // frame rate (set by an optional "a=framerate: <fps>" or "a=x-framerate: <fps>" line)
   unsigned fNumChannels;
      // optionally set by "a=rtpmap:" lines for audio sessions.  Default: 1
   float fScale; // set from a RTSP "Scale:" header
+  double fNPT_PTS_Offset; // set by "getNormalPlayTime()"; add this to a PTS to get NPT
 
   // Fields set by initiate():
   Groupsock* fRTPSocket; Groupsock* fRTCPSocket; // works even for unicast

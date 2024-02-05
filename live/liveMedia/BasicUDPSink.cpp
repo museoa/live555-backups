@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A simple UDP sink (i.e., without RTP or other headers added); one frame per packet
 // Implementation
 
@@ -30,7 +30,7 @@ BasicUDPSink::BasicUDPSink(UsageEnvironment& env, Groupsock* gs,
 			   unsigned maxPayloadSize)
   : MediaSink(env),
     fGS(gs), fMaxPayloadSize(maxPayloadSize) {
-  fOutputBuffer = new unsigned char[fMaxPayloadSize]; 
+  fOutputBuffer = new unsigned char[fMaxPayloadSize];
 }
 
 BasicUDPSink::~BasicUDPSink() {
@@ -79,16 +79,11 @@ void BasicUDPSink::afterGettingFrame1(unsigned frameSize, unsigned numTruncatedB
   fNextSendTime.tv_usec += durationInMicroseconds;
   fNextSendTime.tv_sec += fNextSendTime.tv_usec/1000000;
   fNextSendTime.tv_usec %= 1000000;
-  
+
   struct timeval timeNow;
   gettimeofday(&timeNow, NULL);
-  int uSecondsToGo;
-  if (fNextSendTime.tv_sec < timeNow.tv_sec) {
-    uSecondsToGo = 0; // prevents integer underflow if too far behind
-  } else {
-    uSecondsToGo = (fNextSendTime.tv_sec - timeNow.tv_sec)*1000000
-      + (fNextSendTime.tv_usec - timeNow.tv_usec);
-  }
+  int64_t uSecondsToGo;
+  uSecondsToGo = (fNextSendTime.tv_sec - timeNow.tv_sec)*1000000 + (fNextSendTime.tv_usec - timeNow.tv_usec);
 
   // Delay this amount of time:
   nextTask() = envir().taskScheduler().scheduleDelayedTask(uSecondsToGo,

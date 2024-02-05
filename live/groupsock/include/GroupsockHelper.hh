@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "mTunnel" multicast access service
-// Copyright (c) 1996-2001 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Helper routines to implement 'group sockets'
 // C++ header
 
@@ -25,22 +25,13 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include "NetAddress.hh"
 #endif
 
-int setupDatagramSocket(UsageEnvironment& env,
-			Port port, Boolean setLoopback = True);
+int setupDatagramSocket(UsageEnvironment& env, Port port);
 int setupStreamSocket(UsageEnvironment& env,
 		      Port port, Boolean makeNonBlocking = True);
 
 int readSocket(UsageEnvironment& env,
 	       int socket, unsigned char* buffer, unsigned bufferSize,
-	       struct sockaddr_in& fromAddress,
-	       struct timeval* timeout = NULL);
-
-int readSocketExact(UsageEnvironment& env,
-		    int socket, unsigned char* buffer, unsigned bufferSize,
-		    struct sockaddr_in& fromAddress,
-		    struct timeval* timeout = NULL);
-    // like "readSocket()", except that it rereads as many times as needed until
-    // *exactly* "bufferSize" bytes are read.
+	       struct sockaddr_in& fromAddress);
 
 Boolean writeSocket(UsageEnvironment& env,
 		    int socket, struct in_addr address, Port port,
@@ -58,6 +49,9 @@ unsigned increaseSendBufferTo(UsageEnvironment& env,
 unsigned increaseReceiveBufferTo(UsageEnvironment& env,
 				 int socket, unsigned requestedSize);
 
+Boolean makeSocketNonBlocking(int sock);
+Boolean makeSocketBlocking(int sock);
+
 Boolean socketJoinGroup(UsageEnvironment& env, int socket,
 			netAddressBits groupAddress);
 Boolean socketLeaveGroup(UsageEnvironment&, int socket,
@@ -73,7 +67,7 @@ Boolean socketLeaveGroupSSM(UsageEnvironment&, int socket,
 
 Boolean getSourcePort(UsageEnvironment& env, int socket, Port& port);
 
-netAddressBits ourSourceAddressForMulticast(UsageEnvironment& env); // in network order
+netAddressBits ourIPAddress(UsageEnvironment& env); // in network order
 
 // IP addresses of our sending and receiving interfaces.  (By default, these
 // are INADDR_ANY (i.e., 0), specifying the default interface.)
@@ -91,7 +85,7 @@ char const* timestampString();
 #define SET_SOCKADDR_SIN_LEN(var) var.sin_len = sizeof var
 #else
 #define SET_SOCKADDR_SIN_LEN(var)
-#endif 
+#endif
 
 #define MAKE_SOCKADDR_IN(var,adr,prt) /*adr,prt must be in network order*/\
     struct sockaddr_in var;\
@@ -99,6 +93,20 @@ char const* timestampString();
     var.sin_addr.s_addr = (adr);\
     var.sin_port = (prt);\
     SET_SOCKADDR_SIN_LEN(var);
+
+
+// By default, we create sockets with the SO_REUSE_* flag set.
+// If, instead, you want to create sockets without the SO_REUSE_* flags,
+// Then enclose the creation code with:
+//          {
+//            NoReuse dummy;
+//            ...
+//          }
+class NoReuse {
+public:
+  NoReuse();
+  ~NoReuse();
+};
 
 
 #if (defined(__WIN32__) || defined(_WIN32)) && !defined(IMN_PIM)

@@ -1,3 +1,20 @@
+/**********
+This library is free software; you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by the
+Free Software Foundation; either version 2.1 of the License, or (at your
+option) any later version. (See <http://www.gnu.org/copyleft/lesser.html>.)
+
+This library is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this library; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+**********/
+// "liveMedia"
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A filter that passes through (unchanged) chunks that contain an integral number
 // of MPEG-2 Transport Stream packets, but returning (in "fDurationInMicroseconds")
 // an updated estimate of the time gap between chunks.
@@ -7,14 +24,29 @@
 #include <GroupsockHelper.hh> // for "gettimeofday()"
 
 #define TRANSPORT_PACKET_SIZE 188
+
+////////// Definitions of constants that control the behavior of this code /////////
+
+#if !defined(NEW_DURATION_WEIGHT)
 #define NEW_DURATION_WEIGHT 0.5
   // How much weight to give to the latest duration measurement (must be <= 1)
+#endif
+
+#if !defined(TIME_ADJUSTMENT_FACTOR)
 #define TIME_ADJUSTMENT_FACTOR 0.8
   // A factor by which to adjust the duration estimate to ensure that the overall
   // packet transmission times remains matched with the PCR times (which will be the
   // times that we expect receivers to play the incoming packets).
   // (must be <= 1)
+#endif
+
+#if !defined(MAX_PLAYOUT_BUFFER_DURATION)
 #define MAX_PLAYOUT_BUFFER_DURATION 0.1 // (seconds)
+#endif
+
+#if !defined(PCR_PERIOD_VARIATION_RATIO)
+#define PCR_PERIOD_VARIATION_RATIO 0.5
+#endif
 
 ////////// PIDStatus //////////
 
@@ -41,16 +73,20 @@ MPEG2TransportStreamFramer* MPEG2TransportStreamFramer
 MPEG2TransportStreamFramer
 ::MPEG2TransportStreamFramer(UsageEnvironment& env, FramedSource* inputSource)
   : FramedFilter(env, inputSource),
-    fTSPacketCount(0), fTSPacketDurationEstimate(0.0) {
+    fTSPacketCount(0), fTSPacketDurationEstimate(0.0), fTSPCRCount(0) {
   fPIDStatusTable = HashTable::create(ONE_WORD_HASH_KEYS);
 }
 
 MPEG2TransportStreamFramer::~MPEG2TransportStreamFramer() {
+  clearPIDStatusTable();
+  delete fPIDStatusTable;
+}
+
+void MPEG2TransportStreamFramer::clearPIDStatusTable() {
   PIDStatus* pidStatus;
   while ((pidStatus = (PIDStatus*)fPIDStatusTable->RemoveNext()) != NULL) {
     delete pidStatus;
   }
-  delete fPIDStatusTable;
 }
 
 void MPEG2TransportStreamFramer::doGetNextFrame() {
@@ -64,12 +100,9 @@ void MPEG2TransportStreamFramer::doGetNextFrame() {
 void MPEG2TransportStreamFramer::doStopGettingFrames() {
   FramedFilter::doStopGettingFrames();
   fTSPacketCount = 0;
+  fTSPCRCount = 0;
 
-  // Clear out the existing PID status table:
-  PIDStatus* pidStatus;
-  while ((pidStatus = (PIDStatus*)fPIDStatusTable->RemoveNext()) != NULL) {
-    delete pidStatus;
-  }
+  clearPIDStatusTable();
 }
 
 void MPEG2TransportStreamFramer
@@ -155,6 +188,7 @@ void MPEG2TransportStreamFramer
   if (pcrFlag == 0) return; // no PCR
 
   // There's a PCR.  Get it, and the PID:
+  ++fTSPCRCount;
   u_int32_t pcrBaseHigh = (pkt[6]<<24)|(pkt[7]<<16)|(pkt[8]<<8)|pkt[9];
   double clock = pcrBaseHigh/45000.0;
   if ((pkt[10]&0x80) != 0) clock += 1/90000.0; // add in low-bit (if set)
@@ -165,6 +199,7 @@ void MPEG2TransportStreamFramer
 
   // Check whether we already have a record of a PCR for this PID:
   PIDStatus* pidStatus = (PIDStatus*)(fPIDStatusTable->Lookup((char*)pid));
+
   if (pidStatus == NULL) {
     // We're seeing this PID's PCR for the first time:
     pidStatus = new PIDStatus(clock, timeNow);
@@ -176,6 +211,15 @@ void MPEG2TransportStreamFramer
     // We've seen this PID's PCR before; update our per-packet duration estimate:
     double durationPerPacket
       = (clock - pidStatus->lastClock)/(fTSPacketCount - pidStatus->lastPacketNum);
+
+    // Hack (suggested by "Romain"): Don't update our estimate if this PCR appeared unusually quickly.
+    // (This can produce more accurate estimates for wildly VBR streams.)
+    double meanPCRPeriod = 0.0;
+    if (fTSPCRCount > 0) {
+      meanPCRPeriod=(double)fTSPacketCount/fTSPCRCount;
+      if (fTSPacketCount - pidStatus->lastPacketNum < meanPCRPeriod*PCR_PERIOD_VARIATION_RATIO) return;
+    }
+
     if (fTSPacketDurationEstimate == 0.0) { // we've just started
       fTSPacketDurationEstimate = durationPerPacket;
     } else if (discontinuity_indicator == 0 && durationPerPacket >= 0.0) {
@@ -199,7 +243,7 @@ void MPEG2TransportStreamFramer
       pidStatus->firstRealTime = timeNow;
     }
 #ifdef DEBUG_PCR
-    fprintf(stderr, "PID 0x%x, PCR 0x%08x+%d:%03x == %f @ %f (diffs %f @ %f), pkt #%lu, discon %d => this duration %f, new estimate %f\n", pid, pcrBaseHigh, pkt[10]>>7, pcrExt, clock, timeNow, clock - pidStatus->firstClock, timeNow - pidStatus->firstRealTime, fTSPacketCount, discontinuity_indicator != 0, durationPerPacket, fTSPacketDurationEstimate);
+    fprintf(stderr, "PID 0x%x, PCR 0x%08x+%d:%03x == %f @ %f (diffs %f @ %f), pkt #%lu, discon %d => this duration %f, new estimate %f, mean PCR period=%f\n", pid, pcrBaseHigh, pkt[10]>>7, pcrExt, clock, timeNow, clock - pidStatus->firstClock, timeNow - pidStatus->firstRealTime, fTSPacketCount, discontinuity_indicator != 0, durationPerPacket, fTSPacketDurationEstimate, meanPCRPeriod );
 #endif
   }
 

@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A template for a MediaSource encapsulating an audio/video input device
 // Implementation
 
@@ -36,7 +36,6 @@ DeviceSource::~DeviceSource() {
 }
 
 void DeviceSource::doGetNextFrame() {
-
   // Arrange here for our "deliverFrame" member function to be called
   // when the next frame of data becomes available from the device.
   // This must be done in a non-blocking fashion - i.e., so that we
@@ -73,15 +72,13 @@ void DeviceSource::deliverFrame() {
   //         bigger than "fMaxSize", in which case it's set to the number of bytes
   //         that have been omitted.
   //     fPresentationTime: Should be set to the frame's presentation time
-  //         (seconds, microseconds).
+  //         (seconds, microseconds).  This time must be aligned with 'wall-clock time' - i.e., the time that you would get
+  //         by calling "gettimeofday()".
   //     fDurationInMicroseconds: Should be set to the frame's duration, if known.
   if (!isCurrentlyAwaitingData()) return; // we're not ready for the data yet
 
   // Deliver the data here:
 
-  // After delivering the data, switch to another task, and inform
-  // the reader that he has data:
-  nextTask()
-    = envir().taskScheduler().scheduleDelayedTask(0, (TaskFunc*)afterGetting,
-						  this);
+  // After delivering the data, inform the reader that it is now available:
+  FramedSource::afterGetting(this);
 }

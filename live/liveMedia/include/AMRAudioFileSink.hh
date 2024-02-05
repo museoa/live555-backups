@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // AMR Audio File Sinks
 // C++ header
 
@@ -32,18 +32,18 @@ public:
 				     Boolean oneFilePerFrame = False);
   // (See "FileSink.hh" for a description of these parameters.)
 
-private:
+protected:
   AMRAudioFileSink(UsageEnvironment& env, FILE* fid, unsigned bufferSize,
 		   char const* perFrameFileNamePrefix);
       // called only by createNew()
   virtual ~AMRAudioFileSink();
 
-private: // redefined virtual functions:
+protected: // redefined virtual functions:
   virtual Boolean sourceIsCompatibleWithUs(MediaSource& source);
   virtual void afterGettingFrame1(unsigned frameSize,
 				  struct timeval presentationTime);
 
-private:
+protected:
   Boolean fHaveWrittenHeader;
 };
 

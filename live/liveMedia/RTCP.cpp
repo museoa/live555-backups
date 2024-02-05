@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // RTCP
 // Implementation
 
@@ -131,18 +131,25 @@ RTCPInstance::RTCPInstance(UsageEnvironment& env, Groupsock* RTCPgs,
     fHaveJustSentPacket(False), fLastPacketSentSize(0),
     fByeHandlerTask(NULL), fByeHandlerClientData(NULL),
     fSRHandlerTask(NULL), fSRHandlerClientData(NULL),
-    fRRHandlerTask(NULL), fRRHandlerClientData(NULL) {
+    fRRHandlerTask(NULL), fRRHandlerClientData(NULL),
+    fSpecificRRHandlerTable(NULL) {
 #ifdef DEBUG
   fprintf(stderr, "RTCPInstance[%p]::RTCPInstance()\n", this);
 #endif
+  if (fTotSessionBW == 0) { // not allowed!
+    env << "RTCPInstance::RTCPInstance error: totSessionBW parameter should not be zero!\n";
+    fTotSessionBW = 1;
+  }
+
   if (isSSMSource) RTCPgs->multicastSendOnly(); // don't receive multicast
-    
+
   double timeNow = dTimeNow();
   fPrevReportTime = fNextReportTime = timeNow;
 
   fKnownMembers = new RTCPMemberDatabase(*this);
   fInBuf = new unsigned char[maxPacketSize];
   if (fKnownMembers == NULL || fInBuf == NULL) return;
+  fNumBytesAlreadyRead = 0;
 
   // A hack to save buffer space, because RTCP packets are always small:
   unsigned savedMaxSize = OutPacketBuffer::maxSize;
@@ -155,11 +162,16 @@ RTCPInstance::RTCPInstance(UsageEnvironment& env, Groupsock* RTCPgs,
   TaskScheduler::BackgroundHandlerProc* handler
     = (TaskScheduler::BackgroundHandlerProc*)&incomingReportHandler;
   fRTCPInterface.startNetworkReading(handler);
-  
+
   // Send our first report.
   fTypeOfEvent = EVENT_REPORT;
   onExpire(this);
 }
+
+struct RRHandlerRecord {
+  TaskFunc* rrHandlerTask;
+  void* rrHandlerClientData;
+};
 
 RTCPInstance::~RTCPInstance() {
 #ifdef DEBUG
@@ -172,6 +184,15 @@ RTCPInstance::~RTCPInstance() {
   // 'reconsideration', because "this" is going away.
   fTypeOfEvent = EVENT_BYE; // not used, but...
   sendBYE();
+
+  if (fSpecificRRHandlerTable != NULL) {
+    AddressPortLookupTable::Iterator iter(*fSpecificRRHandlerTable);
+    RRHandlerRecord* rrHandler;
+    while ((rrHandler = (RRHandlerRecord*)iter.next()) != NULL) {
+      delete rrHandler;
+    }
+    delete fSpecificRRHandlerTable;
+  }
 
   delete fKnownMembers;
   delete fOutBuf;
@@ -231,6 +252,35 @@ void RTCPInstance::setRRHandler(TaskFunc* handlerTask, void* clientData) {
   fRRHandlerClientData = clientData;
 }
 
+void RTCPInstance
+::setSpecificRRHandler(netAddressBits fromAddress, Port fromPort,
+		       TaskFunc* handlerTask, void* clientData) {
+  if (handlerTask == NULL && clientData == NULL) {
+    unsetSpecificRRHandler(fromAddress, fromPort);
+    return;
+  }
+
+  RRHandlerRecord* rrHandler = new RRHandlerRecord;
+  rrHandler->rrHandlerTask = handlerTask;
+  rrHandler->rrHandlerClientData = clientData;
+  if (fSpecificRRHandlerTable == NULL) {
+    fSpecificRRHandlerTable = new AddressPortLookupTable;
+  }
+  fSpecificRRHandlerTable->Add(fromAddress, (~0), fromPort, rrHandler);
+}
+
+void RTCPInstance
+::unsetSpecificRRHandler(netAddressBits fromAddress, Port fromPort) {
+  if (fSpecificRRHandlerTable == NULL) return;
+
+  RRHandlerRecord* rrHandler
+    = (RRHandlerRecord*)(fSpecificRRHandlerTable->Lookup(fromAddress, (~0), fromPort));
+  if (rrHandler != NULL) {
+    fSpecificRRHandlerTable->Remove(fromAddress, (~0), fromPort);
+    delete rrHandler;
+  }
+}
+
 void RTCPInstance::setStreamSocket(int sockNum,
 				   unsigned char streamChannelId) {
   // Turn off background read handling:
@@ -247,8 +297,11 @@ void RTCPInstance::setStreamSocket(int sockNum,
 
 void RTCPInstance::addStreamSocket(int sockNum,
 				   unsigned char streamChannelId) {
+  // First, turn off background read handling for the default (UDP) socket:
+  envir().taskScheduler().turnOffBackgroundReadHandling(fRTCPInterface.gs()->socketNum());
+
   // Add the RTCP-over-TCP interface:
-  fRTCPInterface.setStreamSocket(sockNum, streamChannelId);
+  fRTCPInterface.addStreamSocket(sockNum, streamChannelId);
 
   // Turn on background reading for this socket (in case it's not on already):
   TaskScheduler::BackgroundHandlerProc* handler
@@ -267,16 +320,24 @@ void RTCPInstance::incomingReportHandler(RTCPInstance* instance,
 }
 
 void RTCPInstance::incomingReportHandler1() {
-  unsigned char* pkt = fInBuf;
-  unsigned packetSize;
-  struct sockaddr_in fromAddress;
-  int typeOfPacket = PACKET_UNKNOWN_TYPE;
-
   do {
-    if (!fRTCPInterface.handleRead(pkt, maxPacketSize,
-				   packetSize, fromAddress)) {
-      break;
+    int tcpReadStreamSocketNum = fRTCPInterface.nextTCPReadStreamSocketNum();
+    unsigned char tcpReadStreamChannelId = fRTCPInterface.nextTCPReadStreamChannelId();
+    unsigned packetSize = 0;
+    unsigned numBytesRead;
+    struct sockaddr_in fromAddress;
+    Boolean packetReadWasIncomplete;
+    Boolean readResult
+      = fRTCPInterface.handleRead(&fInBuf[fNumBytesAlreadyRead], maxPacketSize - fNumBytesAlreadyRead,
+				  numBytesRead, fromAddress, packetReadWasIncomplete);
+    if (packetReadWasIncomplete) {
+      fNumBytesAlreadyRead += numBytesRead;
+      return; // more reads are needed to get the entire packet
+    } else { // normal case: We've read the entire packet 
+      packetSize = fNumBytesAlreadyRead + numBytesRead;
+      fNumBytesAlreadyRead = 0; // for next time
     }
+    if (!readResult) break;
 
     // Ignore the packet if it was looped-back from ourself:
     if (RTCPgs()->wasLoopedBackFromUs(envir(), fromAddress)) {
@@ -292,13 +353,14 @@ void RTCPInstance::incomingReportHandler1() {
       }
     }
 
+    unsigned char* pkt = fInBuf;
     if (fIsSSMSource) {
       // This packet was received via unicast.  'Reflect' it by resending
       // it to the multicast group.
       // NOTE: Denial-of-service attacks are possible here.
       // Users of this software may wish to add their own,
       // application-specific mechanism for 'authenticating' the
-      // validity of this packet before relecting it.
+      // validity of this packet before reflecting it.
       fRTCPInterface.sendPacket(pkt, packetSize);
       fHaveJustSentPacket = True;
       fLastPacketSentSize = packetSize;
@@ -306,10 +368,9 @@ void RTCPInstance::incomingReportHandler1() {
 
 #ifdef DEBUG
     fprintf(stderr, "[%p]saw incoming RTCP packet (from address %s, port %d)\n", this, our_inet_ntoa(fromAddress.sin_addr), ntohs(fromAddress.sin_port));
-    unsigned char* p = pkt;
     for (unsigned i = 0; i < packetSize; ++i) {
       if (i%4 == 0) fprintf(stderr, " ");
-      fprintf(stderr, "%02x", p[i]);
+      fprintf(stderr, "%02x", pkt[i]);
     }
     fprintf(stderr, "\n");
 #endif
@@ -320,7 +381,7 @@ void RTCPInstance::incomingReportHandler1() {
     // must be version=2, with no padding bit, and a payload type of
     // SR (200) or RR (201):
     if (packetSize < 4) break;
-    unsigned rtcpHdr = ntohl(*(unsigned*)pkt);
+    unsigned rtcpHdr = ntohl(*(u_int32_t*)pkt);
     if ((rtcpHdr & 0xE0FE0000) != (0x80000000 | (RTCP_PT_SR<<16))) {
 #ifdef DEBUG
       fprintf(stderr, "rejected bad RTCP packet: header 0x%08x\n", rtcpHdr);
@@ -330,6 +391,7 @@ void RTCPInstance::incomingReportHandler1() {
 
     // Process each of the individual RTCP 'subpackets' in (what may be)
     // a compound RTCP packet.
+    int typeOfPacket = PACKET_UNKNOWN_TYPE;
     unsigned reportSenderSSRC = 0;
     Boolean packetOK = False;
     while (1) {
@@ -341,7 +403,7 @@ void RTCPInstance::incomingReportHandler1() {
 
       // Assume that each RTCP subpacket begins with a 4-byte SSRC:
       if (length < 4) break; length -= 4;
-      reportSenderSSRC = ntohl(*(unsigned*)pkt); ADVANCE(4);
+      reportSenderSSRC = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
 
       Boolean subPacketOK = False;
       switch (pt) {
@@ -352,9 +414,9 @@ void RTCPInstance::incomingReportHandler1() {
 	  if (length < 20) break; length -= 20;
 
 	  // Extract the NTP timestamp, and note this:
-	  unsigned NTPmsw = ntohl(*(unsigned*)pkt); ADVANCE(4);
-	  unsigned NTPlsw = ntohl(*(unsigned*)pkt); ADVANCE(4);
-	  unsigned rtpTimestamp = ntohl(*(unsigned*)pkt); ADVANCE(4);
+	  unsigned NTPmsw = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
+	  unsigned NTPlsw = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
+	  unsigned rtpTimestamp = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
 	  if (fSource != NULL) {
 	    RTPReceptionStatsDB& receptionStats
 	      = fSource->receptionStatsDB();
@@ -380,14 +442,14 @@ void RTCPInstance::incomingReportHandler1() {
 	    // Use this information to update stats about our transmissions:
             RTPTransmissionStatsDB& transmissionStats = fSink->transmissionStatsDB();
             for (unsigned i = 0; i < rc; ++i) {
-              unsigned senderSSRC = ntohl(*(unsigned*)pkt); ADVANCE(4);
+              unsigned senderSSRC = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
               // We care only about reports about our own transmission, not others'
               if (senderSSRC == fSink->SSRC()) {
-                unsigned lossStats = ntohl(*(unsigned*)pkt); ADVANCE(4);
-                unsigned highestReceived = ntohl(*(unsigned*)pkt); ADVANCE(4);
-                unsigned jitter = ntohl(*(unsigned*)pkt); ADVANCE(4);
-                unsigned timeLastSR = ntohl(*(unsigned*)pkt); ADVANCE(4);
-                unsigned timeSinceLastSR = ntohl(*(unsigned*)pkt); ADVANCE(4);
+                unsigned lossStats = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
+                unsigned highestReceived = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
+                unsigned jitter = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
+                unsigned timeLastSR = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
+                unsigned timeSinceLastSR = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
                 transmissionStats.noteIncomingRR(reportSenderSSRC, fromAddress,
 						 lossStats,
 						 highestReceived, jitter,
@@ -402,6 +464,32 @@ void RTCPInstance::incomingReportHandler1() {
 
 	  if (pt == RTCP_PT_RR) { // i.e., we didn't fall through from 'SR'
 	    // If a 'RR handler' was set, call it now:
+
+	    // Specific RR handler:
+	    if (fSpecificRRHandlerTable != NULL) {
+	      netAddressBits fromAddr;
+	      portNumBits fromPortNum;
+	      if (tcpReadStreamSocketNum < 0) {
+		// Normal case: We read the RTCP packet over UDP
+		fromAddr = fromAddress.sin_addr.s_addr;
+		fromPortNum = ntohs(fromAddress.sin_port);
+	      } else {
+		// Special case: We read the RTCP packet over TCP (interleaved)
+		// Hack: Use the TCP socket and channel id to look up the handler
+		fromAddr = tcpReadStreamSocketNum;
+		fromPortNum = tcpReadStreamChannelId;
+	      }
+	      Port fromPort(fromPortNum);
+	      RRHandlerRecord* rrHandler
+		= (RRHandlerRecord*)(fSpecificRRHandlerTable->Lookup(fromAddr, (~0), fromPort));
+	      if (rrHandler != NULL) {
+		if (rrHandler->rrHandlerTask != NULL) {
+		  (*(rrHandler->rrHandlerTask))(rrHandler->rrHandlerClientData);
+		}
+	      }
+	    }
+
+	    // General RR handler:
 	    if (fRRHandlerTask != NULL) (*fRRHandlerTask)(fRRHandlerClientData);
 	  }
 
@@ -422,7 +510,7 @@ void RTCPInstance::incomingReportHandler1() {
 		  || (fSink != NULL
 		      && fSink->transmissionStatsDB().lookup(reportSenderSSRC) != NULL))) {
 	    fByeHandlerTask = NULL;
-	        // we call this only once by default 
+	        // we call this only once by default
 	    (*byeHandler)(fByeHandlerClientData);
 	  }
 
@@ -439,7 +527,7 @@ void RTCPInstance::incomingReportHandler1() {
 #endif
 	  subPacketOK = True;
 	  break;
-      }  
+      }
       if (!subPacketOK) break;
 
       // need to check for (& handle) SSRC collision! #####
@@ -447,7 +535,7 @@ void RTCPInstance::incomingReportHandler1() {
 #ifdef DEBUG
       fprintf(stderr, "validated RTCP subpacket (type %d): %d, %d, %d, 0x%08x\n", typeOfPacket, rc, pt, length, reportSenderSSRC);
 #endif
-      
+
       // Skip over any remaining bytes in this subpacket:
       ADVANCE(length);
 
@@ -461,7 +549,7 @@ void RTCPInstance::incomingReportHandler1() {
 #endif
 	break;
       }
-      rtcpHdr = ntohl(*(unsigned*)pkt);
+      rtcpHdr = ntohl(*(u_int32_t*)pkt);
       if ((rtcpHdr & 0xC0000000) != 0x80000000) {
 #ifdef DEBUG
 	fprintf(stderr, "bad RTCP subpacket: header 0x%08x\n", rtcpHdr);
@@ -469,7 +557,7 @@ void RTCPInstance::incomingReportHandler1() {
 	break;
       }
     }
-      
+
     if (!packetOK) {
 #ifdef DEBUG
       fprintf(stderr, "rejected bad RTCP subpacket: header 0x%08x\n", rtcpHdr);
@@ -480,7 +568,7 @@ void RTCPInstance::incomingReportHandler1() {
       fprintf(stderr, "validated entire RTCP packet\n");
 #endif
     }
-      
+
     onReceive(typeOfPacket, totPacketSize, reportSenderSSRC);
   } while (0);
 }
@@ -506,6 +594,11 @@ void RTCPInstance::onReceive(int typeOfPacket, int totPacketSize,
 }
 
 void RTCPInstance::sendReport() {
+  // Hack: Don't send a SR during those (brief) times when the timestamp of the
+  // next outgoing RTP packet has been preset, to ensure that that timestamp gets
+  // used for that outgoing packet. (David Bertrand, 2006.07.18)
+  if (fSink != NULL && fSink->nextTimestampHasBeenPreset()) return;
+
 #ifdef DEBUG
   fprintf(stderr, "sending REPORT\n");
 #endif
@@ -651,7 +744,7 @@ void RTCPInstance::enqueueCommonReportPrefix(unsigned char packetType,
 
 void RTCPInstance::enqueueCommonReportSuffix() {
   // Output the report blocks for each source:
-  if (fSource != NULL) { 
+  if (fSource != NULL) {
     RTPReceptionStatsDB& allReceptionStats
       = fSource->receptionStatsDB();
 
@@ -686,7 +779,7 @@ RTCPInstance::enqueueReportBlock(RTPReceptionStats* stats) {
   unsigned numExpectedSinceLastReset
     = highestExtSeqNumReceived - stats->lastResetExtSeqNumReceived();
   int numLostSinceLastReset
-    = numExpectedSinceLastReset - stats->numPacketsReceivedSinceLastReset(); 
+    = numExpectedSinceLastReset - stats->numPacketsReceivedSinceLastReset();
   unsigned char lossFraction;
   if (numExpectedSinceLastReset == 0 || numLostSinceLastReset < 0) {
     lossFraction = 0;
@@ -694,7 +787,7 @@ RTCPInstance::enqueueReportBlock(RTPReceptionStats* stats) {
     lossFraction = (unsigned char)
       ((numLostSinceLastReset << 8) / numExpectedSinceLastReset);
   }
-  
+
   fOutBuf->enqueueWord((lossFraction<<24) | totNumLost);
   fOutBuf->enqueueWord(highestExtSeqNumReceived);
 
@@ -716,7 +809,7 @@ RTCPInstance::enqueueReportBlock(RTPReceptionStats* stats) {
   timeSinceLSR.tv_sec = timeNow.tv_sec - LSRtime.tv_sec;
   timeSinceLSR.tv_usec = timeNow.tv_usec - LSRtime.tv_usec;
   // The enqueued time is in units of 1/65536 seconds.
-  // (Note that 65536/1000000 == 1024/15625) 
+  // (Note that 65536/1000000 == 1024/15625)
   unsigned DLSR;
   if (LSR == 0) {
     DLSR = 0;
@@ -775,10 +868,11 @@ void RTCPInstance::schedule(double nextTime) {
   fNextReportTime = nextTime;
 
   double secondsToDelay = nextTime - dTimeNow();
+  if (secondsToDelay < 0) secondsToDelay = 0;
 #ifdef DEBUG
   fprintf(stderr, "schedule(%f->%f)\n", secondsToDelay, nextTime);
 #endif
-  int usToGo = (int)(secondsToDelay * 1000000);
+  int64_t usToGo = (int64_t)(secondsToDelay * 1000000);
   nextTask() = envir().taskScheduler().scheduleDelayedTask(usToGo,
 				(TaskFunc*)RTCPInstance::onExpire, this);
 }
@@ -809,14 +903,11 @@ void RTCPInstance::onExpire1() {
 
 SDESItem::SDESItem(unsigned char tag, unsigned char const* value) {
   unsigned length = strlen((char const*)value);
-  if (length > 511) length = 511;
+  if (length > 0xFF) length = 0xFF; // maximum data length for a SDES item
 
   fData[0] = tag;
   fData[1] = (unsigned char)length;
   memmove(&fData[2], value, length);
-
-  // Pad the trailing bytes to a 4-byte boundary:
-  while ((length)%4 > 0) fData[2 + length++] = '\0';
 }
 
 unsigned SDESItem::totalSize() const {

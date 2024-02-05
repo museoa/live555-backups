@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // RTP sink for a common kind of payload format: Those which pack multiple,
 // complete codec frames (as many as possible) into each RTP packet.
 // Implementation
@@ -31,6 +31,7 @@ void MultiFramedRTPSink::setPacketSizes(unsigned preferredPacketSize,
 
   delete fOutBuf;
   fOutBuf = new OutPacketBuffer(preferredPacketSize, maxPacketSize);
+  fOurMaxPacketSize = maxPacketSize; // save value, in case subclasses need it
 }
 
 MultiFramedRTPSink::MultiFramedRTPSink(UsageEnvironment& env,
@@ -88,6 +89,11 @@ unsigned MultiFramedRTPSink::frameSpecificHeaderSize() const {
   return 0;
 }
 
+unsigned MultiFramedRTPSink::computeOverflowForNewFrame(unsigned newFrameSize) const {
+  // default implementation: Just call numOverflowBytes()
+  return fOutBuf->numOverflowBytes(newFrameSize);
+}
+
 void MultiFramedRTPSink::setMarkerBit() {
   unsigned rtpHdr = fOutBuf->extractWord(0);
   rtpHdr |= 0x00800000;
@@ -122,6 +128,21 @@ void MultiFramedRTPSink::setFrameSpecificHeaderBytes(unsigned char const* bytes,
 						     unsigned numBytes,
 						     unsigned bytePosition) {
   fOutBuf->insert(bytes, numBytes, fCurFrameSpecificHeaderPosition + bytePosition);
+}
+
+void MultiFramedRTPSink::setFramePadding(unsigned numPaddingBytes) {
+  if (numPaddingBytes > 0) {
+    // Add the padding bytes (with the last one being the padding size):
+    unsigned char paddingBuffer[255]; //max padding
+    memset(paddingBuffer, 0, numPaddingBytes);
+    paddingBuffer[numPaddingBytes-1] = numPaddingBytes;
+    fOutBuf->enqueue(paddingBuffer, numPaddingBytes);
+
+    // Set the RTP padding bit:
+    unsigned rtpHdr = fOutBuf->extractWord(0);
+    rtpHdr |= 0x20000000;
+    fOutBuf->insertWord(rtpHdr, 0);
+  }
 }
 
 Boolean MultiFramedRTPSink::continuePlaying() {
@@ -253,7 +274,7 @@ void MultiFramedRTPSink
       if (isTooBigForAPacket(frameSize)
           && (fNumFramesUsedSoFar == 0 || allowFragmentationAfterStart())) {
         // We need to fragment this frame, and use some of it now:
-        overflowBytes = fOutBuf->numOverflowBytes(frameSize);
+        overflowBytes = computeOverflowForNewFrame(frameSize);
         numFrameBytesToUse -= overflowBytes;
         fCurFragmentationOffset += numFrameBytesToUse;
       } else {
@@ -262,8 +283,7 @@ void MultiFramedRTPSink
         numFrameBytesToUse = 0;
       }
       fOutBuf->setOverflowData(fOutBuf->curPacketSize() + numFrameBytesToUse,
-          overflowBytes, presentationTime,
-          durationInMicroseconds);
+			       overflowBytes, presentationTime, durationInMicroseconds);
     } else if (fCurFragmentationOffset > 0) {
       // This is the last fragment of a frame that was fragmented over
       // more than one packet.  Do any special handling for this case:
@@ -277,13 +297,15 @@ void MultiFramedRTPSink
     sendPacketIfNecessary();
   } else {
     // Use this frame in our outgoing packet:
+    unsigned char* frameStart = fOutBuf->curPtr();
+    fOutBuf->increment(numFrameBytesToUse);
+        // do this now, in case "doSpecialFrameHandling()" calls "setFramePadding()" to append padding bytes
 
     // Here's where any payload format specific processing gets done:
-    doSpecialFrameHandling(curFragmentationOffset, fOutBuf->curPtr(),
+    doSpecialFrameHandling(curFragmentationOffset, frameStart,
 			   numFrameBytesToUse, presentationTime,
 			   overflowBytes);
 
-    fOutBuf->increment(numFrameBytesToUse);
     ++fNumFramesUsedSoFar;
 
     // Update the time at which the next packet should be sent, based
@@ -304,8 +326,8 @@ void MultiFramedRTPSink
     // (iv) one frame per packet is allowed:
     if (fOutBuf->isPreferredSize()
         || fOutBuf->wouldOverflow(numFrameBytesToUse)
-        || (fPreviousFrameEndedFragmentation && 
-            !allowOtherFramesAfterLastFragment()) 
+        || (fPreviousFrameEndedFragmentation &&
+            !allowOtherFramesAfterLastFragment())
         || !frameCanAppearAfterPacketStart(fOutBuf->curPtr() - frameSize,
 					   frameSize) ) {
       // The packet is ready to be sent now
@@ -356,6 +378,7 @@ void MultiFramedRTPSink::sendPacketIfNecessary() {
     fOutBuf->resetPacketStart();
   }
   fOutBuf->resetOffset();
+  fNumFramesUsedSoFar = 0;
 
   if (fNoFramesLeft) {
     // We're done:
@@ -366,17 +389,10 @@ void MultiFramedRTPSink::sendPacketIfNecessary() {
     // sending the next packet.
     struct timeval timeNow;
     gettimeofday(&timeNow, NULL);
-    int uSecondsToGo;
-    if (fNextSendTime.tv_sec < timeNow.tv_sec) {
-      uSecondsToGo = 0; // prevents integer underflow if too far behind
-    } else {
-      uSecondsToGo = (fNextSendTime.tv_sec - timeNow.tv_sec)*1000000
-	+ (fNextSendTime.tv_usec - timeNow.tv_usec);
-    }
+    int64_t uSecondsToGo = (fNextSendTime.tv_sec - timeNow.tv_sec)*1000000 + (fNextSendTime.tv_usec - timeNow.tv_usec);
 
     // Delay this amount of time:
-    nextTask() = envir().taskScheduler().scheduleDelayedTask(uSecondsToGo,
-						(TaskFunc*)sendNext, this);
+    nextTask() = envir().taskScheduler().scheduleDelayedTask(uSecondsToGo, (TaskFunc*)sendNext, this);
   }
 }
 

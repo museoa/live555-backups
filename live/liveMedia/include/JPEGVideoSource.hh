@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // JPEG video sources
 // C++ header
 
@@ -36,8 +36,12 @@ public:
 					     u_int16_t& length);
     // If "qFactor()" returns a value >= 128, then this function is called
     // to tell us the quantization tables that are being used.
-    // (The default implementation of this function just returns NULL.) 
+    // (The default implementation of this function just returns NULL.)
     // "precision" and "length" are as defined in RFC 2435, section 3.1.8.
+
+  virtual u_int16_t restartInterval();
+    // If restart intervals are being used (i.e., 64 <= type() <= 127), then this function must be
+    // redefined - by a subclass - to return a non-zero value.
 
 protected:
   JPEGVideoSource(UsageEnvironment& env); // abstract base class

@@ -11,9 +11,9 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2000 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Basic Usage Environment: for a simple, non-scripted, console application
 // Implementation
 
@@ -28,13 +28,13 @@ public:
   AlarmHandler(TaskFunc* proc, void* clientData, DelayInterval timeToDelay)
     : DelayQueueEntry(timeToDelay), fProc(proc), fClientData(clientData) {
   }
-  
+
 private: // redefined virtual functions
   virtual void handleTimeout() {
     (*fProc)(fClientData);
     DelayQueueEntry::handleTimeout();
   }
-  
+
 private:
   TaskFunc* fProc;
   void* fClientData;
@@ -45,11 +45,11 @@ private:
 
 BasicTaskScheduler0::BasicTaskScheduler0()
   : fLastHandledSocketNum(-1) {
-  fReadHandlers = new HandlerSet;
+  fHandlers = new HandlerSet;
 }
 
 BasicTaskScheduler0::~BasicTaskScheduler0() {
-  delete fReadHandlers;
+  delete fHandlers;
 }
 
 TaskToken BasicTaskScheduler0::scheduleDelayedTask(int64_t microseconds,
@@ -60,7 +60,7 @@ TaskToken BasicTaskScheduler0::scheduleDelayedTask(int64_t microseconds,
   AlarmHandler* alarmHandler = new AlarmHandler(proc, clientData, timeToDelay);
   fDelayQueue.addEntry(alarmHandler);
 
-  return (void*)(alarmHandler->token()); 
+  return (void*)(alarmHandler->token());
 }
 
 void BasicTaskScheduler0::unscheduleDelayedTask(TaskToken& prevTask) {
@@ -80,13 +80,17 @@ void BasicTaskScheduler0::doEventLoop(char* watchVariable) {
 
 ////////// HandlerSet (etc.) implementation //////////
 
-HandlerDescriptor::HandlerDescriptor(HandlerDescriptor* nextHandler) {
+HandlerDescriptor::HandlerDescriptor(HandlerDescriptor* nextHandler)
+  : conditionSet(0), handlerProc(NULL) {
   // Link this descriptor into a doubly-linked list:
-  // (Note that this code works even if "nextHandler == this")
-  fNextHandler = nextHandler;
-  fPrevHandler = nextHandler->fPrevHandler;
-  nextHandler->fPrevHandler = this;
-  fPrevHandler->fNextHandler = this;
+  if (nextHandler == this) { // initialization
+    fNextHandler = fPrevHandler = this;
+  } else {
+    fNextHandler = nextHandler;
+    fPrevHandler = nextHandler->fPrevHandler;
+    nextHandler->fPrevHandler = this;
+    fPrevHandler->fNextHandler = this;
+  }
 }
 
 HandlerDescriptor::~HandlerDescriptor() {
@@ -108,33 +112,38 @@ HandlerSet::~HandlerSet() {
 }
 
 void HandlerSet
-::assignHandler(int socketNum,
-		TaskScheduler::BackgroundHandlerProc* handlerProc,
-		void* clientData) {
+::assignHandler(int socketNum, int conditionSet, TaskScheduler::BackgroundHandlerProc* handlerProc, void* clientData) {
   // First, see if there's already a handler for this socket:
+  HandlerDescriptor* handler = lookupHandler(socketNum);
+  if (handler == NULL) { // No existing handler, so create a new descr:
+    handler = new HandlerDescriptor(fHandlers.fNextHandler);
+    handler->socketNum = socketNum;
+  }
+
+  handler->conditionSet = conditionSet;
+  handler->handlerProc = handlerProc;
+  handler->clientData = clientData;
+}
+
+void HandlerSet::clearHandler(int socketNum) {
+  HandlerDescriptor* handler = lookupHandler(socketNum);
+  delete handler;
+}
+
+void HandlerSet::moveHandler(int oldSocketNum, int newSocketNum) {
+  HandlerDescriptor* handler = lookupHandler(oldSocketNum);
+  if (handler != NULL) {
+    handler->socketNum = newSocketNum;
+  }
+}
+
+HandlerDescriptor* HandlerSet::lookupHandler(int socketNum) {
   HandlerDescriptor* handler;
   HandlerIterator iter(*this);
   while ((handler = iter.next()) != NULL) {
     if (handler->socketNum == socketNum) break;
   }
-  if (handler == NULL) { // No existing handler, so create a new descr:
-    handler = new HandlerDescriptor(fHandlers.fNextHandler);
-    handler->socketNum = socketNum;
-  }
-  
-  handler->handlerProc = handlerProc;
-  handler->clientData = clientData;
-}
-
-void HandlerSet::removeHandler(int socketNum) {
-  HandlerDescriptor* handler;
-  HandlerIterator iter(*this);
-  while ((handler = iter.next()) != NULL) {
-    if (handler->socketNum == socketNum) {
-      delete handler;
-      break;
-    }
-  }
+  return handler;
 }
 
 HandlerIterator::HandlerIterator(HandlerSet& handlerSet)

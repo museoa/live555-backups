@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Qualcomm "PureVoice" (aka. "QCELP") Audio RTP Sources
 // Implementation
 
@@ -52,7 +52,7 @@ private:
   // redefined virtual functions:
   virtual Boolean processSpecialHeader(BufferedPacket* packet,
                                        unsigned& resultSpecialHeaderSize);
-  virtual char const* MIMEtype() const; 
+  virtual char const* MIMEtype() const;
 
   virtual Boolean hasBeenSynchronizedUsingRTCP();
 
@@ -69,7 +69,7 @@ public:
 private:
   QCELPDeinterleaver(UsageEnvironment& env,
 		     RawQCELPRTPSource* inputSource);
-      // called only by "createNew()" 
+      // called only by "createNew()"
 
   virtual ~QCELPDeinterleaver();
 
@@ -77,7 +77,7 @@ private:
 				unsigned numTruncatedBytes,
                                 struct timeval presentationTime,
 				unsigned durationInMicroseconds);
-  void afterGettingFrame1(unsigned frameSize, struct timeval presentationTime); 
+  void afterGettingFrame1(unsigned frameSize, struct timeval presentationTime);
 
 private:
   // Redefined virtual functions:
@@ -192,7 +192,7 @@ Boolean RawQCELPRTPSource
 
   resultSpecialHeaderSize = 1;
   return True;
-} 
+}
 
 char const* RawQCELPRTPSource::MIMEtype() const {
   return "audio/QCELP";
@@ -361,13 +361,13 @@ void QCELPDeinterleaver
 void QCELPDeinterleaver
 ::afterGettingFrame1(unsigned frameSize, struct timeval presentationTime) {
   RawQCELPRTPSource* source = (RawQCELPRTPSource*)fInputSource;
-  
+
   // First, put the frame into our deinterleaving buffer:
   fDeinterleavingBuffer
     ->deliverIncomingFrame(frameSize, source->interleaveL(),
 			   source->interleaveN(), source->frameIndex(),
 			   source->curPacketRTPSeqNum(),
-			   presentationTime);  
+			   presentationTime);
 
   // Then, try delivering a frame to the client (if he wants one):
   if (fNeedAFrame) doGetNextFrame();
@@ -402,7 +402,7 @@ void QCELPDeinterleavingBuffer
 #ifdef DEBUG
     fprintf(stderr, "QCELPDeinterleavingBuffer::deliverIncomingFrame() param sanity check failed (%d,%d,%d,%d)\n", frameSize, interleaveL, interleaveN, frameIndex);
 #endif
-    exit(1);
+    abort();
   }
 
   // The input "presentationTime" was that of the first frame in this
@@ -423,7 +423,7 @@ void QCELPDeinterleavingBuffer
     fIncomingBankId ^= 1;
     unsigned char tmp = fIncomingBinMax;
     fIncomingBinMax = fOutgoingBinMax;
-    fOutgoingBinMax = tmp; 
+    fOutgoingBinMax = tmp;
     fNextOutgoingBin = 0;
   }
 

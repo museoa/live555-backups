@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A filter for converting one or more MPEG Elementary Streams
 // to a MPEG-2 Transport Stream
 // Implementation
@@ -87,7 +87,7 @@ void MPEG2TransportStreamFromESSource
 
 void MPEG2TransportStreamFromESSource
 ::addNewAudioSource(FramedSource* inputSource, int mpegVersion) {
-  u_int8_t streamId = 0xC0 | (fVideoSourceCounter++&0x0F);
+  u_int8_t streamId = 0xC0 | (fAudioSourceCounter++&0x0F);
   addNewInputSource(inputSource, streamId, mpegVersion);
 }
 
@@ -156,7 +156,7 @@ InputESSourceRecord
 		      FramedSource* inputSource,
 		      u_int8_t streamId, int mpegVersion,
 		      InputESSourceRecord* next)
-  : fNext(next), fParent(parent), fInputSource(inputSource), 
+  : fNext(next), fParent(parent), fInputSource(inputSource),
     fStreamId(streamId), fMPEGVersion(mpegVersion) {
   fInputBuffer = new unsigned char[INPUT_BUFFER_SIZE];
   reset();
@@ -197,6 +197,10 @@ Boolean InputESSourceRecord::deliverBufferToClient() {
 
   // Fill in the PES_packet_length field that we left unset before:
   unsigned PES_packet_length = fInputBufferBytesAvailable - 6;
+  if (PES_packet_length > 0xFFFF) {
+    // Set the PES_packet_length field to 0.  This indicates an unbounded length (see ISO 13818-1, 2.4.3.7)
+    PES_packet_length = 0;
+  }
   fInputBuffer[4] = PES_packet_length>>8;
   fInputBuffer[5] = PES_packet_length;
 
@@ -246,6 +250,8 @@ void InputESSourceRecord
   }
 
   fInputBufferBytesAvailable += frameSize;
+
+  fParent.fPresentationTime = presentationTime;
 
   // Now that we have new input data, check if we can deliver to the client:
   fParent.awaitNewBuffer(NULL);

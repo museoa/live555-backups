@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A 'ServerMediaSubsession' object that creates new, unicast, "RTPSink"s
 // on demand, from an WAV audio file.
 // C++ header
@@ -34,14 +34,14 @@ public:
       // If "convertToULaw" is True, 16-bit audio streams are converted to
       // 8-bit u-law audio prior to streaming.
 
-private:
+protected:
   WAVAudioFileServerMediaSubsession(UsageEnvironment& env, char const* fileName,
 				    Boolean reuseFirstSource, Boolean convertToULaw);
       // called only by createNew();
   virtual ~WAVAudioFileServerMediaSubsession();
 
-private: // redefined virtual functions
-  virtual void seekStreamSource(FramedSource* inputSource, float seekNPT);
+protected: // redefined virtual functions
+  virtual void seekStreamSource(FramedSource* inputSource, double seekNPT);
   virtual void setStreamSourceScale(FramedSource* inputSource, float scale);
   virtual FramedSource* createNewStreamSource(unsigned clientSessionId,
 					      unsigned& estBitrate);
@@ -51,11 +51,12 @@ private: // redefined virtual functions
   virtual void testScaleFactor(float& scale);
   virtual float duration() const;
 
-private:
+protected:
   Boolean fConvertToULaw;
 
   // The following parameters of the input stream are set after
   // "createNewStreamSource" is called:
+  unsigned char fAudioFormat;
   unsigned char fBitsPerSample;
   unsigned fSamplingFrequency;
   unsigned fNumChannels;

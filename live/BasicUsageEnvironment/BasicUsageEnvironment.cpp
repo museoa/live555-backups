@@ -11,13 +11,12 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2000 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Basic Usage Environment: for a simple, non-scripted, console application
 // Implementation
 
-#ifndef IMN_PIM
 #include "BasicUsageEnvironment.hh"
 #include <stdio.h>
 
@@ -33,7 +32,7 @@ BasicUsageEnvironment::BasicUsageEnvironment(TaskScheduler& taskScheduler)
   if (!initializeWinsockIfNecessary()) {
     setResultErrMsg("Failed to initialize 'winsock': ");
     reportBackgroundError();
-    exit(1);
+    internalError();
   }
 #endif
 }
@@ -47,14 +46,7 @@ BasicUsageEnvironment::createNew(TaskScheduler& taskScheduler) {
 }
 
 int BasicUsageEnvironment::getErrno() const {
-#if defined(__WIN32__) || defined(_WIN32)
-#ifndef _WIN32_WCE
-  if (errno == 0) {
-    errno = WSAGetLastError();
-  }
-#endif
-#endif
-#if defined(_WIN32_WCE)
+#if defined(__WIN32__) || defined(_WIN32) || defined(_WIN32_WCE)
   return WSAGetLastError();
 #else
   return errno;
@@ -62,28 +54,27 @@ int BasicUsageEnvironment::getErrno() const {
 }
 
 UsageEnvironment& BasicUsageEnvironment::operator<<(char const* str) {
-	fprintf(stderr, "%s", str);
-	return *this;
+  if (str == NULL) str = "(NULL)"; // sanity check
+  fprintf(stderr, "%s", str);
+  return *this;
 }
 
 UsageEnvironment& BasicUsageEnvironment::operator<<(int i) {
-	fprintf(stderr, "%d", i);
-	return *this;
+  fprintf(stderr, "%d", i);
+  return *this;
 }
 
 UsageEnvironment& BasicUsageEnvironment::operator<<(unsigned u) {
-	fprintf(stderr, "%u", u);
-	return *this;
+  fprintf(stderr, "%u", u);
+  return *this;
 }
 
 UsageEnvironment& BasicUsageEnvironment::operator<<(double d) {
-	fprintf(stderr, "%f", d);
-	return *this;
+  fprintf(stderr, "%f", d);
+  return *this;
 }
 
 UsageEnvironment& BasicUsageEnvironment::operator<<(void* p) {
-	fprintf(stderr, "%p", p);
-	return *this;
+  fprintf(stderr, "%p", p);
+  return *this;
 }
-#endif
-

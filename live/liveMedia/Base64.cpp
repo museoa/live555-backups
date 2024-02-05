@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Base64 encoding and decoding
 // implementation
 
@@ -56,7 +56,7 @@ unsigned char* base64Decode(char* in, unsigned& resultSize,
       outTmp[i] = base64DecodeTable[(unsigned char)inTmp[i]];
       if ((outTmp[i]&0x80) != 0) outTmp[i] = 0; // pretend the input was 'A'
     }
-      
+
     out[k++] = (outTmp[0]<<2) | (outTmp[1]>>4);
     out[k++] = (outTmp[1]<<4) | (outTmp[2]>>2);
     out[k++] = (outTmp[2]<<6) | outTmp[3];
@@ -76,16 +76,16 @@ unsigned char* base64Decode(char* in, unsigned& resultSize,
 static const char base64Char[] =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-char* base64Encode(char const* orig) {
+char* base64Encode(char const* origSigned, unsigned origLength) {
+  unsigned char const* orig = (unsigned char const*)origSigned; // in case any input bytes have the MSB set
   if (orig == NULL) return NULL;
 
-  unsigned const origLength = strlen(orig);
   unsigned const numOrig24BitValues = origLength/3;
   Boolean havePadding = origLength > numOrig24BitValues*3;
   Boolean havePadding2 = origLength == numOrig24BitValues*3 + 2;
   unsigned const numResultBytes = 4*(numOrig24BitValues + havePadding);
   char* result = new char[numResultBytes+1]; // allow for trailing '\0'
-  
+
   // Map each full group of 3 input bytes into 4 output base-64 characters:
   unsigned i;
   for (i = 0; i < numOrig24BitValues; ++i) {
@@ -98,10 +98,11 @@ char* base64Encode(char const* orig) {
   // Now, take padding into account.  (Note: i == numOrig24BitValues)
   if (havePadding) {
     result[4*i+0] = base64Char[(orig[3*i]>>2)&0x3F];
-    result[4*i+1] = base64Char[(((orig[3*i]&0x3)<<4) | (orig[3*i+1]>>4))&0x3F];
     if (havePadding2) {
+      result[4*i+1] = base64Char[(((orig[3*i]&0x3)<<4) | (orig[3*i+1]>>4))&0x3F];
       result[4*i+2] = base64Char[(orig[3*i+1]<<2)&0x3F];
     } else {
+      result[4*i+1] = base64Char[((orig[3*i]&0x3)<<4)&0x3F];
       result[4*i+2] = '=';
     }
     result[4*i+3] = '=';

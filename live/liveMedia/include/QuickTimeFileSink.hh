@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // A sink that generates a QuickTime file from a composite media session
 // C++ header
 
@@ -47,7 +47,7 @@ public:
 
 private:
   QuickTimeFileSink(UsageEnvironment& env, MediaSession& inputSession,
-		    FILE* outFid, unsigned bufferSize,
+		    char const* outputFileName, unsigned bufferSize,
 		    unsigned short movieWidth, unsigned short movieHeight,
 		    unsigned movieFPS, Boolean packetLossCompensate,
 		    Boolean syncStreams, Boolean generateHintTracks,
@@ -85,6 +85,7 @@ private:
 private:
   ///// Definitions specific to the QuickTime file format:
 
+  unsigned addWord64(u_int64_t word);
   unsigned addWord(unsigned word);
   unsigned addHalfWord(unsigned short halfWord);
   unsigned addByte(unsigned char byte) {
@@ -96,8 +97,10 @@ private:
   unsigned addArbitraryString(char const* str,
 			      Boolean oneByteLength = True);
   unsigned addAtomHeader(char const* atomName);
+  unsigned addAtomHeader64(char const* atomName);
       // strlen(atomName) must be 4
-  void setWord(unsigned filePosn, unsigned size);
+  void setWord(int64_t filePosn, unsigned size);
+  void setWord64(int64_t filePosn, u_int64_t size);
 
   unsigned movieTimeScale() const {return fLargestRTPtimestampFrequency;}
 
@@ -142,13 +145,16 @@ private:
                                   _atom(esds);
                                   _atom(srcq);
                           _atom(h263);
+                          _atom(avc1);
+                              _atom(avcC);
                           _atom(mp4v);
                           _atom(rtp);
                               _atom(tims);
                       _atom(stts);
+                      _atom(stss);
                       _atom(stsc);
                       _atom(stsz);
-                      _atom(stco);
+                      _atom(co64);
           _atom(udta);
               _atom(name);
               _atom(hnti);
@@ -173,8 +179,8 @@ private:
 private:
   unsigned short fMovieWidth, fMovieHeight;
   unsigned fMovieFPS;
-  unsigned fMDATposition;
-  unsigned fMVHD_durationPosn;
+  int64_t fMDATposition;
+  int64_t fMVHD_durationPosn;
   unsigned fMaxTrackDurationM; // in movie time units
   class SubsessionIOState* fCurrentIOState;
 };

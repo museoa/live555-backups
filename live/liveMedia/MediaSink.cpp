@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Media Sinks
 // Implementation
 
@@ -134,8 +134,8 @@ void OutPacketBuffer::enqueue(unsigned char const* from, unsigned numBytes) {
   increment(numBytes);
 }
 
-void OutPacketBuffer::enqueueWord(unsigned word) {
-  unsigned nWord = htonl(word);
+void OutPacketBuffer::enqueueWord(u_int32_t word) {
+  u_int32_t nWord = htonl(word);
   enqueue((unsigned char*)&nWord, 4);
 }
 
@@ -153,8 +153,8 @@ void OutPacketBuffer::insert(unsigned char const* from, unsigned numBytes,
   }
 }
 
-void OutPacketBuffer::insertWord(unsigned word, unsigned toPosition) {
-  unsigned nWord = htonl(word);
+void OutPacketBuffer::insertWord(u_int32_t word, unsigned toPosition) {
+  u_int32_t nWord = htonl(word);
   insert((unsigned char*)&nWord, 4, toPosition);
 }
 
@@ -169,8 +169,8 @@ void OutPacketBuffer::extract(unsigned char* to, unsigned numBytes,
   memmove(to, &fBuf[realFromPosition], numBytes);
 }
 
-unsigned OutPacketBuffer::extractWord(unsigned fromPosition) {
-  unsigned nWord;
+u_int32_t OutPacketBuffer::extractWord(unsigned fromPosition) {
+  u_int32_t nWord;
   extract((unsigned char*)&nWord, 4, fromPosition);
   return ntohl(nWord);
 }
@@ -200,7 +200,7 @@ void OutPacketBuffer::useOverflowData() {
   resetOverflowData();
 }
 
-void OutPacketBuffer::adjustPacketStart(unsigned numBytes) { 
+void OutPacketBuffer::adjustPacketStart(unsigned numBytes) {
   fPacketStart += numBytes;
   if (fOverflowDataOffset >= numBytes) {
     fOverflowDataOffset -= numBytes;

@@ -11,9 +11,9 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2005, Live Networks, Inc.  All rights reserved
+// Copyright (c) 1996-2010, Live Networks, Inc.  All rights reserved
 // A test program that demonstrates how to stream - via unicast RTP
 // - various kinds of file on demand, using a built-in RTSP server.
 // main program
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
   // A MPEG-4 video elementary stream:
   {
     char const* streamName = "mpeg4ESVideoTest";
-    char const* inputFileName = "test.m4v";
+    char const* inputFileName = "test.m4e";
     ServerMediaSession* sms
       = ServerMediaSession::createNew(*env, streamName, streamName,
 				      descriptionString);
@@ -126,13 +126,13 @@ int main(int argc, char** argv) {
 				      descriptionString);
     Boolean useADUs = False;
     Interleaving* interleaving = NULL;
-#ifdef STREAM_USING_ADUS 
+#ifdef STREAM_USING_ADUS
     useADUs = True;
 #ifdef INTERLEAVE_ADUS
     unsigned char interleaveCycle[] = {0,2,1,3}; // or choose your own...
     unsigned const interleaveCycleSize
       = (sizeof interleaveCycle)/(sizeof (unsigned char));
-    interleaving = new Interleaving(interleaveCycleSize, interleaveCycle); 
+    interleaving = new Interleaving(interleaveCycleSize, interleaveCycle);
 #endif
 #endif
     sms->addSubsession(MP3AudioFileServerMediaSubsession
@@ -195,11 +195,12 @@ int main(int argc, char** argv) {
   {
     char const* streamName = "mpeg2TransportStreamTest";
     char const* inputFileName = "test.ts";
+    char const* indexFileName = "test.tsx";
     ServerMediaSession* sms
       = ServerMediaSession::createNew(*env, streamName, streamName,
 				      descriptionString);
     sms->addSubsession(MPEG2TransportFileServerMediaSubsession
-		       ::createNew(*env, inputFileName, reuseFirstSource));
+		       ::createNew(*env, inputFileName, indexFileName, reuseFirstSource));
     rtspServer->addServerMediaSession(sms);
 
     announceStream(rtspServer, sms, streamName, inputFileName);
@@ -219,6 +220,33 @@ int main(int argc, char** argv) {
     announceStream(rtspServer, sms, streamName, inputFileName);
   }
 
+  // A DV video stream:
+  {
+    // First, make sure that the RTPSinks' buffers will be large enough to handle the huge size of DV frames (as big as 288000).
+    OutPacketBuffer::maxSize = 300000;
+
+    char const* streamName = "dvVideoTest";
+    char const* inputFileName = "test.dv";
+    ServerMediaSession* sms
+      = ServerMediaSession::createNew(*env, streamName, streamName,
+				      descriptionString);
+    sms->addSubsession(DVVideoFileServerMediaSubsession
+		       ::createNew(*env, inputFileName, reuseFirstSource));
+    rtspServer->addServerMediaSession(sms);
+
+    announceStream(rtspServer, sms, streamName, inputFileName);
+  }
+
+  // Also, attempt to create a HTTP server for RTSP-over-HTTP tunneling.
+  // Try first with the default HTTP port (80), and then with the alternative HTTP
+  // port numbers (8000 and 8080).
+
+  if (rtspServer->setUpTunnelingOverHTTP(80) || rtspServer->setUpTunnelingOverHTTP(8000) || rtspServer->setUpTunnelingOverHTTP(8080)) {
+    *env << "\n(We use port " << rtspServer->httpServerPortNum() << " for optional RTSP-over-HTTP tunneling.)\n";
+  } else {
+    *env << "\n(RTSP-over-HTTP tunneling is not available.)\n";
+  }
+
   env->taskScheduler().doEventLoop(); // does not return
 
   return 0; // only to prevent compiler warning
@@ -227,7 +255,7 @@ int main(int argc, char** argv) {
 static void announceStream(RTSPServer* rtspServer, ServerMediaSession* sms,
 			   char const* streamName, char const* inputFileName) {
   char* url = rtspServer->rtspURL(sms);
-  UsageEnvironment& env = rtspServer->envir(); 
+  UsageEnvironment& env = rtspServer->envir();
   env << "\n\"" << streamName << "\" stream, from the file \""
       << inputFileName << "\"\n";
   env << "Play this stream using the URL \"" << url << "\"\n";

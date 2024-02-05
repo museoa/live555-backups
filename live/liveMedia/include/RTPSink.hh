@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // RTP Sinks
 // C++ header
 
@@ -56,25 +56,32 @@ public:
   unsigned numChannels() const { return fNumChannels; }
 
   virtual char const* sdpMediaType() const; // for use in SDP m= lines
-  char* rtpmapLine() const; // returns a string to be delete[]d
+  virtual char* rtpmapLine() const; // returns a string to be delete[]d
   virtual char const* auxSDPLine();
       // optional SDP line (e.g. a=fmtp:...)
 
   u_int16_t currentSeqNo() const { return fSeqNo; }
-  u_int32_t currentTimestamp() const { return fCurrentTimestamp; }
+  u_int32_t presetNextTimestamp();
+      // ensures that the next timestamp to be used will correspond to
+      // the current 'wall clock' time.
 
   RTPTransmissionStatsDB& transmissionStatsDB() const {
     return *fTransmissionStatsDB;
   }
 
+  Boolean nextTimestampHasBeenPreset() const { return fNextTimestampHasBeenPreset; }
+
   void setStreamSocket(int sockNum, unsigned char streamChannelId) {
     fRTPInterface.setStreamSocket(sockNum, streamChannelId);
   }
   void addStreamSocket(int sockNum, unsigned char streamChannelId) {
-    fRTPInterface.addStreamSocket(sockNum, streamChannelId);    
+    fRTPInterface.addStreamSocket(sockNum, streamChannelId);
   }
   void removeStreamSocket(int sockNum, unsigned char streamChannelId) {
-    fRTPInterface.removeStreamSocket(sockNum, streamChannelId);    
+    fRTPInterface.removeStreamSocket(sockNum, streamChannelId);
+  }
+  void setServerRequestAlternativeByteHandler(int socketNum, ServerRequestAlternativeByteHandler* handler, void* clientData) {
+    fRTPInterface.setServerRequestAlternativeByteHandler(socketNum, handler, clientData);
   }
     // hacks to allow sending RTP over TCP (RFC 2236, section 10.12)
 
@@ -104,12 +111,9 @@ private:
   virtual Boolean isRTPSink() const;
 
 private:
-  u_int32_t timevalToTimestamp(struct timeval tv) const;
-
-private:
   u_int32_t fSSRC, fTimestampBase;
   unsigned fTimestampFrequency;
-  Boolean fHaveComputedFirstTimestamp;
+  Boolean fNextTimestampHasBeenPreset;
   char const* fRTPPayloadFormatName;
   unsigned fNumChannels;
   struct timeval fCreationTime;
@@ -136,7 +140,7 @@ public:
     HashTable::Iterator* fIter;
   };
 
-  // The following is called whenever a RTCP RR packet is received: 
+  // The following is called whenever a RTCP RR packet is received:
   void noteIncomingRR(u_int32_t SSRC, struct sockaddr_in const& lastFromAddress,
                       unsigned lossStats, unsigned lastPacketNumReceived,
                       unsigned jitter, unsigned lastSRTime, unsigned diffSR_RRTime);

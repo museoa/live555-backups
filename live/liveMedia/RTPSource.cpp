@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // RTP Sources
 // Implementation
 
@@ -57,7 +57,7 @@ RTPSource::RTPSource(UsageEnvironment& env, Groupsock* RTPgs,
     fRTPPayloadFormat(rtpPayloadFormat),
     fTimestampFrequency(rtpTimestampFrequency),
     fSSRC(our_random32()) {
-  fReceptionStatsDB = new RTPReceptionStatsDB(*this);
+  fReceptionStatsDB = new RTPReceptionStatsDB();
 }
 
 RTPSource::~RTPSource() {
@@ -71,9 +71,8 @@ void RTPSource::getAttributes() const {
 
 ////////// RTPReceptionStatsDB //////////
 
-RTPReceptionStatsDB::RTPReceptionStatsDB(RTPSource& rtpSource)
-  : fOurRTPSource(rtpSource),
-    fTable(HashTable::create(ONE_WORD_HASH_KEYS)), fTotNumPacketsReceived(0) {
+RTPReceptionStatsDB::RTPReceptionStatsDB()
+  : fTable(HashTable::create(ONE_WORD_HASH_KEYS)), fTotNumPacketsReceived(0) {
   reset();
 }
 
@@ -110,7 +109,7 @@ void RTPReceptionStatsDB
   if (stats == NULL) {
     // This is the first time we've heard from this SSRC.
     // Create a new record for it:
-    stats = new RTPReceptionStats(fOurRTPSource, SSRC, seqNum);
+    stats = new RTPReceptionStats(SSRC, seqNum);
     if (stats == NULL) return;
     add(SSRC, stats);
   }
@@ -133,7 +132,7 @@ void RTPReceptionStatsDB
   if (stats == NULL) {
     // This is the first time we've heard of this SSRC.
     // Create a new record for it:
-    stats = new RTPReceptionStats(fOurRTPSource, SSRC);
+    stats = new RTPReceptionStats(SSRC);
     if (stats == NULL) return;
     add(SSRC, stats);
   }
@@ -186,15 +185,12 @@ void RTPReceptionStatsDB::add(u_int32_t SSRC, RTPReceptionStats* stats) {
 
 ////////// RTPReceptionStats //////////
 
-RTPReceptionStats::RTPReceptionStats(RTPSource& rtpSource, u_int32_t SSRC,
-				     u_int16_t initialSeqNum)
-  : fOurRTPSource(rtpSource) {
+RTPReceptionStats::RTPReceptionStats(u_int32_t SSRC, u_int16_t initialSeqNum) {
   initSeqNum(initialSeqNum);
   init(SSRC);
 }
 
-RTPReceptionStats::RTPReceptionStats(RTPSource& rtpSource, u_int32_t SSRC)
-  : fOurRTPSource(rtpSource) {
+RTPReceptionStats::RTPReceptionStats(u_int32_t SSRC) {
   init(SSRC);
 }
 
@@ -221,8 +217,8 @@ void RTPReceptionStats::init(u_int32_t SSRC) {
 }
 
 void RTPReceptionStats::initSeqNum(u_int16_t initialSeqNum) {
-    fBaseExtSeqNumReceived = initialSeqNum-1;
-    fHighestExtSeqNumReceived = initialSeqNum;
+    fBaseExtSeqNumReceived = 0x10000 | initialSeqNum;
+    fHighestExtSeqNumReceived = 0x10000 | initialSeqNum;
     fHaveSeenInitialSequenceNumber = True;
 }
 
@@ -247,19 +243,35 @@ void RTPReceptionStats
     ++fTotBytesReceived_hi;
   }
 
-  // Check whether the sequence number has wrapped around:
-  unsigned seqNumCycle = (fHighestExtSeqNumReceived&0xFFFF0000);
+  // Check whether the new sequence number is the highest yet seen:
   unsigned oldSeqNum = (fHighestExtSeqNumReceived&0xFFFF);
+  unsigned seqNumCycle = (fHighestExtSeqNumReceived&0xFFFF0000);
   unsigned seqNumDifference = (unsigned)((int)seqNum-(int)oldSeqNum);
-  if (seqNumDifference >= 0x8000
-      && seqNumLT((u_int16_t)oldSeqNum, seqNum)) {
-    // sequence number wrapped around => start a new cycle:
-    seqNumCycle += 0x10000;
-  }
-
-  unsigned newSeqNum = seqNumCycle|seqNum;
-  if (newSeqNum > fHighestExtSeqNumReceived) {
-    fHighestExtSeqNumReceived = newSeqNum;
+  unsigned newSeqNum = 0;
+  if (seqNumLT((u_int16_t)oldSeqNum, seqNum)) {
+    // This packet was not an old packet received out of order, so check it:
+    
+    if (seqNumDifference >= 0x8000) {
+      // The sequence number wrapped around, so start a new cycle:
+      seqNumCycle += 0x10000;
+    }
+    
+    newSeqNum = seqNumCycle|seqNum;
+    if (newSeqNum > fHighestExtSeqNumReceived) {
+      fHighestExtSeqNumReceived = newSeqNum;
+    }
+  } else if (fTotNumPacketsReceived > 1) {
+    // This packet was an old packet received out of order
+    
+    if ((int)seqNumDifference >= 0x8000) {
+      // The sequence number wrapped around, so switch to an old cycle:
+      seqNumCycle -= 0x10000;
+    }
+    
+    newSeqNum = seqNumCycle|seqNum;
+    if (newSeqNum < fBaseExtSeqNumReceived) {
+      fBaseExtSeqNumReceived = newSeqNum;
+    }
   }
 
   // Record the inter-packet delay
@@ -318,8 +330,7 @@ void RTPReceptionStats
       // (as long as "int" is 32 bits)
 
   // Divide this by the timestamp frequency to get real time:
-  double timeDiff
-    = timestampDiff/(double)(fOurRTPSource.timestampFrequency());
+  double timeDiff = timestampDiff/(double)timestampFrequency;
 
   // Add this to the 'sync time' to get our result:
   unsigned const million = 1000000;

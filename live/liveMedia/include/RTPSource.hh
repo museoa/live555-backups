@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // RTP Sources
 // C++ header
 
@@ -35,8 +35,6 @@ public:
   static Boolean lookupByName(UsageEnvironment& env, char const* sourceName,
 			      RTPSource*& resultSource);
 
-  u_int16_t curPacketRTPSeqNum() const { return fCurPacketRTPSeqNum; }
-  u_int32_t curPacketRTPTimestamp() const { return fCurPacketRTPTimestamp; }
   Boolean curPacketMarkerBit() const { return fCurPacketMarkerBit; }
 
   unsigned char rtpPayloadFormat() const { return fRTPPayloadFormat; }
@@ -65,12 +63,21 @@ public:
     // hack to allow sending RTP over TCP (RFC 2236, section 10.12)
     fRTPInterface.setStreamSocket(sockNum, streamChannelId);
   }
+  void setServerRequestAlternativeByteHandler(int socketNum, ServerRequestAlternativeByteHandler* handler, void* clientData) {
+    fRTPInterface.setServerRequestAlternativeByteHandler(socketNum, handler, clientData);
+  }
 
   void setAuxilliaryReadHandler(AuxHandlerFunc* handlerFunc,
                                 void* handlerClientData) {
     fRTPInterface.setAuxilliaryReadHandler(handlerFunc,
 					   handlerClientData);
   }
+
+  // Note that RTP receivers will usually not need to call either of the following two functions, because
+  // RTP sequence numbers and timestamps are usually not useful to receivers.
+  // (Our implementation of RTP reception already does all needed handling of RTP sequence numbers and timestamps.)
+  u_int16_t curPacketRTPSeqNum() const { return fCurPacketRTPSeqNum; }
+  u_int32_t curPacketRTPTimestamp() const { return fCurPacketRTPTimestamp; }
 
 protected:
   RTPSource(UsageEnvironment& env, Groupsock* RTPgs,
@@ -125,7 +132,7 @@ public:
     HashTable::Iterator* fIter;
   };
 
-  // The following is called whenever a RTP packet is received: 
+  // The following is called whenever a RTP packet is received:
   void noteIncomingPacket(u_int32_t SSRC, u_int16_t seqNum,
 			  u_int32_t rtpTimestamp,
 			  unsigned timestampFrequency,
@@ -134,7 +141,7 @@ public:
 			  Boolean& resultHasBeenSyncedUsingRTCP,
 			  unsigned packetSize /* payload only */);
 
-  // The following is called whenever a RTCP SR packet is received: 
+  // The following is called whenever a RTCP SR packet is received:
   void noteIncomingSR(u_int32_t SSRC,
 		      u_int32_t ntpTimestampMSW, u_int32_t ntpTimestampLSW,
 		      u_int32_t rtpTimestamp);
@@ -144,19 +151,20 @@ public:
 
   RTPReceptionStats* lookup(u_int32_t SSRC) const;
 
-private: // constructor and destructor, called only by RTPSource:
+protected: // constructor and destructor, called only by RTPSource:
   friend class RTPSource;
-  RTPReceptionStatsDB(RTPSource& rtpSource);
+  RTPReceptionStatsDB();
   virtual ~RTPReceptionStatsDB();
 
-private:
+protected:
   void add(u_int32_t SSRC, RTPReceptionStats* stats);
 
-private:
+protected:
   friend class Iterator;
-  RTPSource& fOurRTPSource;
-  HashTable* fTable;
   unsigned fNumActiveSourcesSinceLastReset;
+
+private:
+  HashTable* fTable;
   unsigned fTotNumPacketsReceived; // for all SSRCs
 };
 
@@ -170,7 +178,7 @@ public:
   double totNumKBytesReceived() const;
 
   unsigned totNumPacketsExpected() const {
-    return fHighestExtSeqNumReceived - fBaseExtSeqNumReceived;
+    return (fHighestExtSeqNumReceived - fBaseExtSeqNumReceived) + 1;
   }
 
   unsigned baseExtSeqNumReceived() const { return fBaseExtSeqNumReceived; }
@@ -195,14 +203,14 @@ public:
     return fTotalInterPacketGaps;
   }
 
-private:
+protected:
   // called only by RTPReceptionStatsDB:
   friend class RTPReceptionStatsDB;
-  RTPReceptionStats(RTPSource& rtpSource, u_int32_t SSRC,
-		    u_int16_t initialSeqNum);
-  RTPReceptionStats(RTPSource& rtpSource, u_int32_t SSRC);
+  RTPReceptionStats(u_int32_t SSRC, u_int16_t initialSeqNum);
+  RTPReceptionStats(u_int32_t SSRC);
   virtual ~RTPReceptionStats();
 
+private:
   void noteIncomingPacket(u_int16_t seqNum, u_int32_t rtpTimestamp,
 			  unsigned timestampFrequency,
 			  Boolean useForJitterCalculation,
@@ -217,8 +225,7 @@ private:
       // resets periodic stats (called each time they're used to
       // generate a reception report)
 
-private:
-  RTPSource& fOurRTPSource;
+protected:
   u_int32_t fSSRC;
   unsigned fNumPacketsReceivedSinceLastReset;
   unsigned fTotNumPacketsReceived;
@@ -238,6 +245,7 @@ private:
   unsigned fMinInterPacketGapUS, fMaxInterPacketGapUS;
   struct timeval fTotalInterPacketGaps;
 
+private:
   // Used to convert from RTP timestamp to 'wall clock' time:
   Boolean fHasBeenSynchronized;
   u_int32_t fSyncTimestamp;

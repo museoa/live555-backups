@@ -11,9 +11,9 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2001, Live Networks, Inc.  All rights reserved
+// Copyright (c) 1996-2010, Live Networks, Inc.  All rights reserved
 // A program that converts a MPEG-1 or 2 Program Stream file into
 // a Transport Stream file.
 // main program
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 	 << "\" as a byte-stream file source\n";
     exit(1);
   }
-  
+
   // Create a MPEG demultiplexor that reads from that source.
   MPEG1or2Demux* baseDemultiplexor = MPEG1or2Demux::createNew(*env, inputSource);
 
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
     *env << "Unable to open file \"" << outputFileName << "\" as a file sink\n";
     exit(1);
   }
-  
+
   // Finally, start playing:
   *env << "Beginning to read...\n";
   outputSink->startPlaying(*tsFrames, afterPlaying, NULL);

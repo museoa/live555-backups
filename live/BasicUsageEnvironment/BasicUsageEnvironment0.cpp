@@ -11,9 +11,9 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2000 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // Basic Usage Environment: for a simple, non-scripted, console application
 // Implementation
 
@@ -59,11 +59,11 @@ void BasicUsageEnvironment0::setResultMsg(MsgString msg1, MsgString msg2,
   appendToResultMsg(msg3);
 }
 
-void BasicUsageEnvironment0::setResultErrMsg(MsgString msg) {
+void BasicUsageEnvironment0::setResultErrMsg(MsgString msg, int err) {
   setResultMsg(msg);
 
 #ifndef _WIN32_WCE
-  appendToResultMsg(strerror(getErrno()));
+  appendToResultMsg(strerror(err == 0 ? getErrno() : err));
 #endif
 }
 
@@ -83,6 +83,6 @@ void BasicUsageEnvironment0::appendToResultMsg(MsgString msg) {
 }
 
 void BasicUsageEnvironment0::reportBackgroundError() {
-  fputs(fResultMsgBuffer, stderr);
+  fputs(getResultMsg(), stderr);
 }
 

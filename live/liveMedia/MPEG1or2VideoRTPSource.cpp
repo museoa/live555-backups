@@ -11,10 +11,10 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
 // "liveMedia"
-// Copyright (c) 1996-2005 Live Networks, Inc.  All rights reserved.
+// Copyright (c) 1996-2010 Live Networks, Inc.  All rights reserved.
 // MPEG-1 or MPEG-2 Video RTP Sources
 // Implementation
 
@@ -45,7 +45,7 @@ Boolean MPEG1or2VideoRTPSource
   // There's a 4-byte video-specific header
   if (packet->dataSize() < 4) return False;
 
-  u_int32_t header = ntohl(*(unsigned*)(packet->data()));
+  u_int32_t header = ntohl(*(u_int32_t*)(packet->data()));
 
   u_int32_t sBit = header&0x00002000; // sequence-header-present
   u_int32_t bBit = header&0x00001000; // beginning-of-slice
@@ -56,7 +56,7 @@ Boolean MPEG1or2VideoRTPSource
 
   resultSpecialHeaderSize = 4;
   return True;
-}    
+}
 
 Boolean MPEG1or2VideoRTPSource
 ::packetIsUsableInJitterCalculation(unsigned char* packet,
@@ -66,7 +66,7 @@ Boolean MPEG1or2VideoRTPSource
 
   // Extract the "Picture-Type" field from this, to determine whether
   // this packet can be used in jitter calculations:
-  unsigned header = ntohl(*(unsigned*)packet);
+  unsigned header = ntohl(*(u_int32_t*)packet);
 
   unsigned short pictureType = (header>>8)&0x7;
   if (pictureType == 1) { // an I frame
@@ -74,7 +74,7 @@ Boolean MPEG1or2VideoRTPSource
   } else { // a P, B, D, or other unknown frame type
     return False;
   }
-}    
+}
 
 char const* MPEG1or2VideoRTPSource::MIMEtype() const {
   return "video/MPEG";

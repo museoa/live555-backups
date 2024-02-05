@@ -11,18 +11,27 @@ more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// Copyright (c) 1996-2005, Live Networks, Inc.  All rights reserved
+// Copyright (c) 1996-2010, Live Networks, Inc.  All rights reserved
 // A test program that reads a MPEG-4 Video Elementary Stream file,
 // and streams both using RTP, through a remote Darwin Streaming Server.
 // main program
+
+////////// NOTE //////////
+// This demo software is provided only as a courtesy to those developers who - for whatever reason - wish
+// to send outgoing streams through a separate Darwin Streaming Server.  However, it is not necessary to use
+// a Darwin Streaming Server in order to serve streams using RTP/RTSP.  Instead, the "LIVE555 Streaming Media"
+// includes its own RTSP/RTP server implementation, which you should use instead.  For tips on using our
+// RTSP/RTP server implementation, see the "testOnDemandRTSPServer" demo application, and/or the
+// "live555MediaServer" application (in the "mediaServer") directory.
+//////////////////////////
 
 #include "liveMedia.hh"
 #include "BasicUsageEnvironment.hh"
 
 UsageEnvironment* env;
-char const* inputFileName = "test.m4v";
+char const* inputFileName = "test.m4e";
 char const* remoteStreamName = "test.sdp"; // the stream name, as served by the DSS
 MPEG4VideoStreamFramer* videoSource;
 RTPSink* videoSink;
@@ -128,7 +137,7 @@ void play() {
 	 << "\" as a byte-stream file source\n";
     exit(1);
   }
-  
+
   FramedSource* videoES = fileSource;
 
   // Create a framer for the Video Elementary Stream:
