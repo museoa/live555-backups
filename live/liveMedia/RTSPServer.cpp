@@ -127,12 +127,12 @@ UserAuthenticationDatabase* RTSPServer::getAuthenticationDatabaseForCommand(char
   return fAuthDB;
 }
 
-Boolean RTSPServer::specialClientAccessCheck(int /*clientSocket*/, struct sockaddr_in& /*clientAddr*/, char const* /*urlSuffix*/) {
+Boolean RTSPServer::specialClientAccessCheck(int /*clientSocket*/, struct sockaddr_storage const& /*clientAddr*/, char const* /*urlSuffix*/) {
   // default implementation
   return True;
 }
 
-Boolean RTSPServer::specialClientUserAccessCheck(int /*clientSocket*/, struct sockaddr_in& /*clientAddr*/,
+Boolean RTSPServer::specialClientUserAccessCheck(int /*clientSocket*/, struct sockaddr_storage const& /*clientAddr*/,
 						 char const* /*urlSuffix*/, char const * /*username*/) {
   // default implementation; no further access restrictions:
   return True;
@@ -274,7 +274,7 @@ void RTSPServer::stopTCPStreamingOnSocket(int socketNum) {
 ////////// RTSPServer::RTSPClientConnection implementation //////////
 
 RTSPServer::RTSPClientConnection
-::RTSPClientConnection(RTSPServer& ourServer, int clientSocket, struct sockaddr_in clientAddr)
+::RTSPClientConnection(RTSPServer& ourServer, int clientSocket, struct sockaddr_storage const& clientAddr)
   : GenericMediaServer::ClientConnection(ourServer, clientSocket, clientAddr),
     fOurRTSPServer(ourServer), fClientInputSocket(fOurSocket), fClientOutputSocket(fOurSocket),
     fIsActive(True), fRecursionCount(0), fOurSessionCookie(NULL) {
@@ -1441,7 +1441,10 @@ void RTSPServer::RTSPClientSession
     ReceivingInterfaceAddr = SendingInterfaceAddr = sourceAddr.sin_addr.s_addr;
 #endif
     
-    subsession->getStreamParameters(fOurSessionId, ourClientConnection->fClientAddr.sin_addr.s_addr,
+    ipv4AddressBits clientAddrBits = ourClientConnection->fClientAddr.ss_family == AF_INET
+      ? ((sockaddr_in*)&ourClientConnection->fClientAddr)->sin_addr.s_addr
+      : 0; // later, fix for IPv4
+    subsession->getStreamParameters(fOurSessionId, clientAddrBits,
 				    clientRTPPort, clientRTCPPort,
 				    fStreamStates[trackNum].tcpSocketNum, rtpChannelId, rtcpChannelId,
 				    destinationAddress, destinationTTL, fIsMulticast,
@@ -1887,7 +1890,7 @@ void RTSPServer::RTSPClientSession
 }
 
 GenericMediaServer::ClientConnection*
-RTSPServer::createNewClientConnection(int clientSocket, struct sockaddr_in clientAddr) {
+RTSPServer::createNewClientConnection(int clientSocket, struct sockaddr_storage const& clientAddr) {
   return new RTSPClientConnection(*this, clientSocket, clientAddr);
 }
 

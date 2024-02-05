@@ -184,7 +184,7 @@ void GenericMediaServer::incomingConnectionHandler() {
 }
 
 void GenericMediaServer::incomingConnectionHandlerOnSocket(int serverSocket) {
-  struct sockaddr_in clientAddr;
+  struct sockaddr_storage clientAddr;
   SOCKLEN_T clientAddrLen = sizeof clientAddr;
   int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
   if (clientSocket < 0) {
@@ -210,7 +210,7 @@ void GenericMediaServer::incomingConnectionHandlerOnSocket(int serverSocket) {
 ////////// GenericMediaServer::ClientConnection implementation //////////
 
 GenericMediaServer::ClientConnection
-::ClientConnection(GenericMediaServer& ourServer, int clientSocket, struct sockaddr_in clientAddr)
+::ClientConnection(GenericMediaServer& ourServer, int clientSocket, struct sockaddr_storage const&clientAddr)
   : fOurServer(ourServer), fOurSocket(clientSocket), fClientAddr(clientAddr) {
   // Add ourself to our 'client connections' table:
   fOurServer.fClientConnections->Add((char const*)this, this);

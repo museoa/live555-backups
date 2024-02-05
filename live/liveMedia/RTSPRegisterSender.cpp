@@ -76,11 +76,18 @@ RTSPRegisterSender* RTSPRegisterSender
 				verbosityLevel, applicationName);
 }
 
-void RTSPRegisterSender::grabConnection(int& sock, struct sockaddr_in& remoteAddress) {
+void RTSPRegisterSender::grabConnection(int& sock, struct sockaddr_storage& remoteAddress) {
   sock = grabSocket();
 
-  MAKE_SOCKADDR_IN(remoteAddr, fServerAddress, htons(fRemoteClientPortNum));
-  remoteAddress = remoteAddr;
+  //  MAKE_SOCKADDR_IN(remoteAddress4, fServerAddress, htons(fRemoteClientPortNum));
+  //  remoteAddress = remoteAddress4;
+  struct sockaddr_in& remoteAddress4 = (struct sockaddr_in&)remoteAddress; // later, support IPv6
+#ifdef HAVE_SOCKADDR_LEN
+  remoteAddress4.sin_len = sizeof remoteAddress;
+#endif
+  remoteAddress4.sin_family = AF_INET;
+  remoteAddress4.sin_port = htons(fRemoteClientPortNum);
+  remoteAddress4.sin_addr.s_addr = fServerAddress;
 }
 
 RTSPRegisterSender

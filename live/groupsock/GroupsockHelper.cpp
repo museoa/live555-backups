@@ -367,10 +367,7 @@ int readSocket(UsageEnvironment& env,
 	  break;
 	}
         case AF_INET6: {
-	  ((sockaddr_in6*)&fromAddress)->sin6_addr.__u6_addr.__u6_addr32[0] = 0;
-	  ((sockaddr_in6*)&fromAddress)->sin6_addr.__u6_addr.__u6_addr32[1] = 0;
-	  ((sockaddr_in6*)&fromAddress)->sin6_addr.__u6_addr.__u6_addr32[2] = 0;
-	  ((sockaddr_in6*)&fromAddress)->sin6_addr.__u6_addr.__u6_addr32[3] = 0;
+	  for (unsigned i = 0; i < 16; ++i) ((sockaddr_in6*)&fromAddress)->sin6_addr.s6_addr[i] = 0;
 	  break;
 	}
       }
