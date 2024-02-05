@@ -483,13 +483,13 @@ Boolean RTSPServer::RTSPClientConnection::parseHTTPRequestString(char* resultCmd
 
 void RTSPServer::RTSPClientConnection::handleHTTPCmd_notSupported() {
   snprintf((char*)fResponseBuffer, sizeof fResponseBuffer,
-	   "HTTP/1.1 405 Method Not Allowed\r\n%s\r\n\r\n",
+	   "HTTP/1.0 405 Method Not Allowed\r\n%s\r\n\r\n",
 	   dateHeader());
 }
 
 void RTSPServer::RTSPClientConnection::handleHTTPCmd_notFound() {
   snprintf((char*)fResponseBuffer, sizeof fResponseBuffer,
-	   "HTTP/1.1 404 Not Found\r\n%s\r\n\r\n",
+	   "HTTP/1.0 404 Not Found\r\n%s\r\n\r\n",
 	   dateHeader());
 }
 
@@ -499,7 +499,7 @@ void RTSPServer::RTSPClientConnection::handleHTTPCmd_OPTIONS() {
 #endif
   // Construct a response to the "OPTIONS" command that notes that our special headers (for RTSP-over-HTTP tunneling) are allowed:
   snprintf((char*)fResponseBuffer, sizeof fResponseBuffer,
-	   "HTTP/1.1 200 OK\r\n"
+	   "HTTP/1.0 200 OK\r\n"
 	   "%s"
 	   "Access-Control-Allow-Origin: *\r\n"
 	   "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
@@ -523,7 +523,7 @@ void RTSPServer::RTSPClientConnection::handleHTTPCmd_TunnelingGET(char const* se
   
   // Construct our response:
   snprintf((char*)fResponseBuffer, sizeof fResponseBuffer,
-	   "HTTP/1.1 200 OK\r\n"
+	   "HTTP/1.0 200 OK\r\n"
 	   "%s"
 	   "Cache-Control: no-cache\r\n"
 	   "Pragma: no-cache\r\n"

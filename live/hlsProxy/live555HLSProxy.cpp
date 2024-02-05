@@ -62,6 +62,10 @@ int main(int argc, char** argv) {
   TaskScheduler* scheduler = BasicTaskScheduler::createNew();
   env = BasicUsageEnvironment::createNew(*scheduler);
 
+  // Output information about the program (and LIVE555 version):
+  *env << "LIVE555 HLS Proxy, documented at http://www.live555.com/hlsProxy/\n";
+  *env << "\t(LIVE555 Streaming Media version " << LIVEMEDIA_LIBRARY_VERSION_STRING << ")\n";
+
   // Parse the command line:
   programName = argv[0];
   while (argc > 1) {

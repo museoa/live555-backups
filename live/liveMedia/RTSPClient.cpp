@@ -749,7 +749,7 @@ Boolean RTSPClient::setRequestFields(RequestRecord* request,
     netAddressBits serverAddress = *(netAddressBits*)(destAddress.data());
     AddressString serverAddressString(serverAddress);
     
-    protocolStr = "HTTP/1.1";
+    protocolStr = "HTTP/1.0";
     
     if (strcmp(request->commandName(), "GET") == 0) {
       // Create a 'session cookie' string, using MD5:
