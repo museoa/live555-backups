@@ -148,34 +148,34 @@ unsigned RawVideoRTPSink::getNbLineInPacket(unsigned fragOffset, unsigned * &len
   }
   unsigned lengthArray[100] = {0};
   unsigned offsetArray[100] = {0};
-  unsigned positionInDataLine = 0;
+  unsigned curDataTotalLength = 0;
   unsigned lineOffset = (fragOffset % fFrameParameters.scanLineSize);
 
   unsigned remainingLineSize = fFrameParameters.scanLineSize - (fragOffset % fFrameParameters.scanLineSize);
   while(1) {
-    if (packetMaxSize - specialHeaderSize - rtpHeaderSize - 6 < positionInDataLine) {
-      break; // sanity check
+    if (packetMaxSize - specialHeaderSize - rtpHeaderSize - 6 <= curDataTotalLength) {
+      break; // packet sanity check
     }
 
     // add one line
     nbLines ++;
     specialHeaderSize += 6;
 
-    remainingSizeInPacket = packetMaxSize - specialHeaderSize - rtpHeaderSize - positionInDataLine;
+    remainingSizeInPacket = packetMaxSize - specialHeaderSize - rtpHeaderSize - curDataTotalLength;
     remainingSizeInPacket -= remainingSizeInPacket % fFrameParameters.pGroupSize; // use only multiple of pgroup
     lengthArray[nbLines-1] = remainingLineSize < remainingSizeInPacket ? remainingLineSize : remainingSizeInPacket;
     offsetArray[nbLines-1] = lineOffset * fFrameParameters.scanLineIterationStep / fFrameParameters.pGroupSize;
     if (remainingLineSize >= remainingSizeInPacket) {
-      break;
-    }
-
-    if (fragOffset + remainingLineSize >= fFrameParameters.frameSize) {
-      break; // last packet
+      break; //packet full
     }
 
     remainingLineSize = fFrameParameters.scanLineSize;
-    positionInDataLine += lengthArray[nbLines-1];
+    curDataTotalLength += lengthArray[nbLines-1];
     lineOffset = 0;
+
+    if (fragOffset + curDataTotalLength >= fFrameParameters.frameSize) {
+      break; // end of the frame.
+    }
   }
 
   lengths = new unsigned[nbLines];
