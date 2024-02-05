@@ -19,8 +19,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 #include "Groupsock.hh"
 #include "GroupsockHelper.hh"
-//##### Eventually fix the following #include; we shouldn't know about tunnels
-#include "TunnelEncaps.hh"
 
 #ifndef NO_SSTREAM
 #include <sstream>
@@ -92,14 +90,11 @@ destRecord::~destRecord() {
 
 NetInterfaceTrafficStats Groupsock::statsIncoming;
 NetInterfaceTrafficStats Groupsock::statsOutgoing;
-NetInterfaceTrafficStats Groupsock::statsRelayedIncoming;
-NetInterfaceTrafficStats Groupsock::statsRelayedOutgoing;
 
 // Constructor for a source-independent multicast group
 Groupsock::Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
 		     Port port, u_int8_t ttl)
-  : OutputSocket(env, port),
-    deleteIfNoMembers(False) {
+  : OutputSocket(env, port) {
   struct sockaddr_storage addrTmp; // hack; later fix to support IPv6
   addrTmp.ss_family = AF_INET;
   ((struct sockaddr_in&)addrTmp).sin_addr = groupAddr;
@@ -128,8 +123,7 @@ Groupsock::Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
 Groupsock::Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
 		     struct in_addr const& sourceFilterAddr,
 		     Port port)
-  : OutputSocket(env, port),
-    deleteIfNoMembers(False) {
+  : OutputSocket(env, port) {
   struct sockaddr_storage addrTmp; // hack; later fix to support IPv6
   addrTmp.ss_family = AF_INET;
   ((struct sockaddr_in&)addrTmp).sin_addr = groupAddr;
@@ -273,8 +267,7 @@ void Groupsock::multicastSendOnly() {
 #endif
 }
 
-Boolean Groupsock::output(UsageEnvironment& env, unsigned char* buffer, unsigned bufferSize,
-			  DirectedNetInterface* interfaceNotToFwdBackTo) {
+Boolean Groupsock::output(UsageEnvironment& env, unsigned char* buffer, unsigned bufferSize) {
   do {
     // First, do the datagram send, to each destination:
     Boolean writeSuccess = True;
@@ -288,22 +281,8 @@ Boolean Groupsock::output(UsageEnvironment& env, unsigned char* buffer, unsigned
     statsOutgoing.countPacket(bufferSize);
     statsGroupOutgoing.countPacket(bufferSize);
 
-    // Then, forward to our members:
-    int numMembers = 0;
-    if (!members().IsEmpty()) {
-      numMembers =
-	outputToAllMembersExcept(interfaceNotToFwdBackTo,
-				 ttl(), buffer, bufferSize,
-				 ourIPAddress(env));
-      if (numMembers < 0) break;
-    }
-
     if (DebugLevel >= 3) {
-      env << *this << ": wrote " << bufferSize << " bytes, ttl " << (unsigned)ttl();
-      if (numMembers > 0) {
-	env << "; relayed to " << numMembers << " members";
-      }
-      env << "\n";
+      env << *this << ": wrote " << bufferSize << " bytes, ttl " << (unsigned)ttl() << "\n";
     }
     return True;
   } while (0);
@@ -319,14 +298,10 @@ Boolean Groupsock::output(UsageEnvironment& env, unsigned char* buffer, unsigned
 Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
 			      unsigned& bytesRead,
 			      struct sockaddr_storage& fromAddressAndPort) {
-  // Read data from the socket, and relay it across any attached tunnels
-  //##### later make this code more general - independent of tunnels
+  bytesRead = 0; // initially
 
-  bytesRead = 0;
-
-  int maxBytesToRead = bufferMaxSize - TunnelEncapsulationTrailerMaxSize;
   int numBytes = readSocket(env(), socketNum(),
-			    buffer, maxBytesToRead, fromAddressAndPort);
+			    buffer, bufferMaxSize, fromAddressAndPort);
   if (numBytes < 0) {
     if (DebugLevel >= 0) { // this is a fatal error
       UsageEnvironment::MsgString msg = strDup(env().getResultMsg());
@@ -347,32 +322,14 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
   }
 
   // We'll handle this data.
-  // Also write it (with the encapsulation trailer) to each member,
-  // unless the packet was originally sent by us to begin with.
   bytesRead = numBytes;
 
-  int numMembers = 0;
   if (!wasLoopedBackFromUs(env(), fromAddressAndPort)) {
-    statsIncoming.countPacket(numBytes);
-    statsGroupIncoming.countPacket(numBytes);
-    numMembers =
-      outputToAllMembersExcept(NULL, ttl(),
-			       buffer, bytesRead,
-			       fromAddressAndPort.ss_family == AF_INET
-			       ? ((struct sockaddr_in&)fromAddressAndPort).sin_addr.s_addr
-			           // later fix to support IPv6
-			       : 0);
-    if (numMembers > 0) {
-      statsRelayedIncoming.countPacket(numBytes);
-      statsGroupRelayedIncoming.countPacket(numBytes);
-    }
+    statsIncoming.countPacket(bytesRead);
+    statsGroupIncoming.countPacket(bytesRead);
   }
   if (DebugLevel >= 3) {
-    env() << *this << ": read " << bytesRead << " bytes from " << AddressString(fromAddressAndPort).val() << ", port " << ntohs(portNum(fromAddressAndPort));
-    if (numMembers > 0) {
-      env() << "; relayed to " << numMembers << " members";
-    }
-    env() << "\n";
+    env() << *this << ": read " << bytesRead << " bytes from " << AddressString(fromAddressAndPort).val() << ", port " << ntohs(portNum(fromAddressAndPort)) << "\n";
   }
 
   return True;
@@ -423,88 +380,6 @@ void Groupsock::removeDestinationFrom(destRecord*& dests, unsigned sessionId) {
       destsPtr = &((*destsPtr)->fNext);
     }
   }
-}
-
-int Groupsock::outputToAllMembersExcept(DirectedNetInterface* exceptInterface,
-					u_int8_t ttlToFwd,
-					unsigned char* data, unsigned size,
-					netAddressBits sourceAddr) {
-  // Don't forward TTL-0 packets
-  if (ttlToFwd == 0) return 0;
-
-  DirectedNetInterfaceSet::Iterator iter(members());
-  unsigned numMembers = 0;
-  DirectedNetInterface* interf;
-  while ((interf = iter.next()) != NULL) {
-    // Check whether we've asked to exclude this interface:
-    if (interf == exceptInterface)
-      continue;
-
-    // Check that the packet's source address makes it OK to
-    // be relayed across this interface:
-    UsageEnvironment& saveEnv = env();
-    // because the following call may delete "this"
-    if (!interf->SourceAddrOKForRelaying(saveEnv, sourceAddr)) {
-      if (strcmp(saveEnv.getResultMsg(), "") != 0) {
-				// Treat this as a fatal error
-	return -1;
-      } else {
-	continue;
-      }
-    }
-
-    if (numMembers == 0) {
-      // We know that we're going to forward to at least one
-      // member, so fill in the tunnel encapsulation trailer.
-      // (Note: Allow for it not being 4-byte-aligned.)
-      TunnelEncapsulationTrailer* trailerInPacket
-	= (TunnelEncapsulationTrailer*)&data[size];
-      TunnelEncapsulationTrailer* trailer;
-
-      Boolean misaligned = ((uintptr_t)trailerInPacket & 3) != 0;
-      unsigned trailerOffset;
-      u_int8_t tunnelCmd;
-      if (isSSM()) {
-	// add an 'auxilliary address' before the trailer
-	trailerOffset = TunnelEncapsulationTrailerAuxSize;
-	tunnelCmd = TunnelDataAuxCmd;
-      } else {
-	trailerOffset = 0;
-	tunnelCmd = TunnelDataCmd;
-      }
-      unsigned trailerSize = TunnelEncapsulationTrailerSize + trailerOffset;
-      unsigned tmpTr[TunnelEncapsulationTrailerMaxSize];
-      if (misaligned) {
-	trailer = (TunnelEncapsulationTrailer*)&tmpTr;
-      } else {
-	trailer = trailerInPacket;
-      }
-      trailer += trailerOffset;
-
-      if (fDests != NULL) {
-	trailer->address() = ((struct sockaddr_in const&)(fDests->fGroupEId.groupAddress())).sin_addr.s_addr; // assume IPv4
-	Port destPort(ntohs(fDests->fGroupEId.portNum()));
-	trailer->port() = destPort; // structure copy
-      }
-      trailer->ttl() = ttlToFwd;
-      trailer->command() = tunnelCmd;
-
-      if (isSSM()) {
-	trailer->auxAddress() = sourceFilterAddress().s_addr;
-      }
-
-      if (misaligned) {
-	memmove(trailerInPacket, trailer-trailerOffset, trailerSize);
-      }
-
-      size += trailerSize;
-    }
-
-    interf->write(data, size);
-    ++numMembers;
-  }
-
-  return numMembers;
 }
 
 UsageEnvironment& operator<<(UsageEnvironment& s, const Groupsock& g) {

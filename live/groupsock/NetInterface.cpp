@@ -13,7 +13,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// "mTunnel" multicast access service
+// "groupsock"
 // Copyright (c) 1996-2021 Live Networks, Inc.  All rights reserved.
 // Network Interfaces
 // Implementation
@@ -35,50 +35,6 @@ NetInterface::NetInterface() {
 
 NetInterface::~NetInterface() {
 }
-
-
-////////// NetInterface //////////
-
-DirectedNetInterface::DirectedNetInterface() {
-}
-
-DirectedNetInterface::~DirectedNetInterface() {
-}
-
-
-////////// DirectedNetInterfaceSet //////////
-
-DirectedNetInterfaceSet::DirectedNetInterfaceSet()
-	: fTable(HashTable::create(ONE_WORD_HASH_KEYS)) {
-}
-
-DirectedNetInterfaceSet::~DirectedNetInterfaceSet() {
-	delete fTable;
-}
-
-DirectedNetInterface*
-DirectedNetInterfaceSet::Add(DirectedNetInterface const* interf) {
-  return (DirectedNetInterface*) fTable->Add((char*)interf, (void*)interf);
-}
-
-Boolean
-DirectedNetInterfaceSet::Remove(DirectedNetInterface const* interf) {
-  return fTable->Remove((char*)interf);
-}
-
-DirectedNetInterfaceSet::Iterator::
-Iterator(DirectedNetInterfaceSet& interfaces)
-  : fIter(HashTable::Iterator::create(*(interfaces.fTable))) {
-}
-
-DirectedNetInterfaceSet::Iterator::~Iterator() {
-  delete fIter;
-}
-
-DirectedNetInterface* DirectedNetInterfaceSet::Iterator::next() {
-  char const* key; // dummy
-  return (DirectedNetInterface*) fIter->next(key);
-};
 
 
 ////////// Socket //////////

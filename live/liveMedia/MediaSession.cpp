@@ -840,7 +840,7 @@ Boolean MediaSubsession::initiate(int useSpecialRTPoffset) {
     if (isSSM() && fRTCPSocket != NULL) {
       // Special case for RTCP SSM: Send RTCP packets back to the source via unicast:
       struct sockaddr_storage sfAddr;
-      ((struct sockaddr_in&)sfAddr).sin_addr = fSourceFilterAddr; // Later, update to support IPv6
+      sfAddr.ss_family = AF_INET; ((struct sockaddr_in&)sfAddr).sin_addr = fSourceFilterAddr; // Later, update to support IPv6
       fRTCPSocket->changeDestinationParameters(sfAddr, 0, ~0);
     }
 
@@ -968,7 +968,7 @@ void MediaSubsession::setDestinations(netAddressBits defaultDestAddress) {
   netAddressBits destAddress = connectionEndpointAddress();
   if (destAddress == 0) destAddress = defaultDestAddress;
   struct sockaddr_storage destAddr;
-  ((struct sockaddr_in&)destAddr).sin_addr.s_addr = destAddress; // Later, update to support IPv6
+  destAddr.ss_family = AF_INET; ((struct sockaddr_in&)destAddr).sin_addr.s_addr = destAddress; // Later, update to support IPv6
 
   // The destination TTL remains unchanged:
   int destTTL = ~0; // means: don't change

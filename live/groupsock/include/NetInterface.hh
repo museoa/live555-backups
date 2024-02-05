@@ -13,7 +13,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// "mTunnel" multicast access service
+// "groupsock"
 // Copyright (c) 1996-2021 Live Networks, Inc.  All rights reserved.
 // Network Interfaces
 // C++ header
@@ -30,51 +30,10 @@ public:
   virtual ~NetInterface();
 
   static UsageEnvironment* DefaultUsageEnvironment;
-      // if non-NULL, used for each new interfaces
+      // if non-NULL, used for each new interface
 
 protected:
   NetInterface(); // virtual base class
-};
-
-class DirectedNetInterface: public NetInterface {
-public:
-  virtual ~DirectedNetInterface();
-
-  virtual Boolean write(unsigned char* data, unsigned numBytes) = 0;
-
-  virtual Boolean SourceAddrOKForRelaying(UsageEnvironment& env,
-					  unsigned addr) = 0;
-
-protected:
-  DirectedNetInterface(); // virtual base class
-};
-
-class DirectedNetInterfaceSet {
-public:
-  DirectedNetInterfaceSet();
-  virtual ~DirectedNetInterfaceSet();
-
-  DirectedNetInterface* Add(DirectedNetInterface const* interf);
-      // Returns the old value if different, otherwise 0
-  Boolean Remove(DirectedNetInterface const* interf);
-
-  Boolean IsEmpty() { return fTable->IsEmpty(); }
-
-  // Used to iterate through the interfaces in the set
-  class Iterator {
-  public:
-    Iterator(DirectedNetInterfaceSet& interfaces);
-    virtual ~Iterator();
-
-    DirectedNetInterface* next(); // NULL iff none
-
-  private:
-    HashTable::Iterator* fIter;
-  };
-
-private:
-  friend class Iterator;
-  HashTable* fTable;
 };
 
 class Socket: public NetInterface {

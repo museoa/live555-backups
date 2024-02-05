@@ -517,7 +517,7 @@ void RTCPInstance
     fprintf(stderr, "[%p]saw incoming RTCP packet (from ", this);
     if (tcpSocketNum < 0) {
       // Note that "fromAddressAndPort" is valid only if we're receiving over UDP (not over TCP):
-      fprintf(stderr, "address %s, port %d", AddressString(fromAddressAndPort).val(), ntohs(portNum(fromAddressAndPort));
+      fprintf(stderr, "address %s, port %d", AddressString(fromAddressAndPort).val(), ntohs(portNum(fromAddressAndPort)));
     } else {
       fprintf(stderr, "TCP socket #%d, stream channel id %d", tcpSocketNum, tcpStreamChannelId);
     }

@@ -13,7 +13,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// "mTunnel" multicast access service
+// "groupsock"
 // Copyright (c) 1996-2021 Live Networks, Inc.  All rights reserved.
 // Network Addresses
 // Implementation
@@ -406,6 +406,11 @@ AddressString::AddressString(struct sockaddr_storage const& addr) {
     }
     case AF_INET6: {
       init(((sockaddr_in6&)addr).sin6_addr.s6_addr);
+      break;
+    }
+    default: {
+      fVal = new char[200]; // more than enough for this error message
+      sprintf(fVal, "(unknown address family %d)", addr.ss_family);
       break;
     }
   }

@@ -13,7 +13,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this library; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 **********/
-// "mTunnel" multicast access service
+// "groupsock"
 // Copyright (c) 1996-2021 Live Networks, Inc.  All rights reserved.
 // 'Group sockets'
 // C++ header
@@ -125,21 +125,12 @@ public:
 
   void multicastSendOnly(); // send, but don't receive any multicast packets
 
-  virtual Boolean output(UsageEnvironment& env, unsigned char* buffer, unsigned bufferSize,
-			 DirectedNetInterface* interfaceNotToFwdBackTo = NULL);
-
-  DirectedNetInterfaceSet& members() { return fMembers; }
-
-  Boolean deleteIfNoMembers;
+  virtual Boolean output(UsageEnvironment& env, unsigned char* buffer, unsigned bufferSize);
 
   static NetInterfaceTrafficStats statsIncoming;
   static NetInterfaceTrafficStats statsOutgoing;
-  static NetInterfaceTrafficStats statsRelayedIncoming;
-  static NetInterfaceTrafficStats statsRelayedOutgoing;
   NetInterfaceTrafficStats statsGroupIncoming; // *not* static
   NetInterfaceTrafficStats statsGroupOutgoing; // *not* static
-  NetInterfaceTrafficStats statsGroupRelayedIncoming; // *not* static
-  NetInterfaceTrafficStats statsGroupRelayedOutgoing; // *not* static
 
   Boolean wasLoopedBackFromUs(UsageEnvironment& env,
 			      struct sockaddr_storage const& fromAddressAndPort);
@@ -155,16 +146,10 @@ protected:
 private:
   void removeDestinationFrom(destRecord*& dests, unsigned sessionId);
     // used to implement (the public) "removeDestination()", and "changeDestinationParameters()"
-  int outputToAllMembersExcept(DirectedNetInterface* exceptInterface,
-			       u_int8_t ttlToFwd,
-			       unsigned char* data, unsigned size,
-			       netAddressBits sourceAddr);
-
 protected:
   destRecord* fDests;
 private:
   GroupEId fIncomingGroupEId;
-  DirectedNetInterfaceSet fMembers;
 };
 
 UsageEnvironment& operator<<(UsageEnvironment& s, const Groupsock& g);
