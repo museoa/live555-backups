@@ -223,7 +223,8 @@ void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultS
     MediaSubsessionIterator* iter = new MediaSubsessionIterator(*session);
     while ((subsession = iter->next()) != NULL) {
       if (strcmp(subsession->mediumName(), "video") == 0 &&
-	  strcmp(subsession->codecName(), "H264") == 0) break; // use this subsession
+	  (strcmp(subsession->codecName(), "H264") == 0 ||
+	   strcmp(subsession->codecName(), "H265") == 0)) break; // use this subsession
     }
     delete iter;
 
@@ -274,14 +275,69 @@ void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultStri
     // form that's usable in output Transport Streams.
     // (Note that we use a *DiscreteFramer*, because the input source is a stream of discrete
     //  NAL units - i.e., one at a time.)
-    H264VideoStreamDiscreteFramer* framer
-      = H264VideoStreamDiscreteFramer::createNew(*env, subsession->readSource(),
-						 True/*includeStartCodeInOutput*/,
-						 True/*insertAccessUnitDelimiters*/);
+    H264or5VideoStreamDiscreteFramer* framer;
+    int mpegVersion;
 
-    // Then create a filter that packs the H.264 video data into a Transport Stream:
+    if (strcmp(subsession->codecName(), "H264") == 0) {
+      mpegVersion = 5; // for H.264
+      framer = H264VideoStreamDiscreteFramer::createNew(*env, subsession->readSource(),
+							True/*includeStartCodeInOutput*/,
+							True/*insertAccessUnitDelimiters*/);
+
+      // Add any known SPS and PPS NAL units to the framer, so they'll get output ASAP:
+      u_int8_t* sps = NULL; unsigned spsSize = 0;
+      u_int8_t* pps = NULL; unsigned ppsSize = 0;
+      unsigned numSPropRecords;
+      SPropRecord* sPropRecords
+	= parseSPropParameterSets(subsession->fmtp_spropparametersets(), numSPropRecords);
+      if (numSPropRecords > 0) {
+	sps = sPropRecords[0].sPropBytes;
+	spsSize = sPropRecords[0].sPropLength;
+      }
+      if (numSPropRecords > 1) {
+	pps = sPropRecords[1].sPropBytes;
+	ppsSize = sPropRecords[1].sPropLength;
+      }
+      framer->setVPSandSPSandPPS(NULL, 0, sps, spsSize, pps, ppsSize);
+      delete[] sPropRecords;
+    } else { // H.265
+      mpegVersion = 6; // for H.265
+      framer = H265VideoStreamDiscreteFramer::createNew(*env, subsession->readSource(),
+							True/*includeStartCodeInOutput*/,
+							True/*insertAccessUnitDelimiters*/);
+
+      // Add any known VPS, SPS and PPS NAL units to the framer, so they'll get output ASAP:
+      u_int8_t* vps = NULL; unsigned vpsSize = 0;
+      u_int8_t* sps = NULL; unsigned spsSize = 0;
+      u_int8_t* pps = NULL; unsigned ppsSize = 0;
+      unsigned numSPropRecords;
+      SPropRecord *sPropRecordsVPS, *sPropRecordsSPS, *sPropRecordsPPS;
+
+      sPropRecordsVPS = parseSPropParameterSets(subsession->fmtp_spropvps(), numSPropRecords);
+      if (numSPropRecords > 0) {
+	vps = sPropRecordsVPS[0].sPropBytes;
+	vpsSize = sPropRecordsVPS[0].sPropLength;
+      }
+
+      sPropRecordsSPS = parseSPropParameterSets(subsession->fmtp_spropsps(), numSPropRecords);
+      if (numSPropRecords > 0) {
+	sps = sPropRecordsSPS[0].sPropBytes;
+	spsSize = sPropRecordsSPS[0].sPropLength;
+      }
+
+      sPropRecordsPPS = parseSPropParameterSets(subsession->fmtp_sproppps(), numSPropRecords);
+      if (numSPropRecords > 0) {
+	pps = sPropRecordsPPS[0].sPropBytes;
+	ppsSize = sPropRecordsPPS[0].sPropLength;
+      }
+
+      framer->setVPSandSPSandPPS(vps, vpsSize, sps, spsSize, pps, ppsSize);
+      delete[] sPropRecordsVPS; delete[] sPropRecordsSPS; delete[] sPropRecordsPPS;
+    }
+
+    // Then create a filter that packs the Elementary Stream video data into a Transport Stream:
     MPEG2TransportStreamFromESSource* tsFrames = MPEG2TransportStreamFromESSource::createNew(*env);
-    tsFrames->addNewVideoSource(framer, 5/*mpegVersion: H.264*/);
+    tsFrames->addNewVideoSource(framer, mpegVersion);
 
     // Start playing the sink object:
     *env << "Beginning to read...\n";
