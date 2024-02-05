@@ -24,7 +24,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 UsageEnvironment* env;
 char const* inputFileName = "test.mkv";
-struct in_addr destinationAddress;
+struct sockaddr_storage destinationAddress;
 RTSPServer* rtspServer;
 ServerMediaSession* sms;
 MatroskaFile* matroskaFile;
@@ -46,7 +46,8 @@ int main(int argc, char** argv) {
   env = BasicUsageEnvironment::createNew(*scheduler);
 
   // Define our destination (multicast) IP address:
-  destinationAddress.s_addr = chooseRandomIPv4SSMAddress(*env);
+  destinationAddress.ss_family = AF_INET;
+  ((struct sockaddr_in&)destinationAddress).sin_addr.s_addr = chooseRandomIPv4SSMAddress(*env);
     // Note: This is a multicast address.  If you wish instead to stream
     // using unicast, then you should use the "testOnDemandRTSPServer"
     // test program - not this test program - as a model.

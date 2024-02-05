@@ -348,8 +348,7 @@ ServerMediaSubsession::ServerMediaSubsession(UsageEnvironment& env)
   : Medium(env),
     fParentSession(NULL), fPortNumForSDP(0),
     fNext(NULL), fTrackNumber(0), fTrackId(NULL) {
-  fServerAddressForSDP.ss_family = AF_INET; // by default
-  ((struct sockaddr_in&)fServerAddressForSDP).sin_addr.s_addr = 0;
+  fServerAddressForSDP = nullAddress(); // by default
 }
 
 ServerMediaSubsession::~ServerMediaSubsession() {

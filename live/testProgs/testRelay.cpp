@@ -39,17 +39,19 @@ int main(int argc, char** argv) {
 #else
     = "239.255.42.42";
 #endif
-  struct in_addr inputAddress;
-  (void)inet_pton(AF_INET,  inputAddressStr, &inputAddress.s_addr);
+  NetAddressList inputAddresses(inputAddressStr);
+  struct sockaddr_storage inputAddress;
+  copyAddress(inputAddress, inputAddresses.firstAddress());
 
   Port const inputPort(8888);
   unsigned char const inputTTL = 0; // we're only reading from this mcast group
 
 #ifdef USE_SSM
-  char* sourceAddressStr = "aaa.bbb.ccc.ddd";
+  char const* sourceAddressStr = "aaa.bbb.ccc.ddd";
                            // replace this with the real source address
-  struct in_addr sourceFilterAddress;
-  (void)inet_pton(AF_INET, sourceAddressStr, &sourceFilterAddress.s_addr);
+  NetAddressList sourceFilterAddresses(sourceAddressStr);
+  struct sockaddr_storage sourceFilterAddress;
+  copyAddress(sourceFilterAddress, sourceFilterAddresses.firstAddress());
 
   Groupsock inputGroupsock(*env, inputAddress, sourceFilterAddress, inputPort);
 #else
@@ -65,8 +67,9 @@ int main(int argc, char** argv) {
     // Note: You may change "outputAddressStr" to use a different multicast
     // (or unicast address), but do *not* change it to use the same multicast
     // address as "inputAddressStr".
-  struct in_addr outputAddress;
-  (void)inet_pton(AF_INET, outputAddressStr, &outputAddress.s_addr);
+  NetAddressList outputAddresses(outputAddressStr);
+  struct sockaddr_storage outputAddress;
+  copyAddress(outputAddress, outputAddresses.firstAddress());
 
   Port const outputPort(4444);
   unsigned char const outputTTL = 255;

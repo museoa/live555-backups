@@ -145,8 +145,7 @@ void PassiveServerMediaSubsession
   Groupsock& gs = fRTPSink.groupsockBeingUsed();
   if (destinationTTL == 255) destinationTTL = gs.ttl();
 
-  if (destinationAddress.ss_family == AF_INET &&
-      ((struct sockaddr_in&)destinationAddress).sin_addr.s_addr == 0) {
+  if (addressIsNull(destinationAddress)) {
     // normal case - use the sink's existing destination address:
     destinationAddress = gs.groupAddress();
   } else { // use the client-specified destination address instead:
@@ -154,7 +153,6 @@ void PassiveServerMediaSubsession
     if (fRTCPInstance != NULL) {
       Groupsock* rtcpGS = fRTCPInstance->RTCPgs();
       rtcpGS->changeDestinationParameters(destinationAddress, 0, destinationTTL);
-        // later, update to support IPv6
     }
   }
   serverRTPPort = gs.port();

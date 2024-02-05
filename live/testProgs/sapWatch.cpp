@@ -33,8 +33,9 @@ int main(int argc, char** argv) {
 
   // Create a 'groupsock' for the input multicast group,port:
   char const* sessionAddressStr = "224.2.127.254";
-  struct in_addr sessionAddress;
-  (void)inet_pton(AF_INET, sessionAddressStr, &sessionAddress.s_addr);
+  NetAddressList sessionAddresses(sessionAddressStr);
+  struct sockaddr_storage sessionAddress;
+  copyAddress(sessionAddress, sessionAddresses.firstAddress());
 
   const Port port(9875);
   const unsigned char ttl = 0; // we're only reading from this mcast group

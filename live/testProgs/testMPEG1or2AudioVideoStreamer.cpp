@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
 
   NetAddressList destinationAddresses(destinationAddressStr);
   struct sockaddr_storage destinationAddress;
-  copyAddress(destinationAddress, *destinationAddresses.firstAddress());
+  copyAddress(destinationAddress, destinationAddresses.firstAddress());
 
   const Port rtpPortAudio(rtpPortNumAudio);
   const Port rtcpPortAudio(rtcpPortNumAudio);

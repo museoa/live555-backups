@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 
   NetAddressList destinationAddresses(destinationAddressStr);
   struct sockaddr_storage destinationAddress;
-  copyAddress(destinationAddress, *destinationAddresses.firstAddress());
+  copyAddress(destinationAddress, destinationAddresses.firstAddress());
 
   const Port rtpPort(rtpPortNum);
   const Port rtcpPort(rtcpPortNum);

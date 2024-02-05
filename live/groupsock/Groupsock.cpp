@@ -144,69 +144,6 @@ Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& group
   if (DebugLevel >= 2) env << *this << ": created\n";
 }
 
-// deprecated constructors; to be removed when we fully support IPv6:
-// Constructor for a source-independent multicast group
-Groupsock::Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
-		     Port port, u_int8_t ttl)
-  : OutputSocket(env, port) {
-  struct sockaddr_storage addrTmp; // hack; later fix to support IPv6
-  addrTmp.ss_family = AF_INET;
-  ((struct sockaddr_in&)addrTmp).sin_addr = groupAddr;
-  fDests = new destRecord(addrTmp, port, ttl, 0, NULL); // later move back to initializer
-  fIncomingGroupEId = GroupEId(addrTmp, port.num(), ttl); // later move back to initializer
-
-  if (!socketJoinGroup(env, socketNum(), groupAddr.s_addr)) {
-    if (DebugLevel >= 1) {
-      env << *this << ": failed to join group: "
-	  << env.getResultMsg() << "\n";
-    }
-  }
-
-  // Make sure we can get our source address:
-  if (ourIPAddress(env) == 0) {
-    if (DebugLevel >= 0) { // this is a fatal error
-      env << "Unable to determine our source address: "
-	  << env.getResultMsg() << "\n";
-    }
-  }
-
-  if (DebugLevel >= 2) env << *this << ": created\n";
-}
-
-// Constructor for a source-specific multicast group
-Groupsock::Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
-		     struct in_addr const& sourceFilterAddr,
-		     Port port)
-  : OutputSocket(env, port) {
-  struct sockaddr_storage addrTmp; // hack; later fix to support IPv6
-  addrTmp.ss_family = AF_INET;
-  ((struct sockaddr_in&)addrTmp).sin_addr = groupAddr;
-  fDests = new destRecord(addrTmp, port, 255, 0, NULL); // later move back to initializer
-
-  struct sockaddr_storage sourceFilterAddrTmp; // hack; later fix to support IPv6
-  sourceFilterAddrTmp.ss_family = AF_INET;
-  ((struct sockaddr_in&)sourceFilterAddrTmp).sin_addr = sourceFilterAddr;
-  fIncomingGroupEId = GroupEId(addrTmp, sourceFilterAddrTmp, port.num()); // later move back to initializer
-
-  // First try a SSM join.  If that fails, try a regular join:
-  if (!socketJoinGroupSSM(env, socketNum(), groupAddr.s_addr,
-			  sourceFilterAddr.s_addr)) {
-    if (DebugLevel >= 3) {
-      env << *this << ": SSM join failed: "
-	  << env.getResultMsg();
-      env << " - trying regular join instead\n";
-    }
-    if (!socketJoinGroup(env, socketNum(), groupAddr.s_addr)) {
-      if (DebugLevel >= 1) {
-	env << *this << ": failed to join group: "
-	     << env.getResultMsg() << "\n";
-      }
-    }
-  }
-
-  if (DebugLevel >= 2) env << *this << ": created\n";
-}
-
 Groupsock::~Groupsock() {
   if (isSSM()) {
     if (!socketLeaveGroupSSM(env(), socketNum(),
@@ -245,7 +182,7 @@ Groupsock::changeDestinationParameters(struct sockaddr_storage const& newDestAdd
 
   // "dest" is an existing 'destRecord' for this "sessionId"; change its values to the new ones:
   struct sockaddr_storage destAddr = dest->fGroupEId.groupAddress();
-  if (!(newDestAddr.ss_family == AF_INET && ((struct sockaddr_in&)newDestAddr).sin_addr.s_addr == 0)) {
+  if (!addressIsNull(newDestAddr)) {
     // Replace "destAddr" with "newDestAddr"
     if (!(newDestAddr == destAddr) && IsMulticastAddress(newDestAddr)) {
       // If the new destination is a multicast address, then we assume that
@@ -538,7 +475,7 @@ GroupsockLookupTable::Fetch(UsageEnvironment& env,
   do {
     groupsock = (Groupsock*) fTable.Lookup(groupAddress, port);
     if (groupsock == NULL) { // we need to create one:
-      groupsock = AddNew(env, groupAddress, AddressPortLookupTable::dummyAddress(), port, ttl);
+      groupsock = AddNew(env, groupAddress, nullAddress(), port, ttl);
       if (groupsock == NULL) break;
       isNew = True;
     }
@@ -594,7 +531,7 @@ Groupsock* GroupsockLookupTable::AddNew(UsageEnvironment& env,
 					Port port, u_int8_t ttl) {
   Groupsock* groupsock;
   do {
-    if (AddressPortLookupTable::addressIsDummy(sourceFilterAddress)) {
+    if (addressIsNull(sourceFilterAddress)) {
       // regular, ISM groupsock
       groupsock = new Groupsock(env, groupAddress, port, ttl);
     } else {

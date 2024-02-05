@@ -85,15 +85,6 @@ public:
 	    Port port);
       // used for a 'source-specific multicast' group
 
-// deprecated constructors; to be removed when we fully support IPv6:
-  Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
-	    Port port, u_int8_t ttl);
-      // used for a 'source-independent multicast' group
-  Groupsock(UsageEnvironment& env, struct in_addr const& groupAddr,
-	    struct in_addr const& sourceFilterAddr,
-	    Port port);
-      // used for a 'source-specific multicast' group
-
   virtual ~Groupsock();
 
   virtual destRecord* createNewDestRecord(struct sockaddr_storage const& addr, Port const& port, u_int8_t ttl, unsigned sessionId, destRecord* next);

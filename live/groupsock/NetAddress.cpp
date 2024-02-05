@@ -80,14 +80,28 @@ void NetAddress::clean() {
   fLength = 0;
 }
 
-void copyAddress(struct sockaddr_storage& to, NetAddress const& from) {
-  if (from.length() == sizeof (ipv4AddressBits)) {
+static struct sockaddr_storage _nullAddress;
+struct sockaddr_storage const& nullAddress() {
+  _nullAddress.ss_family = AF_INET;
+  ((sockaddr_in&)_nullAddress).sin_addr.s_addr = 0;
+
+  return _nullAddress;
+}
+
+Boolean addressIsNull(sockaddr_storage const& address) {
+  return address.ss_family == AF_INET && ((sockaddr_in const&)address).sin_addr.s_addr == 0;
+}
+
+void copyAddress(struct sockaddr_storage& to, NetAddress const* from) {
+  if (from == NULL) return;
+
+  if (from->length() == sizeof (ipv4AddressBits)) {
     to.ss_family = AF_INET;
-    ((sockaddr_in&)to).sin_addr.s_addr = *(ipv4AddressBits*)(from.data());
+    ((sockaddr_in&)to).sin_addr.s_addr = *(ipv4AddressBits*)(from->data());
   } else {
     to.ss_family = AF_INET6;
     for (unsigned i = 0; i < 16; ++i) {
-      ((sockaddr_in6&)to).sin6_addr.s6_addr[i] = (from.data())[i];
+      ((sockaddr_in6&)to).sin6_addr.s6_addr[i] = (from->data())[i];
     }
   }
 }
@@ -323,18 +337,6 @@ Boolean AddressPortLookupTable::Remove(struct sockaddr_storage const& address1,
   int key[NUM_RECORDS_IN_KEY_TOTAL];
   setKey(key, address1, address2, port);
   return fTable->Remove((char*)key);
-}
-
-static struct sockaddr_storage _dummyAddress;
-struct sockaddr_storage const& AddressPortLookupTable::dummyAddress() {
-  _dummyAddress.ss_family = AF_INET;
-  ((sockaddr_in&)_dummyAddress).sin_addr.s_addr = (~0);
-
-  return _dummyAddress;
-}
-
-Boolean AddressPortLookupTable::addressIsDummy(sockaddr_storage const& address) {
-  return address.ss_family == AF_INET && ((sockaddr_in const&)address).sin_addr.s_addr == (~0);
 }
 
 AddressPortLookupTable::Iterator::Iterator(AddressPortLookupTable& table)

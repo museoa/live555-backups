@@ -127,8 +127,12 @@ int main(int argc, char const** argv) {
   curInputFileName = inputFileNames;
 
   // Create 'groupsocks' for RTP and RTCP:
-  struct in_addr destinationAddress;
-  destinationAddress.s_addr = chooseRandomIPv4SSMAddress(*env);
+  struct sockaddr_storage destinationAddress;
+  destinationAddress.ss_family = AF_INET;
+  ((struct sockaddr_in&)destinationAddress).sin_addr.s_addr = chooseRandomIPv4SSMAddress(*env);
+  // Note: This is a multicast address.  If you wish instead to stream
+  // using unicast, then you should use the "testOnDemandRTSPServer"
+  // test program - not this test program - as a model.
 
   const unsigned short rtpPortNumAudio = 4444;
   const unsigned short rtcpPortNumAudio = rtpPortNumAudio+1;

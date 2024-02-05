@@ -741,7 +741,7 @@ Boolean SIPClient::processURL(char const* url) {
     if (!fServerAddressIsSet) {
       NetAddress destAddress;
       if (!parseSIPURL(envir(), url, destAddress, fServerPortNum)) break;
-      copyAddress(fServerAddress, destAddress);
+      copyAddress(fServerAddress, &destAddress);
       fServerAddressIsSet = True;
 
       if (fOurSocket != NULL) {

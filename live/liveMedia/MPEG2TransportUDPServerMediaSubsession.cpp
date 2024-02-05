@@ -55,12 +55,11 @@ FramedSource* MPEG2TransportUDPServerMediaSubsession
     // Create a 'groupsock' object for receiving the input stream:
     struct sockaddr_storage inputAddress;
     if (fInputAddressStr == NULL) {
-      inputAddress.ss_family = AF_INET;
-      ((struct sockaddr_in&)inputAddress).sin_addr.s_addr = 0;
+      inputAddress = nullAddress();
     } else {
       NetAddressList inputAddresses(fInputAddressStr);
       if (inputAddresses.numAddresses() == 0) return NULL;
-      copyAddress(inputAddress, *inputAddresses.firstAddress());
+      copyAddress(inputAddress, inputAddresses.firstAddress());
     }
     fInputGroupsock = new Groupsock(envir(), inputAddress, fInputPort, 255);
   }

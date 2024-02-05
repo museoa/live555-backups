@@ -1414,9 +1414,7 @@ void RTSPServer::RTSPClientSession
       fStreamStates[trackNum].tcpSocketNum = ourClientConnection->fClientOutputSocket;
       fOurRTSPServer.noteTCPStreamingOnSocket(fStreamStates[trackNum].tcpSocketNum, this, trackNum);
     }
-    struct sockaddr_storage destinationAddress;
-    destinationAddress.ss_family = AF_INET;
-    ((struct sockaddr_in&)destinationAddress).sin_addr.s_addr = 0;
+    struct sockaddr_storage destinationAddress = nullAddress();
         // used to indicate that the address is 'unassigned'
     u_int8_t destinationTTL = 255;
 #ifdef RTSP_ALLOW_CLIENT_DESTINATION_SETTING
@@ -1427,7 +1425,7 @@ void RTSPServer::RTSPClientSession
       // trusted.
       NetAddressList destAddresses(clientsDestinationAddressStr);
       if (destAddresses.numAddresses() > 0) {
-	copyAddress(destinationAddress *(destAddresses.firstAddress()));
+	copyAddress(destinationAddress, destAddresses.firstAddress());
       }
     }
     // Also use the client-provided TTL.

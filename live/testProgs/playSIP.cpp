@@ -69,7 +69,7 @@ void getSDPDescription(RTSPClient::responseHandler* afterFunc) {
       ourSIPClient->envir() << "Failed to find network address for \"" << proxyServerName << "\"\n";
     } else {
       struct sockaddr_storage proxyServerAddress;
-      copyAddress(proxyServerAddress, *(addresses.firstAddress()));
+      copyAddress(proxyServerAddress, addresses.firstAddress());
 
       extern unsigned short proxyServerPortNum;
       if (proxyServerPortNum == 0) proxyServerPortNum = 5060; // default
@@ -143,8 +143,9 @@ void setupSubsession(MediaSubsession* subsession, Boolean /*streamUsingTCP*/, Bo
   subsession->rtcpChannelId = rtcpChannelId;
 
   // Set the RTP and RTCP sockets' destination address and port from the information in the SETUP response (if present):
-  netAddressBits destAddress = subsession->connectionEndpointAddress();
-  if (destAddress != 0) {
+  struct sockaddr_storage destAddress;
+  subsession->getConnectionEndpointAddress(destAddress);
+  if (!addressIsNull(destAddress)) {
     subsession->setDestinations(destAddress);
   }
   ////////// END hack code that should really be implemented in SIPClient //////////

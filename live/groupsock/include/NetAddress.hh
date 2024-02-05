@@ -62,7 +62,10 @@ private:
   u_int8_t* fData;
 };
 
-void copyAddress(struct sockaddr_storage& to, NetAddress const& from);
+struct sockaddr_storage const& nullAddress();
+Boolean addressIsNull(sockaddr_storage const& address);
+
+void copyAddress(struct sockaddr_storage& to, NetAddress const* from);
 
 Boolean operator==(struct sockaddr_storage const& left, struct sockaddr_storage const& right);
     // compares the family and address parts only; not the port number or anything else
@@ -129,7 +132,7 @@ public:
   void* Add(struct sockaddr_storage const& address1,
 	    Port port,
 	    void* value) {
-    return Add(address1, dummyAddress(), port, value);
+    return Add(address1, nullAddress(), port, value);
   }
 
   Boolean Remove(struct sockaddr_storage const& address1,
@@ -137,7 +140,7 @@ public:
 		 Port port);
   Boolean Remove(struct sockaddr_storage const& address1,
 		 Port port) {
-    return Remove(address1, dummyAddress(), port);
+    return Remove(address1, nullAddress(), port);
   }
 
   void* Lookup(struct sockaddr_storage const& address1,
@@ -146,14 +149,10 @@ public:
       // Returns 0 if not found
   void* Lookup(struct sockaddr_storage const& address1,
 	       Port port) {
-    return Lookup(address1, dummyAddress(), port);
+    return Lookup(address1, nullAddress(), port);
   }
 
   void* RemoveNext() { return fTable->RemoveNext(); }
-
-  static struct sockaddr_storage const& dummyAddress();
-      // an address to use if you need only "address1", not "address2"
-  static Boolean addressIsDummy(sockaddr_storage const& address);
 
   // Used to iterate through the entries in the table
   class Iterator {

@@ -66,7 +66,7 @@ OnDemandServerMediaSubsession::sdpLines() {
     FramedSource* inputSource = createNewStreamSource(0, estBitrate);
     if (inputSource == NULL) return NULL; // file not found
 
-    Groupsock* dummyGroupsock = createGroupsock(AddressPortLookupTable::dummyAddress(), 0);
+    Groupsock* dummyGroupsock = createGroupsock(nullAddress(), 0);
     unsigned char rtpPayloadType = 96 + trackNumber()-1; // if dynamic
     RTPSink* dummyRTPSink = createNewRTPSink(dummyGroupsock, rtpPayloadType, inputSource);
     if (dummyRTPSink != NULL && dummyRTPSink->estimatedBitrate() > 0) estBitrate = dummyRTPSink->estimatedBitrate();
@@ -94,8 +94,7 @@ void OnDemandServerMediaSubsession
 		      Port& serverRTPPort,
 		      Port& serverRTCPPort,
 		      void*& streamToken) {
-  if (destinationAddress.ss_family == AF_INET &&
-      ((struct sockaddr_in&)destinationAddress).sin_addr.s_addr == 0) {
+  if (addressIsNull(destinationAddress)) {
     // normal case - use the client address as the destination address:
     destinationAddress = clientAddress;
   }
@@ -128,7 +127,7 @@ void OnDemandServerMediaSubsession
 	NoReuse dummy(envir()); // ensures that we skip over ports that are already in use
 	for (serverPortNum = fInitialPortNum; ; ++serverPortNum) {
 	  serverRTPPort = serverPortNum;
-	  rtpGroupsock = createGroupsock(AddressPortLookupTable::dummyAddress(), serverRTPPort);
+	  rtpGroupsock = createGroupsock(nullAddress(), serverRTPPort);
 	  if (rtpGroupsock->socketNum() >= 0) break; // success
 	}
 
@@ -140,7 +139,7 @@ void OnDemandServerMediaSubsession
 	NoReuse dummy(envir()); // ensures that we skip over ports that are already in use
 	for (portNumBits serverPortNum = fInitialPortNum; ; ++serverPortNum) {
 	  serverRTPPort = serverPortNum;
-	  rtpGroupsock = createGroupsock(AddressPortLookupTable::dummyAddress(), serverRTPPort);
+	  rtpGroupsock = createGroupsock(nullAddress(), serverRTPPort);
 	  if (rtpGroupsock->socketNum() < 0) {
 	    delete rtpGroupsock;
 	    continue; // try again
@@ -153,7 +152,7 @@ void OnDemandServerMediaSubsession
 	  } else {
 	    // Create a separate 'groupsock' object (with the next (odd) port number) for RTCP:
 	    serverRTCPPort = ++serverPortNum;
-	    rtcpGroupsock = createGroupsock(AddressPortLookupTable::dummyAddress(), serverRTCPPort);
+	    rtcpGroupsock = createGroupsock(nullAddress(), serverRTCPPort);
 	    if (rtcpGroupsock->socketNum() < 0) {
 	      delete rtpGroupsock;
 	      delete rtcpGroupsock;

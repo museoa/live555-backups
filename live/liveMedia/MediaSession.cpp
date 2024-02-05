@@ -65,7 +65,7 @@ MediaSession::MediaSession(UsageEnvironment& env)
     fScale(1.0f), fSpeed(1.0f),
     fMediaSessionType(NULL), fSessionName(NULL), fSessionDescription(NULL), fControlPath(NULL),
     fMIKEYState(NULL), fCrypto(NULL) {
-  fSourceFilterAddr.s_addr = 0;
+  fSourceFilterAddr = nullAddress();
 
   // Get our host name, and use this for the RTCP CNAME:
   const unsigned maxCNAMElen = 100;
@@ -418,7 +418,7 @@ Boolean MediaSession::parseSDPAttribute_range(char const* sdpLine) {
 }
 
 static Boolean parseSourceFilterAttribute(char const* sdpLine,
-					  struct in_addr& sourceAddr) {
+					  struct sockaddr_storage& sourceFilterAddr) {
   // Check for a "a=source-filter:incl IN IP4 <something> <source>" line (or "IN IP6").
   // Note: At present, we don't check that <something> really matches
   // one of our multicast addresses.  We also don't support more than
@@ -433,11 +433,7 @@ static Boolean parseSourceFilterAttribute(char const* sdpLine,
     NetAddressList addresses(sourceName);
     if (addresses.numAddresses() == 0) break;
 
-    netAddressBits sourceAddrBits
-      = *(netAddressBits*)(addresses.firstAddress()->data());
-    if (sourceAddrBits == 0) break;
-
-    sourceAddr.s_addr = sourceAddrBits;
+    copyAddress(sourceFilterAddr, addresses.firstAddress());
     result = True;
   } while (0);
 
@@ -712,14 +708,14 @@ Boolean MediaSubsession::initiate(int useSpecialRTPoffset) {
 
     // Create RTP and RTCP 'Groupsocks' on which to receive incoming data.
     // (Groupsocks will work even for unicast addresses)
-    struct in_addr tempAddr;
-    tempAddr.s_addr = connectionEndpointAddress();
+    struct sockaddr_storage tempAddr;
+    getConnectionEndpointAddress(tempAddr);
         // This could get changed later, as a result of a RTSP "SETUP"
 
     Boolean const useSRTP = strcmp(fProtocolName, "SRTP") == 0;
     Boolean const protocolIsRTP = useSRTP || strcmp(fProtocolName, "RTP") == 0;
 
-    if (fClientPortNum != 0 && (honorSDPPortChoice || IsMulticastAddress(tempAddr.s_addr))) {
+    if (fClientPortNum != 0 && (honorSDPPortChoice || IsMulticastAddress(tempAddr))) {
       // The sockets' port numbers were specified for us.  Use these:
       if (protocolIsRTP && !fMultiplexRTCPWithRTP) {
 	fClientPortNum = fClientPortNum&~1;
@@ -839,9 +835,7 @@ Boolean MediaSubsession::initiate(int useSpecialRTPoffset) {
 
     if (isSSM() && fRTCPSocket != NULL) {
       // Special case for RTCP SSM: Send RTCP packets back to the source via unicast:
-      struct sockaddr_storage sfAddr;
-      sfAddr.ss_family = AF_INET; ((struct sockaddr_in&)sfAddr).sin_addr = fSourceFilterAddr; // Later, update to support IPv6
-      fRTCPSocket->changeDestinationParameters(sfAddr, 0, ~0);
+      fRTCPSocket->changeDestinationParameters(fSourceFilterAddr, 0, ~0);
     }
 
     // Create "fRTPSource" and "fReadSource":
@@ -942,9 +936,9 @@ char const* MediaSubsession::fmtp_config() const {
   return result;
 }
 
-netAddressBits MediaSubsession::connectionEndpointAddress() const {
+void MediaSubsession::getConnectionEndpointAddress(struct sockaddr_storage& addr) const {
   do {
-    // Get the endpoint name from with us, or our parent session:
+    // Get the endpoint name from us, or from our parent session:
     char const* endpointString = connectionEndpointName();
     if (endpointString == NULL) {
       endpointString = parentSession().connectionEndpointName();
@@ -955,32 +949,32 @@ netAddressBits MediaSubsession::connectionEndpointAddress() const {
     NetAddressList addresses(endpointString);
     if (addresses.numAddresses() == 0) break;
 
-    return *(netAddressBits*)(addresses.firstAddress()->data());
+    copyAddress(addr, addresses.firstAddress());
+    return;
   } while (0);
 
-  // No address known:
-  return 0;
+  // Address unknown; set it to a 'null' value:
+  addr = nullAddress();
 }
 
-void MediaSubsession::setDestinations(netAddressBits defaultDestAddress) {
+void MediaSubsession::setDestinations(struct sockaddr_storage const& defaultDestAddress) {
   // Get the destination address from the connection endpoint name
-  // (This will be 0 if it's not known, in which case we use the default)
-  netAddressBits destAddress = connectionEndpointAddress();
-  if (destAddress == 0) destAddress = defaultDestAddress;
-  struct sockaddr_storage destAddr;
-  destAddr.ss_family = AF_INET; ((struct sockaddr_in&)destAddr).sin_addr.s_addr = destAddress; // Later, update to support IPv6
+  // (This will be 0 if it's not known, in which case we use the default instead)
+  struct sockaddr_storage destAddress;
+  getConnectionEndpointAddress(destAddress);
+  if (addressIsNull(destAddress)) destAddress = defaultDestAddress;
 
   // The destination TTL remains unchanged:
   int destTTL = ~0; // means: don't change
 
   if (fRTPSocket != NULL) {
     Port destPort(serverPortNum);
-    fRTPSocket->changeDestinationParameters(destAddr, destPort, destTTL);
+    fRTPSocket->changeDestinationParameters(destAddress, destPort, destTTL);
   }
   if (fRTCPSocket != NULL && !isSSM() && !fMultiplexRTCPWithRTP) {
     // Note: For SSM sessions, the dest address for RTCP was already set.
     Port destPort(serverPortNum+1);
-    fRTCPSocket->changeDestinationParameters(destAddr, destPort, destTTL);
+    fRTCPSocket->changeDestinationParameters(destAddress, destPort, destTTL);
   }
 }
 

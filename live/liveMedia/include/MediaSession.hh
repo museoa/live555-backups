@@ -72,7 +72,7 @@ public:
 
   char* connectionEndpointName() const { return fConnectionEndpointName; }
   char const* CNAME() const { return fCNAME; }
-  struct in_addr const& sourceFilterAddr() const { return fSourceFilterAddr; }
+  struct sockaddr_storage const& sourceFilterAddr() const { return fSourceFilterAddr; }
   float& scale() { return fScale; }
   float& speed() { return fSpeed; }
   char* mediaSessionType() const { return fMediaSessionType; }
@@ -138,7 +138,7 @@ protected:
   double fMaxPlayEndTime;
   char* fAbsStartTime;
   char* fAbsEndTime;
-  struct in_addr fSourceFilterAddr; // used for SSM
+  struct sockaddr_storage fSourceFilterAddr; // used for SSM
   float fScale; // set from a RTSP "Scale:" header
   float fSpeed;
   char* fMediaSessionType; // holds a=type value
@@ -179,7 +179,7 @@ public:
   char const* protocolName() const { return fProtocolName; }
   char const* controlPath() const { return fControlPath; }
 
-  Boolean isSSM() const { return fSourceFilterAddr.s_addr != 0; }
+  Boolean isSSM() const { return !addressIsNull(fSourceFilterAddr); }
 
   unsigned short videoWidth() const { return fVideoWidth; }
   unsigned short videoHeight() const { return fVideoHeight; }
@@ -247,9 +247,9 @@ public:
   char const* fmtp_spropsps() const { return attrVal_str("sprop-sps"); }
   char const* fmtp_sproppps() const { return attrVal_str("sprop-pps"); }
 
-  netAddressBits connectionEndpointAddress() const;
+  void getConnectionEndpointAddress(struct sockaddr_storage& addr) const;
       // Converts "fConnectionEndpointName" to an address (or 0 if unknown)
-  void setDestinations(netAddressBits defaultDestAddress);
+  void setDestinations(struct sockaddr_storage const& defaultDestAddress);
       // Uses "fConnectionEndpointName" and "serverPortNum" to set
       // the destination address and port of the RTP and RTCP objects.
       // This is typically called by RTSP clients after doing "SETUP".
@@ -331,7 +331,7 @@ protected:
   MIKEYState* fMIKEYState;
   SRTPCryptographicContext* fCrypto;
 
-  struct in_addr fSourceFilterAddr; // used for SSM
+  struct sockaddr_storage fSourceFilterAddr; // used for SSM
   unsigned fBandwidth; // in kilobits-per-second, from b= line
 
   double fPlayStartTime;

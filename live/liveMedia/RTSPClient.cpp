@@ -707,9 +707,11 @@ Boolean RTSPClient::setRequestFields(RequestRecord* request,
       rtpNumber = fTCPStreamIdCount++;
       rtcpNumber = fTCPStreamIdCount++;
     } else { // normal RTP streaming
-      unsigned connectionAddress = subsession.connectionEndpointAddress();
+      struct sockaddr_storage connectionAddress;
+      subsession.getConnectionEndpointAddress(connectionAddress);
       Boolean requestMulticastStreaming
-	= IsMulticastAddress(connectionAddress) || (connectionAddress == 0 && forceMulticastOnUnspecified);
+	= IsMulticastAddress(connectionAddress)
+	  || (forceMulticastOnUnspecified && addressIsNull(connectionAddress));
       transportTypeStr = requestMulticastStreaming ? ";multicast" : ";unicast";
       portTypeStr = requestMulticastStreaming ? ";port" : ";client_port";
       rtpNumber = subsession.clientPortNum();
@@ -900,7 +902,7 @@ int RTSPClient::openConnection() {
     if (fVerbosityLevel >= 1) envir() << "Created new TCP socket " << fInputSocketNum << " for connection\n";
       
     // Connect to the remote endpoint:
-    copyAddress(fServerAddress, destAddress);
+    copyAddress(fServerAddress, &destAddress);
     int connectResult = connectToServer(fInputSocketNum, destPortNum);
     if (connectResult < 0) break;
     else if (connectResult > 0) {
@@ -1262,9 +1264,11 @@ Boolean RTSPClient::handleSETUPResponse(MediaSubsession& subsession, char const*
     } else {
       // Normal case.
       // Set the RTP and RTCP sockets' destination address and port from the information in the SETUP response (if present):
-      netAddressBits destAddress = subsession.connectionEndpointAddress();
-      if (destAddress == 0) destAddress = ((struct sockaddr_in const&)fServerAddress).sin_addr.s_addr;
-          // Later fix for IPv6
+      struct sockaddr_storage destAddress;
+      subsession.getConnectionEndpointAddress(destAddress);
+      if (addressIsNull(destAddress)) {
+	destAddress = fServerAddress;
+      }
       subsession.setDestinations(destAddress);
     }
 

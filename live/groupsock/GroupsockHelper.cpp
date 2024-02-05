@@ -84,6 +84,7 @@ void reclaimGroupsockPriv(UsageEnvironment& env) {
 
 static int createSocket(int type) {
   // Call "socket()" to create a (IPv4) socket of the specified type.
+      // (Later, update to support IPv6)
   // But also set it to have the 'close on exec' property (if we can)
   int sock;
 
@@ -626,15 +627,7 @@ Boolean socketLeaveGroupSSM(UsageEnvironment& /*env*/, int socket,
 
 static Boolean getSourcePort0(int socket, portNumBits& resultPortNum/*host order*/) {
   sockaddr_storage test;
-  switch (test.ss_family) {
-    case AF_INET: {
-      ((sockaddr_in&)test).sin_port = 0;
-      break;
-    }
-    case AF_INET6: {
-      ((sockaddr_in6&)test).sin6_port = 0;
-    }
-  }
+  ((sockaddr_in&)test).sin_port = 0; // same position for both IPv4 and IPv6
 
   SOCKLEN_T len = sizeof test;
   if (getsockname(socket, (struct sockaddr*)&test, &len) < 0) return False;
@@ -665,7 +658,7 @@ static Boolean badIPv4AddressForUs(ipv4AddressBits addr) {
   ipv4AddressBits nAddr = htonl(addr);
   return (nAddr == 0x7F000001 /* 127.0.0.1 */
 	  || nAddr == 0
-	  || nAddr == (netAddressBits)(~0));
+	  || nAddr == (ipv4AddressBits)(~0));
 }
 
 static Boolean badIPv6AddressForUs(ipv6AddressBits addr) {
@@ -711,9 +704,7 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
 
   if (ourAddress == 0) {
     // We need to find our source address
-    struct sockaddr_storage fromAddr;
-    fromAddr.ss_family = AF_INET;
-    ((sockaddr_in&)fromAddr).sin_addr.s_addr = 0;
+    struct sockaddr_storage fromAddr = nullAddress();
 
     // Get our address by sending a (0-TTL) multicast packet,
     // receiving it, and looking at the source address used.
@@ -796,7 +787,7 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
 
       // Assign the address that we found to "fromAddr" (as if the 'loopback' method had worked),
       // to simplify the code below: 
-      copyAddress(fromAddr, *address);
+      copyAddress(fromAddr, address);
     } while (0);
 
     // Make sure we have a good address:
@@ -804,8 +795,7 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
       char tmp[100];
       sprintf(tmp, "This computer has an invalid IP address: %s", AddressString(fromAddr).val());
       env.setResultMsg(tmp);
-      fromAddr.ss_family = AF_INET;
-      ((sockaddr_in&)fromAddr).sin_addr.s_addr = 0;
+      fromAddr = nullAddress();
     }
 
     ourAddress = fromAddr.ss_family == AF_INET ? ((sockaddr_in&)fromAddr).sin_addr.s_addr : 0;

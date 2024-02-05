@@ -22,7 +22,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 GroupEId::GroupEId(struct sockaddr_storage const& groupAddr,
 		   portNumBits portNum, u_int8_t ttl) {
-  init(groupAddr, AddressPortLookupTable::dummyAddress(), portNum, ttl);
+  init(groupAddr, nullAddress(), portNum, ttl);
 }
 
 GroupEId::GroupEId(struct sockaddr_storage const& groupAddr,
@@ -32,14 +32,12 @@ GroupEId::GroupEId(struct sockaddr_storage const& groupAddr,
 }
 
 GroupEId::GroupEId() {
-  init(AddressPortLookupTable::dummyAddress(), AddressPortLookupTable::dummyAddress(),
-       0, 255);
+  init(nullAddress(), nullAddress(), 0, 255);
 }
 
 Boolean GroupEId::isSSM() const {
-  // We're a SSM group if "fSourceFilterAddress" is not a dummy address:
-  return !(fSourceFilterAddress.ss_family == AF_INET &&
-	   ((sockaddr_in&)fSourceFilterAddress).sin_addr.s_addr == (~0));
+  // We're a SSM group if "fSourceFilterAddress" is not a 'null' address:
+  return !addressIsNull(fSourceFilterAddress);
 }
 
 portNumBits GroupEId::portNum() const {
