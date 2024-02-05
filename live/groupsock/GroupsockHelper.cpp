@@ -44,7 +44,7 @@ extern "C" int initializeWinsockIfNecessary();
 #endif
 #include <stdio.h>
 
-// By default, use INADDR_ANY for the sending and receiving interfaces:
+// By default, use INADDR_ANY for the sending and receiving interfaces (IPv4 only):
 ipv4AddressBits SendingInterfaceAddr = INADDR_ANY;
 ipv4AddressBits ReceivingInterfaceAddr = INADDR_ANY;
 
@@ -185,7 +185,7 @@ int setupDatagramSocket(UsageEnvironment& env, Port port, int domain) {
   }
 
   // Set the sending interface for multicasts, if it's not the default:
-  if (SendingInterfaceAddr != INADDR_ANY) {
+  if (SendingInterfaceAddr != INADDR_ANY) { // later, fix for IPv6
     struct in_addr addr;
     addr.s_addr = SendingInterfaceAddr;
 
@@ -794,7 +794,7 @@ static Boolean isBadAddressForUs(NetAddress const& addr) {
 
 Boolean loopbackWorks = 1;
 
-ipv4AddressBits ourIPAddress(UsageEnvironment& env) {
+ipv4AddressBits ourIPv4Address(UsageEnvironment& env) {
   static ipv4AddressBits ourAddress = 0;
   int sock = -1;
   struct sockaddr_storage testAddr;
@@ -913,9 +913,31 @@ ipv4AddressBits ourIPAddress(UsageEnvironment& env) {
   return ourAddress;
 }
 
+static Boolean _weHaveAnIPv6Address = False;
+static ipv6AddressBits _ourIPv6Address;
+ipv6AddressBits const& ourIPv6Address(UsageEnvironment& env) {
+  if (!_weHaveAnIPv6Address) {
+    // Later, try to look up our IPv6 address.  For now, just return the 'null' address: #####
+    for (unsigned i = 0; i < 16; ++i) _ourIPv6Address[i] = 0;
+  }
+
+  return _ourIPv6Address;
+}
+
+Boolean weHaveAnIPAddress(UsageEnvironment& env) {
+  // Lookup our IPv4 and IPv6 addresses; return True if at least one exists:
+  (void)ourIPv4Address(env);
+  ipv6AddressBits const& ourIPv6 = ourIPv6Address(env);
+
+  if (ourIPv4Address(env) != 0) return True;
+  for (unsigned i = 0; i < 16; ++i) if (ourIPv6[i] != 0) return True;
+
+  return False;
+}
+
 ipv4AddressBits chooseRandomIPv4SSMAddress(UsageEnvironment& env) {
   // First, a hack to ensure that our random number generator is seeded:
-  (void) ourIPAddress(env);
+  (void)ourIPv4Address(env);
 
   // Choose a random address in the range [232.0.1.0, 232.255.255.255)
   // i.e., [0xE8000100, 0xE8FFFFFF)

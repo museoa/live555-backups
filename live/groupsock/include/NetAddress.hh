@@ -181,7 +181,7 @@ public:
   // IPv4 input:
   AddressString(struct sockaddr_in const& addr);
   AddressString(struct in_addr const& addr);
-  AddressString(ipv4AddressBits const& addr); // "addr" is assumed to be in host byte order
+  AddressString(ipv4AddressBits const& addr); // "addr" is assumed to be in network byte order
 
   // IPv6 input:
   AddressString(struct sockaddr_in6 const& addr);

@@ -115,7 +115,6 @@ Boolean addressIsNull(sockaddr_storage const& address) {
       return False;
     }
   }
-  return address.ss_family == AF_INET && ((sockaddr_in const&)address).sin_addr.s_addr == 0;
 }
 
 SOCKLEN_T addressSize(sockaddr_storage const& address) {

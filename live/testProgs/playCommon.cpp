@@ -212,7 +212,13 @@ int main(int argc, char** argv) {
 	*env << "Failed to find network address for \"" << argv[2] << "\"";
 	break;
       }
-      ReceivingInterfaceAddr = *(unsigned*)(addresses.firstAddress()->data());
+
+      struct sockaddr_storage interfaceAddress;
+
+      copyAddress(interfaceAddress, addresses.firstAddress());
+      if (interfaceAddress.ss_family == AF_INET) { // later, support IPv6 also
+	ReceivingInterfaceAddr = ((sockaddr_in&)interfaceAddress).sin_addr.s_addr;
+      }
       ++argv; --argc;
       break;
     }

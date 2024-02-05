@@ -209,7 +209,18 @@ Boolean ServerMediaSession::isServerMediaSession() const {
 }
 
 char* ServerMediaSession::generateSDPDescription(int addressFamily) {
-  AddressString ipAddressStr(ourIPAddress(envir()));
+  struct sockaddr_storage ourAddress;
+  if (addressFamily == AF_INET) {
+    ourAddress.ss_family = AF_INET;
+    ((sockaddr_in&)ourAddress).sin_addr.s_addr = ourIPv4Address(envir());
+  } else { // IPv6
+    ourAddress.ss_family = AF_INET6;
+    for (unsigned i = 0; i < 16; ++i) {
+      ((sockaddr_in6&)ourAddress).sin6_addr.s6_addr[i] = ourIPv6Address(envir())[i];
+    }
+  }
+  
+  AddressString ipAddressStr(ourAddress);
   unsigned ipAddressStrSize = strlen(ipAddressStr.val());
 
   // For a SSM sessions, we need a "a=source-filter: incl ..." line also:

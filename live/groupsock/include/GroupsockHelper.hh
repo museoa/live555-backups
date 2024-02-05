@@ -76,9 +76,12 @@ Boolean socketLeaveGroupSSM(UsageEnvironment&, int socket,
 
 Boolean getSourcePort(UsageEnvironment& env, int socket, int domain, Port& port);
 
-ipv4AddressBits ourIPAddress(UsageEnvironment& env); // in network order
+ipv4AddressBits ourIPv4Address(UsageEnvironment& env); // in network order
+ipv6AddressBits const& ourIPv6Address(UsageEnvironment& env);
+Boolean weHaveAnIPAddress(UsageEnvironment& env);
+  // returns True if we have neither an IPv4 or an IPv6 address
 
-// IP addresses of our sending and receiving interfaces.  (By default, these
+// IPv4 addresses of our sending and receiving interfaces.  (By default, these
 // are INADDR_ANY (i.e., 0), specifying the default interface.)
 extern ipv4AddressBits SendingInterfaceAddr;
 extern ipv4AddressBits ReceivingInterfaceAddr;

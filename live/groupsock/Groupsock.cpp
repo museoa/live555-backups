@@ -105,7 +105,7 @@ Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& group
   }
 
   // Make sure we can get our source address:
-  if (ourIPAddress(env) == 0) {
+  if (!weHaveAnIPAddress(env)) {
     if (DebugLevel >= 0) { // this is a fatal error
       env << "Unable to determine our source address: "
 	  << env.getResultMsg() << "\n";
@@ -319,7 +319,7 @@ Boolean Groupsock::wasLoopedBackFromUs(UsageEnvironment& env,
   if (fromAddressAndPort.ss_family != AF_INET) return False; // later update for IPv6
   
   struct sockaddr_in const& fromAddressAndPort4 = (struct sockaddr_in const&)fromAddressAndPort;
-  if (fromAddressAndPort4.sin_addr.s_addr == ourIPAddress(env) ||
+  if (fromAddressAndPort4.sin_addr.s_addr == ourIPv4Address(env) ||
       fromAddressAndPort4.sin_addr.s_addr == 0x7F000001/*127.0.0.1*/) {
     if (portNum(fromAddressAndPort) == sourcePortNum()) {
 #ifdef DEBUG_LOOPBACK_CHECKING
