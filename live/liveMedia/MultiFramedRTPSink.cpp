@@ -34,6 +34,15 @@ void MultiFramedRTPSink::setPacketSizes(unsigned preferredPacketSize,
   fOurMaxPacketSize = maxPacketSize; // save value, in case subclasses need it
 }
 
+#ifndef RTP_PAYLOAD_MAX_SIZE
+#define RTP_PAYLOAD_MAX_SIZE 1456
+      // Default max packet size (1500, minus allowance for IP, UDP, UMTP headers)
+      // (Also, make it a multiple of 4 bytes, just in case that matters.)
+#endif
+#ifndef RTP_PAYLOAD_PREFERRED_SIZE
+#define RTP_PAYLOAD_PREFERRED_SIZE ((RTP_PAYLOAD_MAX_SIZE) < 1000 ? (RTP_PAYLOAD_MAX_SIZE) : 1000)
+#endif
+
 MultiFramedRTPSink::MultiFramedRTPSink(UsageEnvironment& env,
 				       Groupsock* rtpGS,
 				       unsigned char rtpPayloadType,
@@ -44,9 +53,7 @@ MultiFramedRTPSink::MultiFramedRTPSink(UsageEnvironment& env,
 	    rtpPayloadFormatName, numChannels),
     fOutBuf(NULL), fCurFragmentationOffset(0), fPreviousFrameEndedFragmentation(False),
     fOnSendErrorFunc(NULL), fOnSendErrorData(NULL) {
-  setPacketSizes(1000, 1456);
-      // Default max packet size (1500, minus allowance for IP, UDP, UMTP headers)
-      // (Also, make it a multiple of 4 bytes, just in case that matters.)
+  setPacketSizes((RTP_PAYLOAD_PREFERRED_SIZE), (RTP_PAYLOAD_MAX_SIZE));
 }
 
 MultiFramedRTPSink::~MultiFramedRTPSink() {
