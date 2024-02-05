@@ -71,7 +71,7 @@ Boolean operator==(struct sockaddr_storage const& left, struct sockaddr_storage 
 
 class NetAddressList {
 public:
-  NetAddressList(char const* hostname);
+  NetAddressList(char const* hostname, int addressFamily = AF_UNSPEC);
   NetAddressList(NetAddressList const& orig);
   NetAddressList& operator=(NetAddressList const& rightSide);
   virtual ~NetAddressList();

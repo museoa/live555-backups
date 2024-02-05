@@ -208,7 +208,7 @@ Boolean ServerMediaSession::isServerMediaSession() const {
   return True;
 }
 
-char* ServerMediaSession::generateSDPDescription() {
+char* ServerMediaSession::generateSDPDescription(int addressFamily) {
   AddressString ipAddressStr(ourIPAddress(envir()));
   unsigned ipAddressStrSize = strlen(ipAddressStr.val());
 
@@ -216,13 +216,15 @@ char* ServerMediaSession::generateSDPDescription() {
   char* sourceFilterLine;
   if (fIsSSM) {
     char const* const sourceFilterFmt =
-      "a=source-filter: incl IN IP4 * %s\r\n"
-          // Later, use "IP6" if our address is IPv6-only
+      "a=source-filter: incl IN %s * %s\r\n"
       "a=rtcp-unicast: reflection\r\n";
-    unsigned const sourceFilterFmtSize = strlen(sourceFilterFmt) + ipAddressStrSize + 1;
+    unsigned const sourceFilterFmtSize
+      = strlen(sourceFilterFmt) + 3/*IP4 or IP6*/ + ipAddressStrSize + 1;
 
     sourceFilterLine = new char[sourceFilterFmtSize];
-    sprintf(sourceFilterLine, sourceFilterFmt, ipAddressStr.val());
+    sprintf(sourceFilterLine, sourceFilterFmt,
+	    addressFamily == AF_INET ? "IP4" : "IP6",
+	    ipAddressStr.val());
   } else {
     sourceFilterLine = strDup("");
   }
@@ -258,8 +260,7 @@ char* ServerMediaSession::generateSDPDescription() {
 
     char const* const sdpPrefixFmt =
       "v=0\r\n"
-      "o=- %ld%06ld %d IN IP4 %s\r\n"
-          // Later, use "IP6" if our address is IPv6-only
+      "o=- %ld%06ld %d IN %s %s\r\n"
       "s=%s\r\n"
       "i=%s\r\n"
       "t=0 0\r\n"
@@ -272,7 +273,7 @@ char* ServerMediaSession::generateSDPDescription() {
       "a=x-qt-text-inf:%s\r\n"
       "%s";
     sdpLength += strlen(sdpPrefixFmt)
-      + 20 + 6 + 20 + ipAddressStrSize
+      + 20 + 6 + 20 + 3/*IP4 or IP6*/ + ipAddressStrSize
       + strlen(fDescriptionSDPString)
       + strlen(fInfoSDPString)
       + strlen(libNameStr) + strlen(libVersionStr)
@@ -289,6 +290,7 @@ char* ServerMediaSession::generateSDPDescription() {
     snprintf(sdp, sdpLength, sdpPrefixFmt,
 	     fCreationTime.tv_sec, fCreationTime.tv_usec, // o= <session id>
 	     1, // o= <version> // (needs to change if params are modified)
+	     addressFamily == AF_INET ? "IP4" : "IP6", // o= <address family>
 	     ipAddressStr.val(), // o= <address>
 	     fDescriptionSDPString, // s= <description>
 	     fInfoSDPString, // i= <info>

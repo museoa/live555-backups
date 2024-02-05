@@ -207,6 +207,7 @@ public: // should be protected, but some old compilers complain otherwise
     RTSPServer& fOurRTSPServer; // same as ::fOurServer
     int& fClientInputSocket; // aliased to ::fOurSocket
     int fClientOutputSocket;
+    int fAddressFamily;
     Boolean fIsActive;
     unsigned char* fLastCRLF;
     unsigned fRecursionCount;

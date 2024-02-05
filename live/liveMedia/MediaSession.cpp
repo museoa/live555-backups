@@ -60,7 +60,7 @@ Boolean MediaSession::lookupByName(UsageEnvironment& env,
 MediaSession::MediaSession(UsageEnvironment& env)
   : Medium(env),
     fSubsessionsHead(NULL), fSubsessionsTail(NULL),
-    fConnectionEndpointName(NULL),
+    fConnectionEndpointName(NULL), fConnectionEndpointNameAddressFamily(AF_UNSPEC),
     fMaxPlayStartTime(0.0f), fMaxPlayEndTime(0.0f), fAbsStartTime(NULL), fAbsEndTime(NULL),
     fScale(1.0f), fSpeed(1.0f),
     fMediaSessionType(NULL), fSessionName(NULL), fSessionDescription(NULL), fControlPath(NULL),
@@ -358,8 +358,15 @@ Boolean MediaSession::parseSDPLine_c(char const* sdpLine) {
   // or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
   // (ditto for "c=IN IP6 ...")
   // (Later, do something with <ttl+numAddresses> also #####)
-  return parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName)
-    || parseStringValue(sdpLine, "c=IN IP6 %[^/\r\n]", fConnectionEndpointName);
+  if (parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName)) {
+    fConnectionEndpointNameAddressFamily = AF_INET;
+    return True;
+  } else if (parseStringValue(sdpLine, "c=IN IP6 %[^/\r\n]", fConnectionEndpointName)) {
+    fConnectionEndpointNameAddressFamily = AF_INET6;
+    return True;
+  }
+
+  return False;
 }
 
 Boolean MediaSession::parseSDPAttribute_type(char const* sdpLine) {
@@ -426,11 +433,15 @@ static Boolean parseSourceFilterAttribute(char const* sdpLine,
   Boolean result = False; // until we succeed
   char* sourceName = NULL;
   do {
-    if (!(parseStringValue(sdpLine, "a=source-filter: incl IN IP4 %*s %s", sourceName) ||
-	  parseStringValue(sdpLine, "a=source-filter: incl IN IP6 %*s %s", sourceName))) break;
+    int addressFamily;
+    if (parseStringValue(sdpLine, "a=source-filter: incl IN IP4 %*s %s", sourceName)) {
+      addressFamily = AF_INET;
+    } else if (parseStringValue(sdpLine, "a=source-filter: incl IN IP6 %*s %s", sourceName)) {
+      addressFamily = AF_INET6;
+    } else break;
 
     // Now, convert this name to an address, if we can:
-    NetAddressList addresses(sourceName);
+    NetAddressList addresses(sourceName, addressFamily);
     if (addresses.numAddresses() == 0) break;
 
     copyAddress(sourceFilterAddr, addresses.firstAddress());
@@ -617,7 +628,7 @@ private:
 MediaSubsession::MediaSubsession(MediaSession& parent)
   : serverPortNum(0), sink(NULL), miscPtr(NULL),
     fParent(parent), fNext(NULL),
-    fConnectionEndpointName(NULL),
+    fConnectionEndpointName(NULL), fConnectionEndpointNameAddressFamily(AF_UNSPEC),
     fClientPortNum(0), fRTPPayloadFormat(0xFF),
     fSavedSDPLines(NULL), fMediumName(NULL), fCodecName(NULL), fProtocolName(NULL),
     fRTPTimestampFrequency(0), fMultiplexRTCPWithRTP(False), fControlPath(NULL),
@@ -946,7 +957,7 @@ void MediaSubsession::getConnectionEndpointAddress(struct sockaddr_storage& addr
     if (endpointString == NULL) break;
 
     // Now, convert this name to an address, if we can:
-    NetAddressList addresses(endpointString);
+    NetAddressList addresses(endpointString, connectionEndpointNameAddressFamily());
     if (addresses.numAddresses() == 0) break;
 
     copyAddress(addr, addresses.firstAddress());
@@ -1039,8 +1050,15 @@ Boolean MediaSubsession::parseSDPLine_c(char const* sdpLine) {
   // or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
   // (ditto for "c=IN IP6 ...")
   // (Later, do something with <ttl+numAddresses> also #####)
-  return parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName)
-    || parseStringValue(sdpLine, "c=IN IP6 %[^/\r\n]", fConnectionEndpointName);
+  if (parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName)) {
+    fConnectionEndpointNameAddressFamily = AF_INET;
+    return True;
+  } else if (parseStringValue(sdpLine, "c=IN IP6 %[^/\r\n]", fConnectionEndpointName)) {
+    fConnectionEndpointNameAddressFamily = AF_INET6;
+    return True;
+  }
+
+  return False;
 }
 
 Boolean MediaSubsession::parseSDPLine_b(char const* sdpLine) {

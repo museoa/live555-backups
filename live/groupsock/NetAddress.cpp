@@ -145,14 +145,14 @@ Boolean operator==(struct sockaddr_storage const& left, struct sockaddr_storage 
 
 ////////// NetAddressList //////////
 
-NetAddressList::NetAddressList(char const* hostname)
+NetAddressList::NetAddressList(char const* hostname, int addressFamily)
   : fNumAddresses(0), fAddressArray(NULL) {
   if (hostname == NULL) return;
 
-  // First, check whether "hostname" is an IP address string (check IPv4, then IPv6).
+  // First, check whether "hostname" is an IP address literal (check IPv4, then IPv6).
   // If so, return a 1-element list with this address:
   ipv4AddressBits addr4;
-  if (inet_pton(AF_INET, hostname, (u_int8_t*)&addr4) == 1) {
+  if (addressFamily != AF_INET6 && inet_pton(AF_INET, hostname, (u_int8_t*)&addr4) == 1) {
     fNumAddresses = 1;
     fAddressArray = new NetAddress*[fNumAddresses];
     if (fAddressArray == NULL) return;
@@ -162,7 +162,7 @@ NetAddressList::NetAddressList(char const* hostname)
   }
 
   ipv6AddressBits addr6;
-  if (inet_pton(AF_INET6, hostname, (u_int8_t*)&addr6) == 1) {
+  if (addressFamily != AF_INET && inet_pton(AF_INET6, hostname, (u_int8_t*)&addr6) == 1) {
     fNumAddresses = 1;
     fAddressArray = new NetAddress*[fNumAddresses];
     if (fAddressArray == NULL) return;
@@ -203,10 +203,14 @@ NetAddressList::NetAddressList(char const* hostname)
   struct addrinfo addrinfoHints;
   memset(&addrinfoHints, 0, sizeof addrinfoHints);
   addrinfoHints.ai_flags = AI_ADDRCONFIG; // We only care about addresses that we can handle
-  addrinfoHints.ai_family = AF_INET; // First, look up an IPv4 address for the name
   struct addrinfo* addrinfoResultPtr = NULL;
-  int result = getaddrinfo(hostname, NULL, &addrinfoHints, &addrinfoResultPtr);
-  if (result != 0 || addrinfoResultPtr == NULL) {
+  int result = -1;
+  if (addressFamily != AF_INET6) {
+    // First, look up an IPv4 address for the name
+    addrinfoHints.ai_family = AF_INET; // First, look up an IPv4 address for the name
+    result = getaddrinfo(hostname, NULL, &addrinfoHints, &addrinfoResultPtr);
+  }
+  if (addressFamily != AF_INET && (result != 0 || addrinfoResultPtr == NULL)) {
     // Try again, looking up an IPv6 address for the name instead:
     addrinfoHints.ai_family = AF_INET6;
     result = getaddrinfo(hostname, NULL, &addrinfoHints, &addrinfoResultPtr);
@@ -217,6 +221,7 @@ NetAddressList::NetAddressList(char const* hostname)
   const struct addrinfo* p = addrinfoResultPtr;
   while (p != NULL) {
     if (p->ai_family != AF_INET && p->ai_family != AF_INET6) continue; // unsupported address
+    if (addressFamily != AF_UNSPEC && p->ai_family != addressFamily) continue; // unwanted
     // Sanity check: Also check the address length:
     if (p->ai_family == AF_INET && p->ai_addrlen < sizeof (struct sockaddr_in)) continue;
     if (p->ai_family == AF_INET6 && p->ai_addrlen < sizeof (struct sockaddr_in6)) continue;
@@ -233,6 +238,7 @@ NetAddressList::NetAddressList(char const* hostname)
   while (p != NULL) {
     // Same sanity checks as before:
     if (p->ai_family != AF_INET && p->ai_family != AF_INET6) continue; // unsupported address
+    if (addressFamily != AF_UNSPEC && p->ai_family != addressFamily) continue; // unwanted
     if (p->ai_family == AF_INET && p->ai_addrlen < sizeof (struct sockaddr_in)) continue;
     if (p->ai_family == AF_INET6 && p->ai_addrlen < sizeof (struct sockaddr_in6)) continue;
 

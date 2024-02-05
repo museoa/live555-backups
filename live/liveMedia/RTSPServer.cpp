@@ -278,6 +278,7 @@ RTSPServer::RTSPClientConnection
 ::RTSPClientConnection(RTSPServer& ourServer, int clientSocket, struct sockaddr_storage const& clientAddr)
   : GenericMediaServer::ClientConnection(ourServer, clientSocket, clientAddr),
     fOurRTSPServer(ourServer), fClientInputSocket(fOurSocket), fClientOutputSocket(fOurSocket),
+    fAddressFamily(clientAddr.ss_family),
     fIsActive(True), fRecursionCount(0), fOurSessionCookie(NULL) {
   resetRequestBuffer();
 }
@@ -348,7 +349,7 @@ void RTSPServer::RTSPClientConnection
     session->incrementReferenceCount();
 
     // Then, assemble a SDP description for this session:
-    sdpDescription = session->generateSDPDescription();
+    sdpDescription = session->generateSDPDescription(fAddressFamily);
     if (sdpDescription == NULL) {
       // This usually means that a file name that was specified for a
       // "ServerMediaSubsession" does not exist.
