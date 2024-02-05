@@ -128,13 +128,13 @@ PassiveServerMediaSubsession::sdpLines() {
 
 void PassiveServerMediaSubsession
 ::getStreamParameters(unsigned clientSessionId,
-		      netAddressBits clientAddress,
+		      struct sockaddr_storage const& clientAddress,
 		      Port const& /*clientRTPPort*/,
 		      Port const& clientRTCPPort,
 		      int /*tcpSocketNum*/,
 		      unsigned char /*rtpChannelId*/,
 		      unsigned char /*rtcpChannelId*/,
-		      netAddressBits& destinationAddress,
+		      struct sockaddr_storage& destinationAddress,
 		      u_int8_t& destinationTTL,
 		      Boolean& isMulticast,
 		      Port& serverRTPPort,
@@ -143,14 +143,19 @@ void PassiveServerMediaSubsession
   isMulticast = True;
   Groupsock& gs = fRTPSink.groupsockBeingUsed();
   if (destinationTTL == 255) destinationTTL = gs.ttl();
-  if (destinationAddress == 0) { // normal case
-    destinationAddress = gs.groupAddress().s_addr;
+
+  struct in_addr& destinationAddr4 = ((struct sockaddr_in&)destinationAddress).sin_addr;
+  if (destinationAddress.ss_family == AF_INET && destinationAddr4.s_addr == 0) {
+    // normal case - use the sink's existing destination address:
+    destinationAddress.ss_family = AF_INET; // later, update to support IPv6
+    destinationAddr4 = gs.groupAddress(); // later, update to support IPv6
   } else { // use the client-specified destination address instead:
-    struct in_addr destinationAddr; destinationAddr.s_addr = destinationAddress;
-    gs.changeDestinationParameters(destinationAddr, 0, destinationTTL);
+    gs.changeDestinationParameters(destinationAddr4, 0, destinationTTL);
+        // later, update to support IPv6
     if (fRTCPInstance != NULL) {
       Groupsock* rtcpGS = fRTCPInstance->RTCPgs();
-      rtcpGS->changeDestinationParameters(destinationAddr, 0, destinationTTL);
+      rtcpGS->changeDestinationParameters(destinationAddr4, 0, destinationTTL);
+        // later, update to support IPv6
     }
   }
   serverRTPPort = gs.port();
@@ -161,7 +166,9 @@ void PassiveServerMediaSubsession
   streamToken = NULL; // not used
 
   // Make a record of this client's source - for RTCP RR handling:
-  RTCPSourceRecord* source = new RTCPSourceRecord(clientAddress, clientRTCPPort);
+  RTCPSourceRecord* source
+    = new RTCPSourceRecord(((struct sockaddr_in&)clientAddress).sin_addr.s_addr, clientRTCPPort);
+      // later, fix to allow for IPv6 addresses
   fClientRTCPSourceRecords->Add((char const*)clientSessionId, source);
 }
 

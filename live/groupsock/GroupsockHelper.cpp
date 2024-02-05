@@ -628,11 +628,11 @@ static Boolean getSourcePort0(int socket, portNumBits& resultPortNum/*host order
   sockaddr_storage test;
   switch (test.ss_family) {
     case AF_INET: {
-      ((sockaddr_in*)&test)->sin_port = 0;
+      ((sockaddr_in&)test).sin_port = 0;
       break;
     }
     case AF_INET6: {
-      ((sockaddr_in6*)&test)->sin6_port = 0;
+      ((sockaddr_in6&)test).sin6_port = 0;
     }
   }
 

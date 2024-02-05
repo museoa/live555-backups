@@ -45,13 +45,13 @@ protected: // we're a virtual base class
 protected: // redefined virtual functions
   virtual char const* sdpLines();
   virtual void getStreamParameters(unsigned clientSessionId,
-				   netAddressBits clientAddress,
+				   struct sockaddr_storage const& clientAddress,
                                    Port const& clientRTPPort,
                                    Port const& clientRTCPPort,
 				   int tcpSocketNum,
                                    unsigned char rtpChannelId,
                                    unsigned char rtcpChannelId,
-                                   netAddressBits& destinationAddress,
+                                   struct sockaddr_storage& destinationAddress,
 				   u_int8_t& destinationTTL,
                                    Boolean& isMulticast,
                                    Port& serverRTPPort,

@@ -1414,7 +1414,10 @@ void RTSPServer::RTSPClientSession
       fStreamStates[trackNum].tcpSocketNum = ourClientConnection->fClientOutputSocket;
       fOurRTSPServer.noteTCPStreamingOnSocket(fStreamStates[trackNum].tcpSocketNum, this, trackNum);
     }
-    netAddressBits destinationAddress = 0;
+    struct sockaddr_storage destinationAddress;
+    destinationAddress.ss_family = AF_INET;
+    ((struct sockaddr_in&)destinationAddress).sin_addr.s_addr = 0;
+        // used to indicate that the address is 'unassigned'
     u_int8_t destinationTTL = 255;
 #ifdef RTSP_ALLOW_CLIENT_DESTINATION_SETTING
     if (clientsDestinationAddressStr != NULL) {
@@ -1424,7 +1427,7 @@ void RTSPServer::RTSPClientSession
       // trusted.
       NetAddressList destAddresses(clientsDestinationAddressStr);
       if (destAddresses.numAddresses() > 0) {
-	destinationAddress = *(destAddresses.firstAddress()->data());
+	copyAddress(destinationAddress *(destAddresses.firstAddress()));
       }
     }
     // Also use the client-provided TTL.
@@ -1434,16 +1437,14 @@ void RTSPServer::RTSPClientSession
     Port serverRTPPort(0);
     Port serverRTCPPort(0);
     
-    // Make sure that we transmit on the same interface that's used by the client (in case we're a multi-homed server):
+    // Make sure that we transmit on the same interface that's used by the client
+    // (in case we're a multi-homed server):
     struct sockaddr_storage sourceAddr; SOCKLEN_T namelen = sizeof sourceAddr;
     getsockname(ourClientConnection->fClientInputSocket, (struct sockaddr*)&sourceAddr, &namelen);
     netAddressBits origSendingInterfaceAddr = SendingInterfaceAddr;
     netAddressBits origReceivingInterfaceAddr = ReceivingInterfaceAddr;
     
-    ipv4AddressBits clientAddrBits = ourClientConnection->fClientAddr.ss_family == AF_INET
-      ? ((sockaddr_in&)ourClientConnection->fClientAddr).sin_addr.s_addr
-      : 0; // later, fix for IPv6
-    subsession->getStreamParameters(fOurSessionId, clientAddrBits,
+    subsession->getStreamParameters(fOurSessionId, ourClientConnection->fClientAddr,
 				    clientRTPPort, clientRTCPPort,
 				    fStreamStates[trackNum].tcpSocketNum, rtpChannelId, rtcpChannelId,
 				    destinationAddress, destinationTTL, fIsMulticast,

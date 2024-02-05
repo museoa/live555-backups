@@ -65,11 +65,11 @@ void GroupEId::init(struct in_addr const& groupAddr,
 		    portNumBits portNum,
 		    u_int8_t ttl) {
   fGroupAddress.ss_family = AF_INET; // later update to support IPv6
-  ((sockaddr_in*)&fGroupAddress)->sin_addr = groupAddr;
-  ((sockaddr_in*)&fGroupAddress)->sin_port = portNum;
+  ((sockaddr_in&)fGroupAddress).sin_addr = groupAddr;
+  ((sockaddr_in&)fGroupAddress).sin_port = portNum;
   
   fSourceFilterAddress.ss_family = AF_INET; // later update to support IPv6
-  ((sockaddr_in*)&fSourceFilterAddress)->sin_addr = sourceFilterAddr;
+  ((sockaddr_in&)fSourceFilterAddress).sin_addr = sourceFilterAddr;
 
   fTTL = ttl;
 }
