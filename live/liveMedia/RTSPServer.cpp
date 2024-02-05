@@ -114,6 +114,10 @@ UserAuthenticationDatabase* RTSPServer::setAuthenticationDatabase(UserAuthentica
 }
 
 Boolean RTSPServer::setUpTunnelingOverHTTP(Port httpPort) {
+  if (fWeServeSRTP) return False;
+    // If we've already set up streaming using SRTP, then streaming over HTTPS would make no
+    // sense (as SRTP would add extra overhead for no benefit).
+
   fHTTPServerSocketIPv4 = setUpOurSocket(envir(), httpPort, AF_INET);
   fHTTPServerSocketIPv6 = setUpOurSocket(envir(), httpPort, AF_INET6);
   if (fHTTPServerSocketIPv4 >= 0 || fHTTPServerSocketIPv6 >= 0) {
@@ -142,7 +146,7 @@ void RTSPServer
 
   if (fWeServeSRTP) disableStreamingRTPOverTCP();
     // If you want to stream RTP-over-TCP using a secure TCP connection, then stream over TLS,
-    // but without SRTP (as that would add extra overhead for no benefit).
+    // but without SRTP (as SRTP would add extra overhead for no benefit).
 }
 
 char const* RTSPServer::allowedCommandNames() {
