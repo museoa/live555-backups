@@ -102,8 +102,11 @@ u_int32_t RTPSink::presetNextTimestamp() {
   gettimeofday(&timeNow, NULL);
 
   u_int32_t tsNow = convertToRTPTimestamp(timeNow);
-  fTimestampBase = tsNow;
-  fNextTimestampHasBeenPreset = True;
+  if (!groupsockBeingUsed().hasMultipleDestinations()) {
+    // Don't adjust the timestamp stream if we already have another destination ongoing
+    fTimestampBase = tsNow;
+    fNextTimestampHasBeenPreset = True;
+  }
 
   return tsNow;
 }

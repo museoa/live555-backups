@@ -24,7 +24,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #if defined(__WIN32__) || defined(_WIN32) || defined(_QNX4)
 #define snprintf _snprintf
 #endif
-#define HACK_FOR_CHROME_WEBRTC_BUG 1 //#####@@@@@
 
 ////////// RTCPMemberDatabase //////////
 
@@ -584,7 +583,6 @@ void RTCPInstance
           if (fSink != NULL) {
 	    // Use this information to update stats about our transmissions:
             RTPTransmissionStatsDB& transmissionStats = fSink->transmissionStatsDB();
-	    if (rc == 0) fprintf(stderr, "#####@@@@@ Received RTCP RR from %s:%u with no reception reports\n", AddressString(fromAddressAndPort).val(), ntohs(fromAddressAndPort.sin_port));
             for (unsigned i = 0; i < rc; ++i) {
               unsigned senderSSRC = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
               // We care only about reports about our own transmission, not others'

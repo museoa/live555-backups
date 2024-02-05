@@ -111,6 +111,7 @@ public:
   virtual void addDestination(struct in_addr const& addr, Port const& port, unsigned sessionId);
   virtual void removeDestination(unsigned sessionId);
   void removeAllDestinations();
+  Boolean hasMultipleDestinations() const { return fDests != NULL && fDests->fNext != NULL; }
 
   struct in_addr const& groupAddress() const {
     return fIncomingGroupEId.groupAddress();
