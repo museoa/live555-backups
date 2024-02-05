@@ -448,13 +448,15 @@ int main(int argc, char** argv) {
 
 #ifdef SERVER_USE_TLS
   // (Attempt to) use the default HTTPS port (443) instead:
+  char const* httpProtocolStr = "HTTPS";
   if (rtspServer->setUpTunnelingOverHTTP(443)) {
 #else
+  char const* httpProtocolStr = "HTTP";
   if (rtspServer->setUpTunnelingOverHTTP(80) || rtspServer->setUpTunnelingOverHTTP(8000) || rtspServer->setUpTunnelingOverHTTP(8080)) {
 #endif
-    *env << "\n(We use port " << rtspServer->httpServerPortNum() << " for optional RTSP-over-HTTP tunneling.)\n";
+    *env << "\n(We use port " << rtspServer->httpServerPortNum() << " for optional RTSP-over-" << httpProtocolStr << " tunneling.)\n";
   } else {
-    *env << "\n(RTSP-over-HTTP tunneling is not available.)\n";
+    *env << "\n(RTSP-over-" << httpProtocolStr << " tunneling is not available.)\n";
   }
 
   env->taskScheduler().doEventLoop(); // does not return
