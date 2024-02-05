@@ -1322,6 +1322,17 @@ void RTSPServer::RTSPClientSession
 	fStreamStates[i].tcpSocketNum = -1; // for now; may get set for RTP-over-TCP streaming
 	fStreamStates[i].streamToken = NULL; // for now; it may be changed by the "getStreamParameters()" call that comes later
       }
+#ifdef LOG_RTSPSERVER_ACCESS
+       FILE* logfid = fopen("live555.log", "a");
+       if (logfid != NULL) {
+	 time_t tm = time(NULL);
+	 char * tmstr = ctime(&tm);
+	 fwrite(streamName, 1, strlen(streamName), logfid);
+	 fwrite(", ",1,2,logfid);
+	 fwrite(tmstr, 1, strlen(tmstr), logfid);
+	 fclose(logfid);
+       }
+#endif
     }
     
     // Look up information for the specified subsession (track):

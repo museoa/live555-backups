@@ -242,7 +242,7 @@ void GenericMediaServer::ClientConnection::incomingRequestHandler(void* instance
 }
 
 void GenericMediaServer::ClientConnection::incomingRequestHandler() {
-  struct sockaddr_in dummy; // 'from' address, meaningless in this case
+  struct sockaddr_storage dummy; // 'from' address, meaningless in this case
   
   int bytesRead = readSocket(envir(), fOurSocket, &fRequestBuffer[fRequestBytesAlreadySeen], fRequestBufferBytesLeft, dummy);
   handleRequestBytes(bytesRead);

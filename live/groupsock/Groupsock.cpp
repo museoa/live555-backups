@@ -71,7 +71,7 @@ Boolean OutputSocket::write(netAddressBits address, portNumBits portNum, u_int8_
 // By default, we don't do reads:
 Boolean OutputSocket
 ::handleRead(unsigned char* /*buffer*/, unsigned /*bufferMaxSize*/,
-	     unsigned& /*bytesRead*/, struct sockaddr_in& /*fromAddressAndPort*/) {
+	     unsigned& /*bytesRead*/, struct sockaddr_storage& /*fromAddressAndPort*/) {
   return True;
 }
 
@@ -305,7 +305,7 @@ Boolean Groupsock::output(UsageEnvironment& env, unsigned char* buffer, unsigned
 
 Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
 			      unsigned& bytesRead,
-			      struct sockaddr_in& fromAddressAndPort) {
+			      struct sockaddr_storage& fromAddressAndPort) {
   // Read data from the socket, and relay it across any attached tunnels
   //##### later make this code more general - independent of tunnels
 
@@ -325,7 +325,8 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
 
   // If we're a SSM group, make sure the source address matches:
   if (isSSM()
-      && fromAddressAndPort.sin_addr.s_addr != sourceFilterAddress().s_addr) {
+      && fromAddressAndPort.ss_family == AF_INET
+      && ((struct sockaddr_in*)&fromAddressAndPort)->sin_addr.s_addr != sourceFilterAddress().s_addr) {
     return True;
   }
 
@@ -341,14 +342,16 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
     numMembers =
       outputToAllMembersExcept(NULL, ttl(),
 			       buffer, bytesRead,
-			       fromAddressAndPort.sin_addr.s_addr);
+			       fromAddressAndPort.ss_family == AF_INET
+			       ? ((struct sockaddr_in*)&fromAddressAndPort)->sin_addr.s_addr
+			       : 0);
     if (numMembers > 0) {
       statsRelayedIncoming.countPacket(numBytes);
       statsGroupRelayedIncoming.countPacket(numBytes);
     }
   }
   if (DebugLevel >= 3) {
-    env() << *this << ": read " << bytesRead << " bytes from " << AddressString(fromAddressAndPort).val() << ", port " << ntohs(fromAddressAndPort.sin_port);
+    env() << *this << ": read " << bytesRead << " bytes from " << AddressString(fromAddressAndPort).val() << ", port " << ntohs(portNum(fromAddressAndPort));
     if (numMembers > 0) {
       env() << "; relayed to " << numMembers << " members";
     }
@@ -359,10 +362,13 @@ Boolean Groupsock::handleRead(unsigned char* buffer, unsigned bufferMaxSize,
 }
 
 Boolean Groupsock::wasLoopedBackFromUs(UsageEnvironment& env,
-				       struct sockaddr_in& fromAddressAndPort) {
-  if (fromAddressAndPort.sin_addr.s_addr == ourIPAddress(env) ||
-      fromAddressAndPort.sin_addr.s_addr == 0x7F000001/*127.0.0.1*/) {
-    if (fromAddressAndPort.sin_port == sourcePortNum()) {
+				       struct sockaddr_storage const& fromAddressAndPort) {
+  if (fromAddressAndPort.ss_family != AF_INET) return False; // later update for IPv6
+  
+  struct sockaddr_in const& fromAddressAndPort4 = (struct sockaddr_in const&)fromAddressAndPort;
+  if (fromAddressAndPort4.sin_addr.s_addr == ourIPAddress(env) ||
+      fromAddressAndPort4.sin_addr.s_addr == 0x7F000001/*127.0.0.1*/) {
+    if (portNum(fromAddressAndPort) == sourcePortNum()) {
 #ifdef DEBUG_LOOPBACK_CHECKING
       if (DebugLevel >= 3) {
 	env() << *this << ": got looped-back packet\n";

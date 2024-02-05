@@ -345,3 +345,17 @@ void AddressString::init(ipv6AddressBits const& addr) {
 AddressString::~AddressString() {
   delete[] fVal;
 }
+
+portNumBits portNum(struct sockaddr_storage const& addr) {
+  switch (addr.ss_family) {
+    case AF_INET: {
+      return ((sockaddr_in*)&addr)->sin_port;
+    }
+    case AF_INET6: {
+      return ((sockaddr_in6*)&addr)->sin6_port;
+    }
+    default: {
+      return 0;
+    }
+  }
+}

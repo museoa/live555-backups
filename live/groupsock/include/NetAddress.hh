@@ -173,4 +173,6 @@ private:
   char* fVal; // The result ASCII string: allocated by the constructor; deleted by the destructor
 };
 
+portNumBits portNum(struct sockaddr_storage const& addr);
+
 #endif

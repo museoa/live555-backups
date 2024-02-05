@@ -211,7 +211,7 @@ RTCPInstance::~RTCPInstance() {
   delete[] fInBuf;
 }
 
-void RTCPInstance::noteArrivingRR(struct sockaddr_in const& fromAddressAndPort,
+void RTCPInstance::noteArrivingRR(struct sockaddr_storage const& fromAddressAndPort,
 				  int tcpSocketNum, unsigned char tcpStreamChannelId) {
   // If a 'RR handler' was set, call it now:
 
@@ -221,8 +221,13 @@ void RTCPInstance::noteArrivingRR(struct sockaddr_in const& fromAddressAndPort,
     portNumBits fromPortNum;
     if (tcpSocketNum < 0) {
       // Normal case: We read the RTCP packet over UDP
-      fromAddr = fromAddressAndPort.sin_addr.s_addr;
-      fromPortNum = ntohs(fromAddressAndPort.sin_port);
+      if (fromAddressAndPort.ss_family == AF_INET) {
+	struct sockaddr_in const& fromAddressAndPort4 = (struct sockaddr_in const&)fromAddressAndPort;
+	fromAddr = fromAddressAndPort4.sin_addr.s_addr;
+      } else {
+	fromAddr = 0; // later update for IPv6
+      }
+      fromPortNum = ntohs(portNum(fromAddressAndPort));
     } else {
       // Special case: We read the RTCP packet over TCP (interleaved)
       // Hack: Use the TCP socket and channel id to look up the handler
@@ -406,7 +411,7 @@ void RTCPInstance::addStreamSocket(int sockNum,
 }
 
 void RTCPInstance
-::injectReport(u_int8_t const* packet, unsigned packetSize, struct sockaddr_in const& fromAddress) {
+::injectReport(u_int8_t const* packet, unsigned packetSize, struct sockaddr_storage const& fromAddress) {
   if (packetSize > maxRTCPPacketSize) packetSize = maxRTCPPacketSize;
   memmove(fInBuf, packet, packetSize);
 
@@ -433,7 +438,7 @@ void RTCPInstance::incomingReportHandler1() {
     }
 
     unsigned numBytesRead;
-    struct sockaddr_in fromAddress;
+    struct sockaddr_storage fromAddress;
     int tcpSocketNum;
     unsigned char tcpStreamChannelId;
     Boolean packetReadWasIncomplete;
@@ -498,7 +503,7 @@ void RTCPInstance::incomingReportHandler1() {
 }
 
 void RTCPInstance
-::processIncomingReport(unsigned packetSize, struct sockaddr_in const& fromAddressAndPort,
+::processIncomingReport(unsigned packetSize, struct sockaddr_storage const& fromAddressAndPort,
 			int tcpSocketNum, unsigned char tcpStreamChannelId) {
   do {
     if (fCrypto != NULL) { // The packet is assumed to be SRTCP.  Verify/decrypt it first:
@@ -515,7 +520,7 @@ void RTCPInstance
     fprintf(stderr, "[%p]saw incoming RTCP packet (from ", this);
     if (tcpSocketNum < 0) {
       // Note that "fromAddressAndPort" is valid only if we're receiving over UDP (not over TCP):
-      fprintf(stderr, "address %s, port %d", AddressString(fromAddressAndPort).val(), ntohs(fromAddressAndPort.sin_port));
+      fprintf(stderr, "address %s, port %d", AddressString(fromAddressAndPort).val(), ntohs(portNum(fromAddressAndPort));
     } else {
       fprintf(stderr, "TCP socket #%d, stream channel id %d", tcpSocketNum, tcpStreamChannelId);
     }
@@ -563,7 +568,7 @@ void RTCPInstance
 	// SSRC 1 in their "RR"s.  To work around this (to help us distinguish between different
 	// receivers), we use a fake SSRC in this case consisting of the IP address, XORed with
 	// the port number:
-	reportSenderSSRC = fromAddressAndPort.sin_addr.s_addr^fromAddressAndPort.sin_port;
+	reportSenderSSRC = fromAddressAndPort.sin_addr.s_addr^portNum(fromAddressAndPort);
       }
 #endif
 

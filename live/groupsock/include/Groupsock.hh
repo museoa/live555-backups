@@ -56,7 +56,7 @@ protected:
 private: // redefined virtual function
   virtual Boolean handleRead(unsigned char* buffer, unsigned bufferMaxSize,
 			     unsigned& bytesRead,
-			     struct sockaddr_in& fromAddressAndPort);
+			     struct sockaddr_storage& fromAddressAndPort);
 
 private:
   Port fSourcePort;
@@ -145,12 +145,13 @@ public:
   NetInterfaceTrafficStats statsGroupRelayedIncoming; // *not* static
   NetInterfaceTrafficStats statsGroupRelayedOutgoing; // *not* static
 
-  Boolean wasLoopedBackFromUs(UsageEnvironment& env, struct sockaddr_in& fromAddressAndPort);
+  Boolean wasLoopedBackFromUs(UsageEnvironment& env,
+			      struct sockaddr_storage const& fromAddressAndPort);
 
 public: // redefined virtual functions
   virtual Boolean handleRead(unsigned char* buffer, unsigned bufferMaxSize,
 			     unsigned& bytesRead,
-			     struct sockaddr_in& fromAddressAndPort);
+			     struct sockaddr_storage& fromAddressAndPort);
 
 protected:
   destRecord* lookupDestRecordFromDestination(struct sockaddr_in const& destAddrAndPort) const;

@@ -1986,7 +1986,7 @@ int RTSPClient::read(u_int8_t* buffer, unsigned bufferSize) {
   if (fTLS.isNeeded) {
     return fTLS.read(buffer, bufferSize);
   } else {
-    struct sockaddr_in dummy; // 'from' address - not used
+    struct sockaddr_storage dummy; // 'from' address - not used
     return readSocket(envir(), fInputSocketNum, buffer, bufferSize, dummy);
   }
 }
