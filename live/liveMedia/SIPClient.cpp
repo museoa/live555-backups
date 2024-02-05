@@ -231,8 +231,10 @@ char* SIPClient::invite1(Authenticator* authenticator) {
     char const* const inviteSDPFmt =
       "v=0\r\n"
       "o=- %u %u IN IP4 %s\r\n"
+          // Later, use "IP6" if our address is IPv6-only
       "s=%s session\r\n"
       "c=IN IP4 %s\r\n"
+          // Later, use "IP6" if our address is IPv6-only
       "t=0 0\r\n"
       "m=audio %u RTP/AVP %u\r\n"
       "%s";

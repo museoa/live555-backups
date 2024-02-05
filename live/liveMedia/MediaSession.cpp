@@ -357,7 +357,9 @@ Boolean MediaSession::parseSDPLine_c(char const* sdpLine) {
   // Check for "c=IN IP4 <connection-endpoint>"
   // or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
   // (Later, do something with <ttl+numAddresses> also #####)
-  return parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName);
+  // (ditto for "c=IN IP6 ...")
+  return parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName)
+    || parseStringValue(sdpLine, "c=IN IP6 %[^/\r\n]", fConnectionEndpointName);
 }
 
 Boolean MediaSession::parseSDPAttribute_type(char const* sdpLine) {
@@ -417,14 +419,15 @@ Boolean MediaSession::parseSDPAttribute_range(char const* sdpLine) {
 
 static Boolean parseSourceFilterAttribute(char const* sdpLine,
 					  struct in_addr& sourceAddr) {
-  // Check for a "a=source-filter:incl IN IP4 <something> <source>" line.
+  // Check for a "a=source-filter:incl IN IP4 <something> <source>" line (or "IN IP6").
   // Note: At present, we don't check that <something> really matches
   // one of our multicast addresses.  We also don't support more than
   // one <source> #####
   Boolean result = False; // until we succeed
   char* sourceName = NULL;
   do {
-    if (!parseStringValue(sdpLine, "a=source-filter: incl IN IP4 %*s %s", sourceName)) break;
+    if (!(parseStringValue(sdpLine, "a=source-filter: incl IN IP4 %*s %s", sourceName) ||
+	  parseStringValue(sdpLine, "a=source-filter: incl IN IP6 %*s %s", sourceName))) break;
 
     // Now, convert this name to an address, if we can:
     NetAddressList addresses(sourceName);
@@ -1038,7 +1041,9 @@ Boolean MediaSubsession::parseSDPLine_c(char const* sdpLine) {
   // Check for "c=IN IP4 <connection-endpoint>"
   // or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
   // (Later, do something with <ttl+numAddresses> also #####)
-  return parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName);
+  // (ditto for "c=IN IP6 ...")
+  return parseStringValue(sdpLine, "c=IN IP4 %[^/\r\n]", fConnectionEndpointName)
+    || parseStringValue(sdpLine, "c=IN IP6 %[^/\r\n]", fConnectionEndpointName);
 }
 
 Boolean MediaSubsession::parseSDPLine_b(char const* sdpLine) {

@@ -89,6 +89,7 @@ PassiveServerMediaSubsession::sdpLines() {
     char const* const sdpFmt =
       "m=%s %d RTP/AVP %d\r\n"
       "c=IN IP4 %s/%d\r\n"
+          // Later, use IP6 if "gs.groupAddress()" is IPv6
       "b=AS:%u\r\n"
       "%s"
       "%s"

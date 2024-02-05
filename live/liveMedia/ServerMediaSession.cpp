@@ -217,6 +217,7 @@ char* ServerMediaSession::generateSDPDescription() {
   if (fIsSSM) {
     char const* const sourceFilterFmt =
       "a=source-filter: incl IN IP4 * %s\r\n"
+          // Later, use "IP6" if our address is IPv6-only
       "a=rtcp-unicast: reflection\r\n";
     unsigned const sourceFilterFmtSize = strlen(sourceFilterFmt) + ipAddressStrSize + 1;
 
@@ -258,6 +259,7 @@ char* ServerMediaSession::generateSDPDescription() {
     char const* const sdpPrefixFmt =
       "v=0\r\n"
       "o=- %ld%06ld %d IN IP4 %s\r\n"
+          // Later, use "IP6" if our address is IPv6-only
       "s=%s\r\n"
       "i=%s\r\n"
       "t=0 0\r\n"
@@ -344,8 +346,10 @@ void ServerMediaSubsessionIterator::reset() {
 
 ServerMediaSubsession::ServerMediaSubsession(UsageEnvironment& env)
   : Medium(env),
-    fParentSession(NULL), fServerAddressForSDP(0), fPortNumForSDP(0),
+    fParentSession(NULL), fPortNumForSDP(0),
     fNext(NULL), fTrackNumber(0), fTrackId(NULL) {
+  fServerAddressForSDP.ss_family = AF_INET; // by default
+  ((struct sockaddr_in&)fServerAddressForSDP).sin_addr.s_addr = 0;
 }
 
 ServerMediaSubsession::~ServerMediaSubsession() {
@@ -416,9 +420,9 @@ void ServerMediaSubsession::getAbsoluteTimeRange(char*& absStartTime, char*& abs
   absStartTime = absEndTime = NULL;
 }
 
-void ServerMediaSubsession::setServerAddressAndPortForSDP(netAddressBits addressBits,
-							  portNumBits portBits) {
-  fServerAddressForSDP = addressBits;
+void ServerMediaSubsession
+::setServerAddressAndPortForSDP(struct sockaddr_storage const& address, portNumBits portBits) {
+  fServerAddressForSDP = address;
   fPortNumForSDP = portBits;
 }
 
