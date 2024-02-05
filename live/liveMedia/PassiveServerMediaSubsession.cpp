@@ -88,8 +88,7 @@ PassiveServerMediaSubsession::sdpLines() {
 
     char const* const sdpFmt =
       "m=%s %d RTP/AVP %d\r\n"
-      "c=IN IP4 %s/%d\r\n"
-          // Later, use IP6 if "gs.groupAddress()" is IPv6
+      "c=IN %s %s/%d\r\n"
       "b=AS:%u\r\n"
       "%s"
       "%s"
@@ -98,7 +97,7 @@ PassiveServerMediaSubsession::sdpLines() {
       "a=control:%s\r\n";
     unsigned sdpFmtSize = strlen(sdpFmt)
       + strlen(mediaType) + 5 /* max short len */ + 3 /* max char len */
-      + strlen(groupAddressStr.val()) + 3 /* max char len */
+      + 3/*IP4 or IP6*/ + strlen(groupAddressStr.val()) + 3 /* max char len */
       + 20 /* max int len */
       + strlen(rtpmapLine)
       + strlen(rtcpmuxLine)
@@ -110,6 +109,7 @@ PassiveServerMediaSubsession::sdpLines() {
 	    mediaType, // m= <media>
 	    portNum, // m= <port>
 	    rtpPayloadType, // m= <fmt list>
+	    gs.groupAddress().ss_family == AF_INET ? "IP4" : "IP6", // c= address type
 	    groupAddressStr.val(), // c= <connection address>
 	    ttl, // c= TTL
 	    estBitrate, // b=AS:<bandwidth>

@@ -92,13 +92,33 @@ Boolean addressIsNull(sockaddr_storage const& address) {
   return address.ss_family == AF_INET && ((sockaddr_in const&)address).sin_addr.s_addr == 0;
 }
 
+SOCKLEN_T addressSize(sockaddr_storage const& address) {
+  switch (address.ss_family) {
+    case AF_INET: {
+      return sizeof (struct sockaddr_in);
+    }
+    case AF_INET6: {
+      return sizeof (struct sockaddr_in6);
+    }
+    default: {
+      return 0;
+    }
+  }
+}
+
 void copyAddress(struct sockaddr_storage& to, NetAddress const* from) {
   if (from == NULL) return;
 
   if (from->length() == sizeof (ipv4AddressBits)) {
+#ifdef HAVE_SOCKADDR_LEN
+    to.ss_len = sizeof (struct sockaddr_in);
+#endif
     to.ss_family = AF_INET;
     ((sockaddr_in&)to).sin_addr.s_addr = *(ipv4AddressBits*)(from->data());
-  } else {
+  } else { // IPv6
+#ifdef HAVE_SOCKADDR_LEN
+    to.ss_len = sizeof (struct sockaddr_in6);
+#endif
     to.ss_family = AF_INET6;
     for (unsigned i = 0; i < 16; ++i) {
       ((sockaddr_in6&)to).sin6_addr.s6_addr[i] = (from->data())[i];
@@ -355,21 +375,19 @@ void* AddressPortLookupTable::Iterator::next() {
 
 ////////// isMulticastAddress() implementation //////////
 
-Boolean IsMulticastAddress(netAddressBits address) {
-  // Note: We return False for addresses in the range 224.0.0.0
-  // through 224.0.0.255, because these are non-routable
-  netAddressBits addressInNetworkOrder = htonl(address);
-  return addressInNetworkOrder >  0xE00000FF &&
-         addressInNetworkOrder <= 0xEFFFFFFF;
-}
 Boolean IsMulticastAddress(struct sockaddr_storage const& address) {
   switch (address.ss_family) {
     case AF_INET: {
-      return IsMulticastAddress(((sockaddr_in const&)address).sin_addr.s_addr);
+      ipv4AddressBits addressInNetworkOrder
+	= htonl(((sockaddr_in const&)address).sin_addr.s_addr);
+      // Note: We return False for addresses in the range 224.0.0.0
+      // through 224.0.0.255, because these are non-routable
+      return addressInNetworkOrder >  0xE00000FF &&
+	addressInNetworkOrder <= 0xEFFFFFFF;
     }
     case AF_INET6: {
-      // An IPv6 address is multicast if the top two bits are 1:
-      return (((sockaddr_in6 const&)address).sin6_addr.s6_addr[0] & 0xC0) == 0xC0;
+      // An IPv6 address is multicast if the first byte is 0xFF:
+      return ((sockaddr_in6 const&)address).sin6_addr.s6_addr[0] == 0xFF;
     }
     default: {
       return False;
@@ -432,16 +450,29 @@ AddressString::~AddressString() {
   delete[] fVal;
 }
 
-portNumBits portNum(struct sockaddr_storage const& addr) {
-  switch (addr.ss_family) {
+portNumBits portNum(struct sockaddr_storage const& address) {
+  switch (address.ss_family) {
     case AF_INET: {
-      return ((sockaddr_in&)addr).sin_port;
+      return ((sockaddr_in&)address).sin_port;
     }
     case AF_INET6: {
-      return ((sockaddr_in6&)addr).sin6_port;
+      return ((sockaddr_in6&)address).sin6_port;
     }
     default: {
       return 0;
+    }
+  }
+}
+
+void setPortNum(struct sockaddr_storage& address, portNumBits portNum/*in network order*/) {
+  switch (address.ss_family) {
+    case AF_INET: {
+      ((sockaddr_in&)address).sin_port = portNum;
+      break;
+    }
+    case AF_INET6: {
+      ((sockaddr_in6&)address).sin6_port = portNum;
+      break;
     }
   }
 }

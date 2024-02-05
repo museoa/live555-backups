@@ -97,8 +97,7 @@ Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& group
   : OutputSocket(env, port),
     fDests(new destRecord(groupAddr, port, ttl, 0, NULL)),
     fIncomingGroupEId(groupAddr, port.num(), ttl) {
-  if (!socketJoinGroup(env, socketNum(), ((struct sockaddr_in const&)groupAddr).sin_addr.s_addr)) {
-    // Later, update to support IPv6
+  if (!socketJoinGroup(env, socketNum(), groupAddr)) {
     if (DebugLevel >= 1) {
       env << *this << ": failed to join group: "
 	  << env.getResultMsg() << "\n";
@@ -124,16 +123,13 @@ Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& group
     fDests(new destRecord(groupAddr, port, 255, 0, NULL)),
     fIncomingGroupEId(groupAddr, sourceFilterAddr, port.num()) {
   // First try a SSM join.  If that fails, try a regular join:
-  if (!socketJoinGroupSSM(env, socketNum(), ((struct sockaddr_in const&)groupAddr).sin_addr.s_addr,
-			  ((struct sockaddr_in const&)sourceFilterAddr).sin_addr.s_addr)) {
-    // Later, update to support IPv6
+  if (!socketJoinGroupSSM(env, socketNum(), groupAddr, sourceFilterAddr)) {
     if (DebugLevel >= 3) {
       env << *this << ": SSM join failed: "
 	  << env.getResultMsg();
       env << " - trying regular join instead\n";
     }
-    if (!socketJoinGroup(env, socketNum(), ((struct sockaddr_in const&)groupAddr).sin_addr.s_addr)) {
-    // Later, update to support IPv6
+    if (!socketJoinGroup(env, socketNum(), groupAddr)) {
       if (DebugLevel >= 1) {
 	env << *this << ": failed to join group: "
 	     << env.getResultMsg() << "\n";
@@ -146,15 +142,11 @@ Groupsock::Groupsock(UsageEnvironment& env, struct sockaddr_storage const& group
 
 Groupsock::~Groupsock() {
   if (isSSM()) {
-    if (!socketLeaveGroupSSM(env(), socketNum(),
-			     ((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr,
-			     ((struct sockaddr_in const&)sourceFilterAddress()).sin_addr.s_addr)) {
-      socketLeaveGroup(env(), socketNum(), ((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr);
-        // later fix to support IPv6
+    if (!socketLeaveGroupSSM(env(), socketNum(), groupAddress(), sourceFilterAddress())) {
+      socketLeaveGroup(env(), socketNum(), groupAddress());
     }
   } else {
-    socketLeaveGroup(env(), socketNum(), ((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr);
-        // later fix to support IPv6
+    socketLeaveGroup(env(), socketNum(), groupAddress());
   }
 
   delete fDests;
@@ -188,8 +180,8 @@ Groupsock::changeDestinationParameters(struct sockaddr_storage const& newDestAdd
       // If the new destination is a multicast address, then we assume that
       // we want to join it also.  (If this is not in fact the case, then
       // call "multicastSendOnly()" afterwards.)
-      socketLeaveGroup(env(), socketNum(), ((struct sockaddr_in&)destAddr).sin_addr.s_addr); // later fix for IPv6
-      socketJoinGroup(env(), socketNum(), ((struct sockaddr_in&)newDestAddr).sin_addr.s_addr); // later fix for IPv6
+      socketLeaveGroup(env(), socketNum(), destAddr);
+      socketJoinGroup(env(), socketNum(), newDestAddr);
     }
     destAddr = newDestAddr;
   }
@@ -201,7 +193,7 @@ Groupsock::changeDestinationParameters(struct sockaddr_storage const& newDestAdd
       // Also bind to the new port number:
       changePort(newDestPort);
       // And rejoin the multicast group:
-      socketJoinGroup(env(), socketNum(), ((struct sockaddr_in&)destAddr).sin_addr.s_addr); // later, fix for IPv6
+      socketJoinGroup(env(), socketNum(), destAddr);
     }
     destPortNum = newDestPort.num();
   }
@@ -233,7 +225,7 @@ void Groupsock::addDestination(struct sockaddr_storage const& addr, Port const& 
   for (destRecord* dest = fDests; dest != NULL; dest = dest->fNext) {
     if (dest->fSessionId == sessionId &&
 	dest->fGroupEId.groupAddress() == addr &&
-	dest->fGroupEId.portNum() == ((struct sockaddr_in const&)addr).sin_port/*same posn for IPv6*/) {
+	dest->fGroupEId.portNum() == portNum(addr)) {
       return;
     }
   }
@@ -254,11 +246,10 @@ void Groupsock::multicastSendOnly() {
   // We disable this code for now, because - on some systems - leaving the multicast group seems to cause sent packets
   // to not be received by other applications (at least, on the same host).
 #if 0
-  socketLeaveGroup(env(), socketNum(), ((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr);
+  socketLeaveGroup(env(), socketNum(), groupAddress(r);
   for (destRecord* dests = fDests; dests != NULL; dests = dests->fNext) {
-    socketLeaveGroup(env(), socketNum(), dests->fGroupEId.((struct sockaddr_in const&)groupAddress()).sin_addr.s_addr);
+    socketLeaveGroup(env(), socketNum(), dests->fGroupEId.groupAddress(r);
   }
-      // later fix to suppor IPv6
 #endif
 }
 
@@ -347,7 +338,7 @@ destRecord* Groupsock
 ::lookupDestRecordFromDestination(struct sockaddr_storage const& targetAddrAndPort) const {
   for (destRecord* dest = fDests; dest != NULL; dest = dest->fNext) {
     if (dest->fGroupEId.groupAddress() == targetAddrAndPort &&
-	dest->fGroupEId.portNum() == ((struct sockaddr_in const&)targetAddrAndPort).sin_port/*same posn in IPv6*/) {
+	dest->fGroupEId.portNum() == portNum(targetAddrAndPort)) {
       return dest;
     }
   }

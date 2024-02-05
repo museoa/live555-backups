@@ -65,6 +65,8 @@ private:
 struct sockaddr_storage const& nullAddress();
 Boolean addressIsNull(sockaddr_storage const& address);
 
+SOCKLEN_T addressSize(sockaddr_storage const& address);
+
 void copyAddress(struct sockaddr_storage& to, NetAddress const* from);
 
 Boolean operator==(struct sockaddr_storage const& left, struct sockaddr_storage const& right);
@@ -172,7 +174,6 @@ private:
 };
 
 
-Boolean IsMulticastAddress(netAddressBits address); // eventually remove for IPv6, in favor of:
 Boolean IsMulticastAddress(struct sockaddr_storage const& address);
 
 
@@ -188,7 +189,7 @@ public:
   // IPv6 input:
   AddressString(struct sockaddr_in6 const& addr);
   AddressString(struct in6_addr const& addr);
-  AddressString(ipv6AddressBits const& addr); // "addr" is assumed to be in host byte order
+  AddressString(ipv6AddressBits const& addr);
 
   // IPv4 or IPv6 input:
   AddressString(struct sockaddr_storage const& addr);
@@ -205,6 +206,7 @@ private:
   char* fVal; // The result ASCII string: allocated by the constructor; deleted by the destructor
 };
 
-portNumBits portNum(struct sockaddr_storage const& addr);
+portNumBits portNum(struct sockaddr_storage const& address);
+void setPortNum(struct sockaddr_storage& address, portNumBits portNum/*in network order*/);
 
 #endif

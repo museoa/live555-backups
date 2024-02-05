@@ -513,11 +513,12 @@ static void clearMulticastAllSocketOption(int socket) {
 }
 
 Boolean socketJoinGroup(UsageEnvironment& env, int socket,
-			netAddressBits groupAddress){
+			struct sockaddr_storage const& groupAddress){
   if (!IsMulticastAddress(groupAddress)) return True; // ignore this case
+  if (groupAddress.ss_family != AF_INET) return False; // later, support IPv6
 
   struct ip_mreq imr;
-  imr.imr_multiaddr.s_addr = groupAddress;
+  imr.imr_multiaddr.s_addr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
   imr.imr_interface.s_addr = ReceivingInterfaceAddr;
   if (setsockopt(socket, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 		 (const char*)&imr, sizeof (struct ip_mreq)) < 0) {
@@ -539,11 +540,12 @@ Boolean socketJoinGroup(UsageEnvironment& env, int socket,
 }
 
 Boolean socketLeaveGroup(UsageEnvironment&, int socket,
-			 netAddressBits groupAddress) {
+			 struct sockaddr_storage const& groupAddress) {
   if (!IsMulticastAddress(groupAddress)) return True; // ignore this case
+  if (groupAddress.ss_family != AF_INET) return False; // later, support IPv6
 
   struct ip_mreq imr;
-  imr.imr_multiaddr.s_addr = groupAddress;
+  imr.imr_multiaddr.s_addr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
   imr.imr_interface.s_addr = ReceivingInterfaceAddr;
   if (setsockopt(socket, IPPROTO_IP, IP_DROP_MEMBERSHIP,
 		 (const char*)&imr, sizeof (struct ip_mreq)) < 0) {
@@ -577,18 +579,19 @@ struct ip_mreq_source {
 #endif
 
 Boolean socketJoinGroupSSM(UsageEnvironment& env, int socket,
-			   netAddressBits groupAddress,
-			   netAddressBits sourceFilterAddr) {
+			   struct sockaddr_storage const& groupAddress,
+			   struct sockaddr_storage const& sourceFilterAddr) {
   if (!IsMulticastAddress(groupAddress)) return True; // ignore this case
+  if (groupAddress.ss_family != AF_INET) return False; // later, support IPv6
 
   struct ip_mreq_source imr;
 #if ANDROID_OLD_NDK
-    imr.imr_multiaddr = groupAddress;
-    imr.imr_sourceaddr = sourceFilterAddr;
+    imr.imr_multiaddr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
+    imr.imr_sourceaddr = ((struct sockaddr_in&)sourceFilterAddr).sin_addr.s_addr;
     imr.imr_interface = ReceivingInterfaceAddr;
 #else
-    imr.imr_multiaddr.s_addr = groupAddress;
-    imr.imr_sourceaddr.s_addr = sourceFilterAddr;
+    imr.imr_multiaddr.s_addr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
+    imr.imr_sourceaddr.s_addr = ((struct sockaddr_in&)sourceFilterAddr).sin_addr.s_addr;
     imr.imr_interface.s_addr = ReceivingInterfaceAddr;
 #endif
   if (setsockopt(socket, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP,
@@ -603,18 +606,19 @@ Boolean socketJoinGroupSSM(UsageEnvironment& env, int socket,
 }
 
 Boolean socketLeaveGroupSSM(UsageEnvironment& /*env*/, int socket,
-			    netAddressBits groupAddress,
-			    netAddressBits sourceFilterAddr) {
+			    struct sockaddr_storage const& groupAddress,
+			    struct sockaddr_storage const& sourceFilterAddr) {
   if (!IsMulticastAddress(groupAddress)) return True; // ignore this case
+  if (groupAddress.ss_family != AF_INET) return False; // later, support IPv6
 
   struct ip_mreq_source imr;
 #if ANDROID_OLD_NDK
-    imr.imr_multiaddr = groupAddress;
-    imr.imr_sourceaddr = sourceFilterAddr;
+    imr.imr_multiaddr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
+    imr.imr_sourceaddr = ((struct sockaddr_in&)sourceFilterAddr).sin_addr.s_addr;
     imr.imr_interface = ReceivingInterfaceAddr;
 #else
-    imr.imr_multiaddr.s_addr = groupAddress;
-    imr.imr_sourceaddr.s_addr = sourceFilterAddr;
+    imr.imr_multiaddr.s_addr = ((struct sockaddr_in&)groupAddress).sin_addr.s_addr;
+    imr.imr_sourceaddr.s_addr = ((struct sockaddr_in&)sourceFilterAddr).sin_addr.s_addr;
     imr.imr_interface.s_addr = ReceivingInterfaceAddr;
 #endif
   if (setsockopt(socket, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP,
@@ -626,13 +630,13 @@ Boolean socketLeaveGroupSSM(UsageEnvironment& /*env*/, int socket,
 }
 
 static Boolean getSourcePort0(int socket, portNumBits& resultPortNum/*host order*/) {
-  sockaddr_storage test;
-  ((sockaddr_in&)test).sin_port = 0; // same position for both IPv4 and IPv6
+  sockaddr_storage testAddr;
+  setPortNum(testAddr, 0);
 
-  SOCKLEN_T len = sizeof test;
-  if (getsockname(socket, (struct sockaddr*)&test, &len) < 0) return False;
+  SOCKLEN_T len = sizeof testAddr;
+  if (getsockname(socket, (struct sockaddr*)&testAddr, &len) < 0) return False;
 
-  resultPortNum = ntohs(portNum(test));
+  resultPortNum = ntohs(portNum(testAddr));
   return True;
 }
 
@@ -694,7 +698,7 @@ Boolean loopbackWorks = 1;
 netAddressBits ourIPAddress(UsageEnvironment& env) {
   static netAddressBits ourAddress = 0;
   int sock = -1;
-  struct in_addr testAddr;
+  struct sockaddr_storage testAddr;
 
   if (ReceivingInterfaceAddr != INADDR_ANY) {
     // Hack: If we were told to receive on a specific interface address, then 
@@ -716,19 +720,19 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
 #ifndef DISABLE_LOOPBACK_IP_ADDRESS_CHECK
       NetAddressList testAddrs("228.67.43.91");
       if (testAddrs.numAddresses() == 0) break; // shouldn't happen
-      testAddr.s_addr = *(testAddrs.firstAddress()->data());
+      copyAddress(testAddr, testAddrs.firstAddress());
 
-      Port testPort(15947); // ditto
+      Port testPort(15947);
 
       sock = setupDatagramSocket(env, testPort);
       if (sock < 0) break;
 
-      if (!socketJoinGroup(env, sock, testAddr.s_addr)) break;
+      if (!socketJoinGroup(env, sock, testAddr)) break;
 
       unsigned char testString[] = "hostIdTest";
       unsigned testStringLength = sizeof testString;
 
-      MAKE_SOCKADDR_IN(testAddressAndPort, testAddr.s_addr, testPort.num());
+      MAKE_SOCKADDR_IN(testAddressAndPort, ((struct sockaddr_in&)testAddr).sin_addr.s_addr, testPort.num());
       if (!writeSocket(env, sock, (struct sockaddr_storage const&)testAddressAndPort, 0,
 		       testString, testStringLength)) break;
 
@@ -758,7 +762,7 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
     } while (0);
 
     if (sock >= 0) {
-      socketLeaveGroup(env, sock, testAddr.s_addr);
+      socketLeaveGroup(env, sock, testAddr);
       closeSocket(sock);
     }
 
@@ -810,16 +814,16 @@ netAddressBits ourIPAddress(UsageEnvironment& env) {
   return ourAddress;
 }
 
-netAddressBits chooseRandomIPv4SSMAddress(UsageEnvironment& env) {
+ipv4AddressBits chooseRandomIPv4SSMAddress(UsageEnvironment& env) {
   // First, a hack to ensure that our random number generator is seeded:
   (void) ourIPAddress(env);
 
   // Choose a random address in the range [232.0.1.0, 232.255.255.255)
   // i.e., [0xE8000100, 0xE8FFFFFF)
-  netAddressBits const first = 0xE8000100, lastPlus1 = 0xE8FFFFFF;
-  netAddressBits const range = lastPlus1 - first;
+  ipv4AddressBits const first = 0xE8000100, lastPlus1 = 0xE8FFFFFF;
+  ipv4AddressBits const range = lastPlus1 - first;
 
-  return ntohl(first + ((netAddressBits)our_random())%range);
+  return ntohl(first + ((ipv4AddressBits)our_random())%range);
 }
 
 char const* timestampString() {

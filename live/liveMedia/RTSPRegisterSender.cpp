@@ -79,7 +79,7 @@ void RTSPRegisterSender::grabConnection(int& sock, struct sockaddr_storage& remo
   sock = grabSocket();
 
   remoteAddress = fServerAddress;
-  ((struct sockaddr_in&)remoteAddress).sin_port = htons(fRemoteClientPortNum); // same posn for IPv6
+  setPortNum(remoteAddress, htons(fRemoteClientPortNum));
 }
 
 RTSPRegisterSender

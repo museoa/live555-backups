@@ -40,17 +40,14 @@ Boolean GroupEId::isSSM() const {
   return !addressIsNull(fSourceFilterAddress);
 }
 
-portNumBits GroupEId::portNum() const {
-  return ((struct sockaddr_in const&)fGroupAddress).sin_port; // same position for IPv6
-}
+portNumBits GroupEId::portNum() const { return ::portNum(fGroupAddress); }
 
 void GroupEId::init(struct sockaddr_storage const& groupAddr,
 		    struct sockaddr_storage const& sourceFilterAddr,
 		    portNumBits portNum,
 		    u_int8_t ttl) {
   fGroupAddress = groupAddr;
-  ((sockaddr_in&)fGroupAddress).sin_port = portNum; // same position for IPv6
-  
+  setPortNum(fGroupAddress, portNum);
   fSourceFilterAddress = sourceFilterAddr;
 
   fTTL = ttl;

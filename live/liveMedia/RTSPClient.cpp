@@ -924,13 +924,11 @@ int RTSPClient::openConnection() {
 }
 
 int RTSPClient::connectToServer(int socketNum, portNumBits remotePortNum) {
-  ((struct sockaddr_in&)fServerAddress).sin_port = htons(remotePortNum); // same posn for IPv6
-  SOCKLEN_T address_len
-      = fServerAddress.ss_family == AF_INET ? sizeof (sockaddr_in) : sizeof (sockaddr_in6);
+  setPortNum(fServerAddress, htons(remotePortNum));
   if (fVerbosityLevel >= 1) {
     envir() << "Connecting to " << AddressString(fServerAddress).val() << ", port " << remotePortNum << " on socket " << socketNum << "...\n";
   }
-  if (connect(socketNum, (struct sockaddr*)&fServerAddress, address_len) != 0) {
+  if (connect(socketNum, (struct sockaddr*)&fServerAddress, addressSize(fServerAddress)) != 0) {
     int const err = envir().getErrno();
     if (err == EINPROGRESS || err == EWOULDBLOCK) {
       // The connection is pending; we'll need to handle it later.  Wait for our socket to be 'writable', or have an exception.
