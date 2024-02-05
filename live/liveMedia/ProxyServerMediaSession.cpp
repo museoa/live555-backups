@@ -330,7 +330,7 @@ void ProxyRTSPClient::continueAfterLivenessCommand(int resultCode, Boolean serve
   scheduleLivenessCommand();
 }
 
-#define SUBSESSION_TIMEOUT_SECONDS 10 // how many seconds to wait for the last track's "SETUP" to be done (note below)
+#define SUBSESSION_TIMEOUT_SECONDS 5 // how many seconds to wait for the last track's "SETUP" to be done (note below)
 
 void ProxyRTSPClient::continueAfterSETUP(int resultCode) {
   if (resultCode != 0) {
@@ -608,8 +608,16 @@ void ProxyServerMediaSubsession::closeStreamSource(FramedSource* inputSource) {
     ProxyServerMediaSession* const sms = (ProxyServerMediaSession*)fParentSession;
     ProxyRTSPClient* const proxyRTSPClient = sms->fProxyRTSPClient;
     if (proxyRTSPClient->fLastCommandWasPLAY) { // so that we send only one "PAUSE"; not one for each subsession
-      proxyRTSPClient->sendPauseCommand(fClientMediaSubsession.parentSession(), NULL, proxyRTSPClient->auth());
-      proxyRTSPClient->fLastCommandWasPLAY = False;
+      if (fParentSession->referenceCount() > 1) {
+	// There are other client(s) still streaming other subsessions of this stream.
+	// Therefore, we don't send a "PAUSE" for the whole stream, but only for the sub-stream:
+	proxyRTSPClient->sendPauseCommand(fClientMediaSubsession, NULL, proxyRTSPClient->auth());
+      } else {
+	// Normal case: There are no other client still streaming (parts of) this stream.
+	// Send a "PAUSE" for the whole stream.
+	proxyRTSPClient->sendPauseCommand(fClientMediaSubsession.parentSession(), NULL, proxyRTSPClient->auth());
+	proxyRTSPClient->fLastCommandWasPLAY = False;
+      }
     }
   }
 }

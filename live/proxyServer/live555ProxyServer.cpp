@@ -29,6 +29,7 @@ UserAuthenticationDatabase* authDBForREGISTER = NULL;
 int verbosityLevel = 0;
 Boolean streamRTPOverTCP = False;
 portNumBits tunnelOverHTTPPortNum = 0;
+portNumBits rtspServerPortNum = 554;
 char* username = NULL;
 char* password = NULL;
 Boolean proxyREGISTERRequests = False;
@@ -47,6 +48,7 @@ void usage() {
   *env << "Usage: " << progName
        << " [-v|-V]"
        << " [-t|-T <http-port>]"
+       << " [-p <rtspServer-port>]"
        << " [-u <username> <password>]"
        << " [-R] [-U <username-for-REGISTER> <password-for-REGISTER>]"
        << " <rtsp-url-1> ... <rtsp-url-n>\n";
@@ -64,7 +66,8 @@ int main(int argc, char** argv) {
 
   *env << "LIVE555 Proxy Server\n"
        << "\t(LIVE555 Streaming Media library version "
-       << LIVEMEDIA_LIBRARY_VERSION_STRING << ")\n\n";
+       << LIVEMEDIA_LIBRARY_VERSION_STRING
+       << "; licensed under the GNU LGPL)\n\n";
 
   // Check command-line arguments: optional parameters, then one or more rtsp:// URLs (of streams to be proxied):
   progName = argv[0];
@@ -108,6 +111,22 @@ int main(int argc, char** argv) {
       break;
     }
 
+    case 'p': {
+      // specify a rtsp server port number 
+      if (argc > 3 && argv[2][0] != '-') {
+        // The next argument is the rtsp server port number:
+        if (sscanf(argv[2], "%hu", &rtspServerPortNum) == 1
+            && rtspServerPortNum > 0) {
+          ++argv; --argc;
+          break;
+        }
+      }
+
+      // If we get here, the option was specified incorrectly:
+      usage();
+      break;
+    }
+    
     case 'u': { // specify a username and password (to be used if the 'back end' (i.e., proxied) stream requires authentication)
       if (argc < 4) usage(); // there's no argv[3] (for the "password")
       username = argv[2];
@@ -167,11 +186,20 @@ int main(int argc, char** argv) {
       // Repeat this line with each <username>, <password> that you wish to allow access to the server.
 #endif
 
-  // Create the RTSP server.  Try first with the default port number (554),
+  // Create the RTSP server. Try first with the configured port number,
+  // and then with the default port number (554) if different,
   // and then with the alternative port number (8554):
   RTSPServer* rtspServer;
-  portNumBits rtspServerPortNum = 554;
   rtspServer = createRTSPServer(rtspServerPortNum);
+  if (rtspServer == NULL) {
+    if (rtspServerPortNum != 554) {
+      *env << "Unable to create a RTSP server with port number " << rtspServerPortNum << ": " << env->getResultMsg() << "\n";
+      *env << "Trying instead with the standard port numbers (554 and 8554)...\n";
+
+      rtspServerPortNum = 554;
+      rtspServer = createRTSPServer(rtspServerPortNum);
+    }
+  }
   if (rtspServer == NULL) {
     rtspServerPortNum = 8554;
     rtspServer = createRTSPServer(rtspServerPortNum);
