@@ -81,7 +81,7 @@ public:
 class StreamType {
 public:
   char const* description;
-  enum dataType { AUDIO, VIDEO, DATA, UNKNOWN } dataType;
+  enum dataType { AUDIO, VIDEO, DATA, TEXT, UNKNOWN } dataType;
   char const* filenameSuffix;
 
 public:

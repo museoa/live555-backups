@@ -295,6 +295,7 @@ PIDState_STREAM::PIDState_STREAM(MPEG2TransportStreamParser& parser,
 	  st.dataType == StreamType::AUDIO ? "AUDIO" :
 	  st.dataType == StreamType::VIDEO ? "VIDEO" :
 	  st.dataType == StreamType::DATA ? "DATA" :
+	  st.dataType == StreamType::TEXT ? "TEXT" :
 	  "UNKNOWN",
 	  program_number, pid, st.filenameSuffix);
   fprintf(stderr, "Creating new output file \"%s\"\n", fileName);

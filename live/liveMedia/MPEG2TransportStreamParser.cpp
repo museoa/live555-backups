@@ -39,11 +39,11 @@ MPEG2TransportStreamParser
     StreamTypes[0x05] = StreamType("privately-defined data", StreamType::DATA);
     StreamTypes[0x06] = StreamType("privately-defined data", StreamType::DATA);
     StreamTypes[0x0F] = StreamType("AAC audio", StreamType::AUDIO, ".aac");
-#if 0
-    StreamTypes[0x15] = "AAC audio";
-    StreamTypes[0x10] = "MPEG-4 video";
-#endif
+    StreamTypes[0x10] = StreamType("MPEG-4 H.263 based video", StreamType::VIDEO, ".mpv");
     StreamTypes[0x1B] = StreamType("H.264 video", StreamType::VIDEO, ".h264");
+    StreamTypes[0x1C] = StreamType("MPEG-4 raw audio", StreamType::AUDIO, ".mpa");
+    StreamTypes[0x1D] = StreamType("MPEG-4 text", StreamType::TEXT, ".txt");
+    StreamTypes[0x21] = StreamType("JPEG 2000 video", StreamType::VIDEO, ".mjpg");
     StreamTypes[0x24] = StreamType("H.265 video", StreamType::VIDEO, ".h265");
     StreamTypes[0x81] = StreamType("AC-3 audio", StreamType::AUDIO, ".ac3");
   }
