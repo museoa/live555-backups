@@ -1,0 +1,7 @@
+# -*- mode: org; coding: utf-8-unix; fill-column: 80 -*-
+
+#+title: LIVE555 Backups
+
+This repository holds a backup of [[http://www.live555.com/][live555]] tarballs.
+
+The main repo is at [[https://codeberg.org/museoa/live555-backups][Codeberg]]. A mirror is provided on [[https://codeberg.org/museoa/live555-backups][GitHub]].
