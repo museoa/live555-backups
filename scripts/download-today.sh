@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-REMOTE="http://www.live555.com/liveMedia/public"
+# REMOTE="http://www.live555.com/liveMedia/public"
+REMOTE="https://download.live555.com"
 CURL_CMDLINE="--fail --silent --show-error --location"
 
 # Create daily dir
